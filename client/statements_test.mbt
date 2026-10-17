@@ -45,6 +45,7 @@ fn rows_result(
 
 ///|
 async test "prepared cache validates bindings and recovers UNPREPARED once" {
+  let bindings : Array[@types.Value] = [Integer(7)]
   @async.with_task_group(group => {
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     defer server.close()
@@ -57,6 +58,8 @@ async test "prepared cache validates bindings and recovers UNPREPARED once" {
       respond(socket, prepare.header.stream, 8, prepared_result(b"old"))
       let execute = receive(socket)
       assert_eq(execute.header.opcode, 10)
+      // 模拟调用方在网络等待期间修改原数组，恢复时仍应使用最初的参数。
+      bindings[0] = Integer(99)
       let w = @codec.Writer::new()
       w.i32(0x2500)
       w.string("missing")
@@ -67,7 +70,12 @@ async test "prepared cache validates bindings and recovers UNPREPARED once" {
       respond(socket, prepare_again.header.stream, 8, prepared_result(b"new"))
       let execute_again = receive(socket)
       assert_eq(execute_again.header.opcode, 10)
-      assert_eq(@codec.Reader::new(execute_again.body).short_bytes(), b"new")
+      let r = @codec.Reader::new(execute_again.body)
+      assert_eq(r.short_bytes(), b"new")
+      ignore(r.u16())
+      ignore(r.u8())
+      assert_eq(r.u16(), 1)
+      assert_eq(r.bytes(), Some(b"\x00\x00\x00\x07"))
       respond(socket, execute_again.header.stream, 8, rows_result([7], None))
     })
     @client.with_connection(
@@ -93,7 +101,7 @@ async test "prepared cache validates bindings and recovers UNPREPARED once" {
             _ => false
           },
         )
-        guard statement.execute([Integer(7)]) is Rows(page) else {
+        guard statement.execute(bindings) is Rows(page) else {
           fail("expected row")
         }
         assert_eq(page.get(0, "id"), @types.Value::Integer(7))

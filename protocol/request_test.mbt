@@ -79,3 +79,18 @@ test "reject invalid page size and serial consistency before sending" {
     },
   )
 }
+
+///|
+test "SERIAL and LOCAL_SERIAL are valid read consistency levels" {
+  for level in [@protocol.Consistency::Serial, LocalSerial] {
+    let request = @protocol.query(
+      "SELECT id FROM ks.t WHERE id=1",
+      options=@protocol.QueryOptions::new(consistency=level),
+    )
+    let r = @codec.Reader::new(request.body)
+    ignore(r.long_string())
+    assert_eq(r.u16(), level.code())
+    assert_eq(r.u8(), 0)
+    r.finish()
+  }
+}

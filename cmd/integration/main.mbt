@@ -93,6 +93,14 @@ async fn main {
       }
     }
     assert_eq(seen, count)
+    guard connection.query(
+        "SELECT id FROM mooncql_test.events WHERE device=42 AND id=0",
+        options=@protocol.QueryOptions::new(consistency=Serial),
+      )
+      is Rows(serial_read) else {
+      fail("missing serial read")
+    }
+    assert_eq(serial_read.get(0, "id"), @types.Value::Integer(0))
     if count > 113 {
       assert_true(page_count > 1)
     }

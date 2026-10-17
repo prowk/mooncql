@@ -121,11 +121,6 @@ fn write_parameters(
   if options.serial_consistency is Some(c) && c != Serial && c != LocalSerial {
     raise @codec.CodecError("invalid serial consistency")
   }
-  if options.consistency == Serial || options.consistency == LocalSerial {
-    raise @codec.CodecError(
-      "serial consistency belongs in serial_consistency option",
-    )
-  }
   w.u16(options.consistency.code())
   let mut flags = if values.is_empty() { 0 } else { 1 }
   if options.page_size is Some(_) {

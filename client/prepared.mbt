@@ -67,6 +67,8 @@ pub async fn Prepared::execute(
   values : Array[@types.Value],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
 ) -> @protocol.ResultSet {
+  // 整次执行及可能的一次恢复共用同一份参数快照。
+  let values = @types.snapshot(values)
   self.validate_bindings(values)
   let metadata = self.metadata
   let generation = self.generation
