@@ -1,0 +1,7 @@
+import {
+  "broti/mooncql/protocol",
+  "broti/mooncql/types",
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/debug",
+}

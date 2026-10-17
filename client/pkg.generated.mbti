@@ -1,0 +1,58 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "broti/mooncql/client"
+
+import {
+  "broti/mooncql/protocol",
+  "broti/mooncql/types",
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub async fn connect(config? : Config) -> Connection
+
+// Errors
+pub(all) suberror DriverError {
+  Closed
+  Unexpected(String)
+  Authentication(String)
+  Server(@protocol.ServerError)
+  RequestTimedOut
+  Configuration(String)
+} derive(@debug.Debug)
+pub fn DriverError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct Config {
+  host : String
+  port : Int
+  username : String?
+  password : String?
+  timeout_ms : Int
+  max_frame_bytes : Int
+}
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int) -> Self
+
+pub struct Connection {
+  socket : @socket.Tcp
+  config : Config
+  mutex : @async.Mutex
+  mut closed : Bool
+}
+pub fn Connection::close(Self) -> Unit
+pub fn Connection::is_closed(Self) -> Bool
+pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
+pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> Reply
+pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> @protocol.ResultSet
+
+pub(all) struct Reply {
+  response : @protocol.Response
+  warnings : Array[String]
+  tracing_id : Bytes?
+  custom_payload : Map[String, Bytes?]
+}
+
+// Type aliases
+
+// Traits

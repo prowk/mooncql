@@ -166,7 +166,7 @@ pub fn decode_value(
     }
     Int => Integer(r.i32())
     Double => Real(r.i64().reinterpret_as_double())
-    Float => Single(r.i32().reinterpret_as_float())
+    Float => Single(Float::reinterpret_from_int(r.i32()))
     Timestamp => Timestamp(r.i64())
     Uuid | TimeUuid => Uuid(r.take(16))
     Date => Date(r.i32() ^ -2147483648)

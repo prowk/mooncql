@@ -3,3 +3,9 @@
 // }
 
 pkgtype(kind: "executable")
+
+import {
+  "moonbitlang/async",
+  "broti/mooncql/client",
+  "moonbitlang/core/debug",
+}
