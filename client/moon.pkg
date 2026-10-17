@@ -5,3 +5,7 @@ import {
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
 }
+
+import {
+  "broti/mooncql/codec",
+} for "test"

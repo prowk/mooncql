@@ -19,6 +19,7 @@ pub(all) struct Config {
   password : String?
   timeout_ms : Int
   max_frame_bytes : Int
+  max_in_flight : Int
 }
 
 ///|
@@ -29,8 +30,17 @@ pub fn Config::new(
   password? : String,
   timeout_ms? : Int = 10000,
   max_frame_bytes? : Int = 16777216,
+  max_in_flight? : Int = 128,
 ) -> Config {
-  { host, port, username, password, timeout_ms, max_frame_bytes, }
+  {
+    host,
+    port,
+    username,
+    password,
+    timeout_ms,
+    max_frame_bytes,
+    max_in_flight,
+  }
 }
 
 ///|
@@ -39,13 +49,17 @@ pub struct Connection {
   config : Config
   mutex : @async.Mutex
   mut closed : Bool
+  mut reader_active : Bool
+  mut reader_task : @async.Task[Unit]?
+  pending : Map[Int, Pending]
+  slots : @async.Semaphore
+  mut next_stream : Int
 }
 
 ///|
 pub fn Connection::close(self : Connection) -> Unit {
   if !self.closed {
-    self.closed = true
-    self.socket.close()
+    self.fail(Closed)
   }
 }
 
@@ -86,6 +100,14 @@ pub async fn Connection::request(
   if self.closed {
     raise Closed
   }
+  if request.body.length() > self.config.max_frame_bytes {
+    raise Configuration("request exceeds frame limit")
+  }
+  if self.reader_active {
+    return @async.with_timeout(self.config.timeout_ms, error=RequestTimedOut, () => {
+      self.exchange(request, cached)
+    })
+  }
   self.mutex.acquire()
   defer self.mutex.release()
   if self.closed {
@@ -98,9 +120,6 @@ pub async fn Connection::request(
     self.config.timeout_ms,
     error=RequestTimedOut,
     () => {
-      if request.body.length() > self.config.max_frame_bytes {
-        raise Unexpected("request exceeds frame limit")
-      }
       self.socket.write(@protocol.encode_frame(0, request.opcode, request.body))
       let frame = read_frame(self.socket, self.config.max_frame_bytes)
       if frame.header.stream != 0 {
@@ -152,7 +171,9 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
   if config.timeout_ms <= 0 ||
     config.max_frame_bytes <= 0 ||
     config.port <= 0 ||
-    config.port > 65535 {
+    config.port > 65535 ||
+    config.max_in_flight < 1 ||
+    config.max_in_flight > 32768 {
     raise Configuration("invalid timeout, frame limit or port")
   }
   if (config.username is None) != (config.password is None) {
@@ -166,6 +187,11 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
     config,
     mutex: @async.Mutex(),
     closed: false,
+    reader_active: false,
+    reader_task: None,
+    pending: Map([]),
+    slots: @async.Semaphore(config.max_in_flight),
+    next_stream: 0,
   }
   let mut ready = false
   defer (if !ready { connection.close() })

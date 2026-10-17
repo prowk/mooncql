@@ -5,12 +5,15 @@ import {
   "broti/mooncql/protocol",
   "broti/mooncql/types",
   "moonbitlang/async",
+  "moonbitlang/async/semaphore",
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
 }
 
 // Values
 pub async fn connect(config? : Config) -> Connection
+
+pub async fn[T] with_connection(config? : Config, async (Connection) -> T) -> T
 
 // Errors
 pub(all) suberror DriverError {
@@ -31,20 +34,28 @@ pub(all) struct Config {
   password : String?
   timeout_ms : Int
   max_frame_bytes : Int
+  max_in_flight : Int
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int) -> Self
 
 pub struct Connection {
   socket : @socket.Tcp
   config : Config
   mutex : @async.Mutex
   mut closed : Bool
+  mut reader_active : Bool
+  mut reader_task : @async.Task[Unit]?
+  pending : Map[Int, Pending]
+  slots : @semaphore.Semaphore
+  mut next_stream : Int
 }
 pub fn Connection::close(Self) -> Unit
 pub fn Connection::is_closed(Self) -> Bool
 pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
 pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> Reply
 pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> @protocol.ResultSet
+
+type Pending
 
 pub(all) struct Reply {
   response : @protocol.Response
