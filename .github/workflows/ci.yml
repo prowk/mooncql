@@ -1,0 +1,11 @@
+name: checks
+on: [push, pull_request]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1
+      - run: moon check --target native
+      - run: moon test --target native
+      - run: moon info && moon fmt --check
