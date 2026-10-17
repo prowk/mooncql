@@ -10,9 +10,15 @@ import {
 // Values
 pub fn decode_envelope(Frame) -> Envelope raise @codec.CodecError
 
+pub fn decode_error(Bytes) -> ServerError raise @codec.CodecError
+
 pub fn decode_frame(Bytes, max_body? : Int) -> Frame raise @codec.CodecError
 
 pub fn decode_header(Bytes, max_body? : Int) -> Header raise @codec.CodecError
+
+pub fn decode_response(Int, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError
+
+pub fn decode_result(Bytes, cached? : Array[Column]) -> ResultSet raise @codec.CodecError
 
 pub fn encode_frame(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
 
@@ -22,11 +28,21 @@ pub fn password_auth(String, String) -> Request raise @codec.CodecError
 
 pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
+pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError
+
 pub fn startup() -> Request raise @codec.CodecError
 
 // Errors
 
 // Types and methods
+pub(all) struct Column {
+  keyspace : String
+  table : String
+  name : String
+  typ : @types.CqlType
+} derive(@debug.Debug)
+pub fn Column::to_repr(Self) -> @debug.Repr
+
 pub(all) enum Consistency {
   Any
   One
@@ -53,6 +69,16 @@ pub(all) struct Envelope {
 } derive(@debug.Debug)
 pub fn Envelope::to_repr(Self) -> @debug.Repr
 
+pub(all) enum ErrorDetail {
+  Other(Bytes)
+  Unavailable(Int, Int, Int)
+  ReadTimeout(Int, Int, Int, Bool)
+  WriteTimeout(Int, Int, Int, String)
+  AlreadyExists(String, String)
+  Unprepared(Bytes)
+} derive(@debug.Debug)
+pub fn ErrorDetail::to_repr(Self) -> @debug.Repr
+
 pub(all) struct Frame {
   header : Header
   body : Bytes
@@ -72,6 +98,20 @@ pub fn Header::equal(Self, Self) -> Bool
 pub fn Header::not_equal(Self, Self) -> Bool
 pub fn Header::to_repr(Self) -> @debug.Repr
 
+pub(all) struct Metadata {
+  columns : Array[Column]
+  paging_state : Bytes?
+} derive(@debug.Debug)
+pub fn Metadata::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Page {
+  columns : Array[Column]
+  rows : Array[Array[@types.Value]]
+  paging_state : Bytes?
+} derive(@debug.Debug)
+pub fn Page::get(Self, Int, String) -> @types.Value raise @codec.CodecError
+pub fn Page::to_repr(Self) -> @debug.Repr
+
 pub(all) struct QueryOptions {
   consistency : Consistency
   page_size : Int?
@@ -87,6 +127,42 @@ pub(all) struct Request {
   body : Bytes
 } derive(@debug.Debug)
 pub fn Request::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Response {
+  Ready
+  Authenticate(String)
+  AuthChallenge(Bytes?)
+  AuthSuccess(Bytes?)
+  Supported(Map[String, Array[String]])
+  Result(ResultSet)
+  Failure(ServerError)
+  Event(Bytes)
+} derive(@debug.Debug)
+pub fn Response::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ResultSet {
+  Void
+  Rows(Page)
+  SetKeyspace(String)
+  SchemaChanged(SchemaChange)
+} derive(@debug.Debug)
+pub fn ResultSet::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SchemaChange {
+  change : String
+  target : String
+  keyspace : String
+  name : String?
+  arguments : Array[String]
+} derive(@debug.Debug)
+pub fn SchemaChange::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ServerError {
+  code : Int
+  message : String
+  detail : ErrorDetail
+} derive(@debug.Debug)
+pub fn ServerError::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

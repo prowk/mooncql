@@ -11,6 +11,8 @@ pub fn decode_value(CqlType, Bytes?) -> Value raise @codec.CodecError
 
 pub fn encode_scalar(Value) -> Bytes raise @codec.CodecError
 
+pub fn read_type(@codec.Reader, depth? : Int) -> CqlType raise @codec.CodecError
+
 pub fn write_value(@codec.Writer, Value) -> Unit raise @codec.CodecError
 
 // Errors
