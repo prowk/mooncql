@@ -1,31 +1,31 @@
 ///|
-test "query frame matches v4 wire header" {
-  let bytes = @protocol.encode_frame(3, 7, b"abc")
-  assert_eq(bytes, b"\x04\x00\x00\x03\x07\x00\x00\x00\x03abc")
-  let frame = @protocol.decode_frame(bytes)
+test "query frame matches v5 envelope header" {
+  let bytes = @protocol.encode_envelope(3, 7, b"abc")
+  assert_eq(bytes, b"\x05\x00\x00\x03\x07\x00\x00\x00\x03abc")
+  let frame = @protocol.decode_message_envelope(bytes)
   assert_eq(frame.header.stream, 3)
   assert_eq(frame.body, b"abc")
 }
 
 ///|
 test "event stream and response direction" {
-  let frame = @protocol.decode_frame(
-    @protocol.encode_frame(-1, 12, b"", response=true),
+  let frame = @protocol.decode_message_envelope(
+    @protocol.encode_envelope(-1, 12, b"", response=true),
   )
   assert_eq(frame.header.stream, -1)
   assert_true(frame.header.response)
 }
 
 ///|
-test "reject invalid version oversized compressed and partial frames" {
+test "reject invalid version oversized and partial frames" {
   for
     bytes in [
-      b"\x05\x00\x00\x00\x02\x00\x00\x00\x00", b"\x84\x01\x00\x00\x02\x00\x00\x00\x00",
-      b"\x84\x00\x00\x00\x02\x7f\xff\xff\xff", b"\x84\x00\x00\x00\x02\x00\x00\x00\x01",
+      b"\x03\x00\x00\x00\x02\x00\x00\x00\x00", b"\x85\x00\x00\x00\x02\x7f\xff\xff\xff",
+      b"\x85\x00\x00\x00\x02\x00\x00\x00\x01",
     ] {
     assert_true(
       try {
-        ignore(@protocol.decode_frame(bytes))
+        ignore(@protocol.decode_message_envelope(bytes))
         false
       } catch {
         _ => true
@@ -44,10 +44,10 @@ test "consume tracing warnings and custom payload before message" {
   w.string("key")
   w.bytes(Some(b"value"))
   w.raw(b"message")
-  let frame = @protocol.decode_frame(
-    @protocol.encode_frame(1, 8, w.to_bytes(), response=true, flags=14),
+  let frame = @protocol.decode_message_envelope(
+    @protocol.encode_envelope(1, 8, w.to_bytes(), response=true, flags=14),
   )
-  let envelope = @protocol.decode_envelope(frame)
+  let envelope = @protocol.decode_payload(frame)
   assert_eq(envelope.tracing_id, Some(b"0123456789abcdef"))
   assert_eq(envelope.warnings, ["警告"])
   assert_eq(envelope.custom_payload.get("key"), Some(Some(b"value")))

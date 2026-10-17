@@ -64,9 +64,7 @@ async fn Connection::exchange(
     if self.closed {
       raise Closed
     }
-    self.socket.write(
-      @protocol.encode_frame(stream, request.opcode, request.body),
-    )
+    self.wire.send(stream, request)
   }
   let reply = pending.reply.get()
   completed = true
@@ -79,7 +77,7 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
   defer self.fail(Closed)
   try {
     while !self.closed {
-      let frame = read_frame(self.socket, self.config.max_frame_bytes)
+      let frame = self.wire.receive()
       // 未注册事件订阅，独立的服务端事件不占用请求编号。
       if frame.header.stream == -1 {
         continue
@@ -87,7 +85,7 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
       guard self.pending.get(frame.header.stream) is Some(pending) else {
         raise Unexpected("response for unknown stream")
       }
-      let envelope = @protocol.decode_envelope(frame)
+      let envelope = @protocol.decode_payload(frame)
       let response = @protocol.decode_response(
         frame.header.opcode,
         envelope.message,

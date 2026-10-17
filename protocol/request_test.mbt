@@ -41,7 +41,7 @@ test "query parameters have ordered flags and bound values" {
   let r = @codec.Reader::new(request.body)
   assert_eq(r.long_string(), "SELECT ?")
   assert_eq(r.u16(), 4)
-  assert_eq(r.u8(), 61)
+  assert_eq(r.i32(), 61)
   assert_eq(r.u16(), 3)
   assert_eq(r.bytes(), Some(b"\x00\x00\x00\x2a"))
   assert_eq(r.i32(), -1)
@@ -90,7 +90,7 @@ test "SERIAL and LOCAL_SERIAL are valid read consistency levels" {
     let r = @codec.Reader::new(request.body)
     ignore(r.long_string())
     assert_eq(r.u16(), level.code())
-    assert_eq(r.u8(), 0)
+    assert_eq(r.i32(), 0)
     r.finish()
   }
 }

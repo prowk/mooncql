@@ -35,12 +35,14 @@ pub(all) struct Config {
   timeout_ms : Int
   max_frame_bytes : Int
   max_in_flight : Int
+  compression : Bool
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, compression? : Bool) -> Self
 
 pub struct Connection {
   socket : @socket.Tcp
   config : Config
+  wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
   mut reader_active : Bool
@@ -91,6 +93,8 @@ pub(all) struct Reply {
   tracing_id : Bytes?
   custom_payload : Map[String, Bytes?]
 }
+
+type Wire
 
 // Type aliases
 

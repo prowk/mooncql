@@ -3,24 +3,25 @@ package "broti/mooncql/protocol"
 
 import {
   "broti/mooncql/codec",
+  "broti/mooncql/framing",
   "broti/mooncql/types",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn decode_envelope(Frame) -> Envelope raise @codec.CodecError
+pub fn decode_envelope_header(Bytes, max_body? : Int) -> EnvelopeHeader raise @codec.CodecError
 
 pub fn decode_error(Bytes) -> ServerError raise @codec.CodecError
 
-pub fn decode_frame(Bytes, max_body? : Int) -> Frame raise @codec.CodecError
+pub fn decode_message_envelope(Bytes, max_body? : Int) -> MessageEnvelope raise @codec.CodecError
 
-pub fn decode_header(Bytes, max_body? : Int) -> Header raise @codec.CodecError
+pub fn decode_payload(MessageEnvelope) -> MessagePayload raise @codec.CodecError
 
 pub fn decode_response(Int, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError
 
 pub fn decode_result(Bytes, cached? : Array[Column]) -> ResultSet raise @codec.CodecError
 
-pub fn encode_frame(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
+pub fn encode_envelope(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
 
 pub fn execute(Bytes, Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
@@ -34,7 +35,7 @@ pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> 
 
 pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError
 
-pub fn startup() -> Request raise @codec.CodecError
+pub fn startup(compression? : Bool) -> Request raise @codec.CodecError
 
 // Errors
 
@@ -65,13 +66,26 @@ pub fn Consistency::equal(Self, Self) -> Bool
 pub fn Consistency::not_equal(Self, Self) -> Bool
 pub fn Consistency::to_repr(Self) -> @debug.Repr
 
-pub(all) struct Envelope {
-  tracing_id : Bytes?
-  warnings : Array[String]
-  custom_payload : Map[String, Bytes?]
-  message : Bytes
-} derive(@debug.Debug)
-pub fn Envelope::to_repr(Self) -> @debug.Repr
+pub struct EnvelopeDecoder {
+  max_body : Int
+  mut prefix : Bytes
+  mut header : EnvelopeHeader?
+  mut body : @codec.Writer
+  mut received : Int
+}
+pub fn EnvelopeDecoder::feed(Self, @framing.Frame) -> Array[MessageEnvelope] raise @codec.CodecError
+pub fn EnvelopeDecoder::new(max_body? : Int) -> Self
+
+pub(all) struct EnvelopeHeader {
+  response : Bool
+  flags : Int
+  stream : Int
+  opcode : Int
+  length : Int
+} derive(Eq, @debug.Debug)
+pub fn EnvelopeHeader::equal(Self, Self) -> Bool
+pub fn EnvelopeHeader::not_equal(Self, Self) -> Bool
+pub fn EnvelopeHeader::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ErrorDetail {
   Other(Bytes)
@@ -83,24 +97,21 @@ pub(all) enum ErrorDetail {
 } derive(@debug.Debug)
 pub fn ErrorDetail::to_repr(Self) -> @debug.Repr
 
-pub(all) struct Frame {
-  header : Header
+pub(all) struct MessageEnvelope {
+  header : EnvelopeHeader
   body : Bytes
 } derive(Eq, @debug.Debug)
-pub fn Frame::equal(Self, Self) -> Bool
-pub fn Frame::not_equal(Self, Self) -> Bool
-pub fn Frame::to_repr(Self) -> @debug.Repr
+pub fn MessageEnvelope::equal(Self, Self) -> Bool
+pub fn MessageEnvelope::not_equal(Self, Self) -> Bool
+pub fn MessageEnvelope::to_repr(Self) -> @debug.Repr
 
-pub(all) struct Header {
-  response : Bool
-  flags : Int
-  stream : Int
-  opcode : Int
-  length : Int
-} derive(Eq, @debug.Debug)
-pub fn Header::equal(Self, Self) -> Bool
-pub fn Header::not_equal(Self, Self) -> Bool
-pub fn Header::to_repr(Self) -> @debug.Repr
+pub(all) struct MessagePayload {
+  tracing_id : Bytes?
+  warnings : Array[String]
+  custom_payload : Map[String, Bytes?]
+  message : Bytes
+} derive(@debug.Debug)
+pub fn MessagePayload::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Metadata {
   columns : Array[Column]

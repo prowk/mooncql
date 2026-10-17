@@ -20,6 +20,7 @@ pub(all) struct Config {
   timeout_ms : Int
   max_frame_bytes : Int
   max_in_flight : Int
+  compression : Bool
 }
 
 ///|
@@ -31,6 +32,7 @@ pub fn Config::new(
   timeout_ms? : Int = 10000,
   max_frame_bytes? : Int = 16777216,
   max_in_flight? : Int = 128,
+  compression? : Bool = false,
 ) -> Config {
   {
     host,
@@ -40,6 +42,7 @@ pub fn Config::new(
     timeout_ms,
     max_frame_bytes,
     max_in_flight,
+    compression,
   }
 }
 
@@ -47,6 +50,7 @@ pub fn Config::new(
 pub struct Connection {
   socket : @socket.Tcp
   config : Config
+  wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
   mut reader_active : Bool
@@ -79,21 +83,6 @@ pub(all) struct Reply {
 }
 
 ///|
-async fn read_frame(
-  socket : @socket.Tcp,
-  max_frame_bytes : Int,
-) -> @protocol.Frame {
-  let header = @protocol.decode_header(
-    socket.read_exactly(9),
-    max_body=max_frame_bytes,
-  )
-  if !header.response {
-    raise Unexpected("server sent request frame")
-  }
-  { header, body: socket.read_exactly(header.length), }
-}
-
-///|
 pub async fn Connection::request(
   self : Connection,
   request : @protocol.Request,
@@ -122,12 +111,12 @@ pub async fn Connection::request(
     self.config.timeout_ms,
     error=RequestTimedOut,
     () => {
-      self.socket.write(@protocol.encode_frame(0, request.opcode, request.body))
-      let frame = read_frame(self.socket, self.config.max_frame_bytes)
+      self.wire.send(0, request)
+      let frame = self.wire.receive()
       if frame.header.stream != 0 {
         raise Unexpected("response stream mismatch")
       }
-      let envelope = @protocol.decode_envelope(frame)
+      let envelope = @protocol.decode_payload(frame)
       let response = @protocol.decode_response(
         frame.header.opcode,
         envelope.message,
@@ -187,6 +176,7 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
   let connection = Connection::{
     socket,
     config,
+    wire: Wire::new(socket, config.max_frame_bytes, config.compression),
     mutex: @async.Mutex(),
     closed: false,
     reader_active: false,
@@ -200,16 +190,25 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
   let mut ready = false
   defer (if !ready { connection.close() })
   match connection.request(@protocol.options()).response {
-    Supported(supported) =>
+    Supported(supported) => {
       if !supported.contains("CQL_VERSION") {
         raise Unexpected("server omitted CQL_VERSION")
       }
+      if config.compression {
+        guard supported.get("COMPRESSION") is Some(methods) &&
+          methods.contains("lz4") else {
+          raise Configuration("server does not support LZ4 compression")
+        }
+      }
+    }
     Failure(error) => raise Server(error)
     _ => raise Unexpected("expected SUPPORTED")
   }
-  match connection.request(@protocol.startup()).response {
-    Ready => ()
+  match
+    connection.request(@protocol.startup(compression=config.compression)).response {
+    Ready => connection.wire.framed = true
     Authenticate(authenticator) => {
+      connection.wire.framed = true
       if authenticator != "org.apache.cassandra.auth.PasswordAuthenticator" {
         raise Authentication("unsupported server authenticator")
       }

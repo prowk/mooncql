@@ -74,11 +74,15 @@ pub fn options() -> Request {
 }
 
 ///|
-pub fn startup() -> Request raise @codec.CodecError {
+pub fn startup(compression? : Bool = false) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
-  w.u16(1)
+  w.u16(if compression { 2 } else { 1 })
   w.string("CQL_VERSION")
   w.string("3.0.0")
+  if compression {
+    w.string("COMPRESSION")
+    w.string("lz4")
+  }
   { opcode: 1, body: w.to_bytes(), }
 }
 
@@ -135,7 +139,7 @@ fn write_parameters(
   if options.timestamp is Some(_) {
     flags = flags | 32
   }
-  w.u8(flags)
+  w.i32(flags)
   if !values.is_empty() {
     w.u16(values.length())
     for value in values {

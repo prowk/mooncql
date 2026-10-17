@@ -1,28 +1,95 @@
 ///|
-async fn receive(socket : @socket.Tcp) -> @protocol.Frame {
-  let header = @protocol.decode_header(socket.read_exactly(9))
-  { header, body: socket.read_exactly(header.length), }
+struct Peer {
+  tcp : @socket.Tcp
+  mut framed : Bool
+  compressed : Bool
+  decoder : @protocol.EnvelopeDecoder
+  mut messages : Array[@protocol.MessageEnvelope]
+  mut position : Int
+}
+
+///|
+fn Peer::new(tcp : @socket.Tcp, compressed? : Bool = false) -> Peer {
+  {
+    tcp,
+    framed: false,
+    compressed,
+    decoder: @protocol.EnvelopeDecoder::new(),
+    messages: [],
+    position: 0,
+  }
+}
+
+///|
+fn Peer::close(self : Peer) -> Unit {
+  self.tcp.close()
+}
+
+///|
+async fn Peer::read_some(self : Peer) -> Bytes? {
+  self.tcp.read_some()
+}
+
+///|
+async fn Peer::write(self : Peer, bytes : Bytes) -> Unit {
+  self.tcp.write(bytes)
+}
+
+///|
+async fn receive(socket : Peer) -> @protocol.MessageEnvelope {
+  if !socket.framed {
+    let header = @protocol.decode_envelope_header(socket.tcp.read_exactly(9))
+    return { header, body: socket.tcp.read_exactly(header.length), }
+  }
+  while socket.position == socket.messages.length() {
+    let header = @framing.decode_header(
+      socket.tcp.read_exactly(if socket.compressed { 8 } else { 6 }),
+      compressed=socket.compressed,
+    )
+    socket.messages = socket.decoder.feed(
+      @framing.decode_payload(
+        header,
+        socket.tcp.read_exactly(header.payload_length + 4),
+      ),
+    )
+    socket.position = 0
+  }
+  let message = socket.messages[socket.position]
+  socket.position += 1
+  message
 }
 
 ///|
 async fn respond(
-  socket : @socket.Tcp,
+  socket : Peer,
   stream : Int,
   opcode : Int,
   body : Bytes,
 ) -> Unit {
-  socket.write(@protocol.encode_frame(stream, opcode, body, response=true))
+  let envelope = @protocol.encode_envelope(stream, opcode, body, response=true)
+  if socket.framed {
+    for frame in @framing.split(envelope, compressed=socket.compressed) {
+      socket.write(frame)
+    }
+  } else {
+    socket.write(envelope)
+  }
 }
 
 ///|
-async fn handshake(socket : @socket.Tcp, auth? : Bool = false) -> Unit {
+async fn handshake(socket : Peer, auth? : Bool = false) -> Unit {
   let options = receive(socket)
   assert_eq(options.header.opcode, 5)
   let w = @codec.Writer::new()
-  w.u16(1)
+  w.u16(if socket.compressed { 2 } else { 1 })
   w.string("CQL_VERSION")
   w.u16(1)
   w.string("3.0.0")
+  if socket.compressed {
+    w.string("COMPRESSION")
+    w.u16(1)
+    w.string("lz4")
+  }
   respond(socket, options.header.stream, 6, w.to_bytes())
   let startup = receive(socket)
   assert_eq(startup.header.opcode, 1)
@@ -30,6 +97,7 @@ async fn handshake(socket : @socket.Tcp, auth? : Bool = false) -> Unit {
     let w = @codec.Writer::new()
     w.string("org.apache.cassandra.auth.PasswordAuthenticator")
     respond(socket, startup.header.stream, 3, w.to_bytes())
+    socket.framed = true
     let credentials = receive(socket)
     assert_eq(credentials.header.opcode, 15)
     assert_eq(
@@ -39,6 +107,7 @@ async fn handshake(socket : @socket.Tcp, auth? : Bool = false) -> Unit {
     respond(socket, credentials.header.stream, 16, b"\xff\xff\xff\xff")
   } else {
     respond(socket, startup.header.stream, 2, b"")
+    socket.framed = true
   }
 }
 
@@ -56,7 +125,8 @@ async test "multiplex correlates reversed responses across fragmented and coales
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     defer server.close()
     let worker = group.spawn(() => {
-      let (socket, _) = server.accept()
+      let (tcp, _) = server.accept()
+      let socket = Peer::new(tcp)
       defer socket.close()
       handshake(socket)
       let first = receive(socket)
@@ -66,23 +136,23 @@ async test "multiplex correlates reversed responses across fragmented and coales
       let second_name = @codec.Reader::new(second.body).long_string()
       let w = @codec.Writer::new()
       w.raw(
-        @protocol.encode_frame(
+        @protocol.encode_envelope(
           second.header.stream,
           8,
           named_result(second_name),
           response=true,
         ),
       )
-      w.raw(@protocol.encode_frame(-1, 12, b"ignored event", response=true))
+      w.raw(@protocol.encode_envelope(-1, 12, b"ignored event", response=true))
       w.raw(
-        @protocol.encode_frame(
+        @protocol.encode_envelope(
           first.header.stream,
           8,
           named_result(first_name),
           response=true,
         ),
       )
-      let bytes = w.to_bytes()
+      let bytes = @framing.encode(w.to_bytes())
       socket.write(bytes[0:2].to_owned())
       socket.write(bytes[2:7].to_owned())
       socket.write(bytes[7:].to_owned())
@@ -108,7 +178,8 @@ async test "password authentication sends correct PLAIN exchange" {
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     defer server.close()
     let worker = group.spawn(() => {
-      let (socket, _) = server.accept()
+      let (tcp, _) = server.accept()
+      let socket = Peer::new(tcp)
       defer socket.close()
       handshake(socket, auth=true)
       let query = receive(socket)
@@ -133,7 +204,8 @@ async test "EOF completes every pending request without hanging" {
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
       defer server.close()
       let worker = group.spawn(() => {
-        let (socket, _) = server.accept()
+        let (tcp, _) = server.accept()
+        let socket = Peer::new(tcp)
         defer socket.close()
         handshake(socket)
         ignore(receive(socket))
@@ -176,7 +248,8 @@ async test "scope exit cancels idle reader before closing socket handle" {
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
       defer server.close()
       let worker = group.spawn(() => {
-        let (socket, _) = server.accept()
+        let (tcp, _) = server.accept()
+        let socket = Peer::new(tcp)
         defer socket.close()
         handshake(socket)
         let query = receive(socket)
@@ -200,7 +273,8 @@ async test "request timeout closes connection and does not replay writes" {
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
       defer server.close()
       let worker = group.spawn(() => {
-        let (socket, _) = server.accept()
+        let (tcp, _) = server.accept()
+        let socket = Peer::new(tcp)
         defer socket.close()
         handshake(socket)
         ignore(receive(socket))

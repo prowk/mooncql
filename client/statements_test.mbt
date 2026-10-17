@@ -50,7 +50,8 @@ async test "prepared cache validates bindings and recovers UNPREPARED once" {
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     defer server.close()
     let worker = group.spawn(() => {
-      let (socket, _) = server.accept()
+      let (tcp, _) = server.accept()
+      let socket = Peer::new(tcp)
       defer socket.close()
       handshake(socket)
       let prepare = receive(socket)
@@ -73,7 +74,7 @@ async test "prepared cache validates bindings and recovers UNPREPARED once" {
       let r = @codec.Reader::new(execute_again.body)
       assert_eq(r.short_bytes(), b"new")
       ignore(r.u16())
-      ignore(r.u8())
+      ignore(r.i32())
       assert_eq(r.u16(), 1)
       assert_eq(r.bytes(), Some(b"\x00\x00\x00\x07"))
       respond(socket, execute_again.header.stream, 8, rows_result([7], None))
@@ -117,7 +118,8 @@ async test "pager continues after an empty page and preserves bound values" {
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     defer server.close()
     let worker = group.spawn(() => {
-      let (socket, _) = server.accept()
+      let (tcp, _) = server.accept()
+      let socket = Peer::new(tcp)
       defer socket.close()
       handshake(socket)
       for i = 0; i < 2; i = i + 1 {
@@ -125,7 +127,7 @@ async test "pager continues after an empty page and preserves bound values" {
         let r = @codec.Reader::new(request.body)
         assert_eq(r.long_string(), "SELECT id FROM ks.t WHERE id=?")
         assert_eq(r.u16(), 10)
-        assert_eq(r.u8(), if i == 0 { 5 } else { 13 })
+        assert_eq(r.i32(), if i == 0 { 5 } else { 13 })
         assert_eq(r.u16(), 1)
         assert_eq(r.bytes(), Some(b"\x00\x00\x00\x2a"))
         assert_eq(r.i32(), 2)

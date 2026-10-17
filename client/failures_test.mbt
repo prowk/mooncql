@@ -5,7 +5,8 @@ async test "in-flight limit applies backpressure before a second request is sent
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
       defer server.close()
       let worker = group.spawn(() => {
-        let (socket, _) = server.accept()
+        let (tcp, _) = server.accept()
+        let socket = Peer::new(tcp)
         defer socket.close()
         handshake(socket)
         let first = receive(socket)
@@ -38,7 +39,8 @@ async test "caller cancellation terminates the connection and its pending read" 
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
       defer server.close()
       let worker = group.spawn(() => {
-        let (socket, _) = server.accept()
+        let (tcp, _) = server.accept()
+        let socket = Peer::new(tcp)
         defer socket.close()
         handshake(socket)
         ignore(receive(socket))
@@ -68,18 +70,19 @@ async test "caller cancellation terminates the connection and its pending read" 
 async test "invalid stream truncated frame and oversize frame fail waiting requests" {
   for
     malformed in [
-      b"\x84\x00\x7f\xff\x08\x00\x00\x00\x04\x00\x00\x00\x01", b"\x84\x00", b"\x84\x00\x00\x00\x08\x7f\xff\xff\xff",
+      b"\x85\x00\x7f\xff\x08\x00\x00\x00\x04\x00\x00\x00\x01", b"\x85\x00", b"\x85\x00\x00\x00\x08\x7f\xff\xff\xff",
     ] {
     @async.with_timeout(3000, () => {
       @async.with_task_group(group => {
         let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
         defer server.close()
         let worker = group.spawn(() => {
-          let (socket, _) = server.accept()
+          let (tcp, _) = server.accept()
+          let socket = Peer::new(tcp)
           defer socket.close()
           handshake(socket)
           ignore(receive(socket))
-          socket.write(malformed)
+          socket.write(@framing.encode(malformed))
         })
         @client.with_connection(
           config=@client.Config::new(port=server.addr.port()),
@@ -107,7 +110,8 @@ async test "UNPREPARED recovery is bounded and leaves connection usable" {
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     defer server.close()
     let worker = group.spawn(() => {
-      let (socket, _) = server.accept()
+      let (tcp, _) = server.accept()
+      let socket = Peer::new(tcp)
       defer socket.close()
       handshake(socket)
       for i = 0; i < 2; i = i + 1 {
@@ -152,7 +156,8 @@ async test "missing credentials close the handshake without sending an auth toke
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     defer server.close()
     let worker = group.spawn(() => {
-      let (socket, _) = server.accept()
+      let (tcp, _) = server.accept()
+      let socket = Peer::new(tcp)
       defer socket.close()
       let options = receive(socket)
       let w = @codec.Writer::new()

@@ -39,7 +39,7 @@ test "execute includes opaque id and paging continuation" {
   let r = @codec.Reader::new(request.body)
   assert_eq(r.short_bytes(), b"id")
   assert_eq(r.u16(), 10)
-  assert_eq(r.u8(), 13)
+  assert_eq(r.i32(), 13)
   assert_eq(r.u16(), 1)
   assert_eq(r.bytes(), Some(b"\x00\x00\x00\x07"))
   assert_eq(r.i32(), 3)
