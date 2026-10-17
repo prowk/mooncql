@@ -1,74 +1,88 @@
 # mooncql
 
-用 MoonBit 实现的 Cassandra CQL 原生协议 v4 异步驱动，当前为实验性初版。协议编解码由 MoonBit 实现，原生 TCP 使用官方 `moonbitlang/async`，连接一个明确配置的 Cassandra 协调节点。
+用 MoonBit 原生实现的 **Cassandra Native Protocol v5 异步驱动**。协议编解码、CRC 和 LZ4 块压缩均由 MoonBit 实现，原生 TCP 使用官方 `moonbitlang/async`。当前连接一个明确配置的 Cassandra 协调节点，服务端需要支持正式 v5 协议。
 
-## 已实现
+## 能力
 
-- OPTIONS／STARTUP 握手，无认证和 PasswordAuthenticator 密码认证。
-- 参数化 QUERY、PREPARE／EXECUTE、每连接最多缓存 64 条预处理语句。
+- v5 外层帧与消息 envelope 分层；CRC24 帧头校验、带 Cassandra 固定前缀的 CRC32 载荷校验。
+- 普通帧、LZ4 压缩帧、协商压缩后的原始载荷、大消息分片重组、单帧多消息与 TCP 拆包。
+- OPTIONS／STARTUP 握手、无认证及 PasswordAuthenticator；在 READY／AUTHENTICATE 后切换帧格式。
+- 参数化 QUERY、命名绑定、PREPARE／EXECUTE，以及 logged／unlogged／counter BATCH。
+- 按请求指定 keyspace、32 位查询标志、`now_in_seconds`、一致性级别、串行一致性和默认时间戳。
+- 每连接最多缓存 64 条预处理语句，缓存区分 keyspace；传递结果元数据 ID，并处理元数据变化通知。
 - stream id 多路复用、有界在途请求、写入串行化及作用域内的连接生命周期。
-- 普通查询和预处理查询的惰性分页；空页仍按 paging state 继续。
-- 中文文本、blob、布尔、整数、浮点、UUID、timeuuid、inet、日期和时间。
+- 普通查询和预处理查询的惰性分页；空页仍按 paging state 继续，绑定值与命名列表保持快照。
+- 中文文本、blob、布尔、整数、浮点、UUID、timeuuid、inet、日期、时间与 duration。
 - bigint／timestamp 使用 Int64；decimal 与 varint 保留精确的有符号字节表示。
-- list／set／map、tuple、UDT；预处理参数校验、嵌套上限和分页绑定深拷贝。
-- 保留服务端错误详情、warnings、tracing id 和 custom payload。
-- 超时、取消、EOF、异常帧均结束等待请求；UNPREPARED 最多恢复一次。
+- list／set／map、tuple、UDT，预处理绑定校验与嵌套上限。
+- 服务端结构化错误，包括读写失败原因映射和 CAS 争用信息；保留 warnings、tracing id、custom payload。
 
-当前不提供 TLS、压缩、协议 v5、BATCH、自动重连、多节点连接池、拓扑发现或智能路由。其他 Cassandra 版本及 ScyllaDB 尚未实测。请使用完整限定表名，例如 `app.events`；不支持在共享连接中通过 `USE` 切换 keyspace。
+当前不提供 TLS、自动重连、多节点连接池、拓扑发现或智能路由。已实测 Cassandra 5.0.5；其他 Cassandra 版本及 ScyllaDB 尚未实测。
 
-## 运行示例
+## 快速运行
 
-已实测工具链：`moonc 0.10.14+7d59c7ec9`、`moon 0.1.20260920`、`moonbitlang/async 0.22.3`。默认后端为 native；已在 Windows 原生客户端上连接 WSL 中的 Cassandra 5.0.5。Linux／Windows CI 工作流已配置，远端执行结果需以对应任务为准。
+工具链：`moonc 0.10.14+7d59c7ec9`、`moon 0.1.20260920`、`moonbitlang/async 0.22.3`。默认后端为 native，项目尚未发布到 Mooncakes。
 
-使用 Docker 或本地 Cassandra 提供测试服务：
+Docker 测试环境限定为 v5，默认无认证：
 
 ```sh
 docker compose up -d --wait
 moon run cmd/main
 ```
 
-默认连接 `127.0.0.1:9042`。可通过 `CQL_HOST`、`CQL_PORT`、`CQL_USERNAME`、`CQL_PASSWORD` 配置示例与集成入口；认证信息不会由示例打印。服务器启用 PasswordAuthenticator 时，可在 PowerShell 中设置：
+默认连接 `127.0.0.1:9042`。示例和集成入口支持 `CQL_HOST`、`CQL_PORT`、`CQL_USERNAME`、`CQL_PASSWORD`；设置 `CQL_COMPRESSION=lz4` 开启 LZ4。PowerShell 示例：
 
 ```powershell
-$env:CQL_HOST = '127.0.0.1'
 $env:CQL_PORT = '9042'
-$env:CQL_USERNAME = 'your-user'
-$env:CQL_PASSWORD = 'your-password'
+$env:CQL_COMPRESSION = 'lz4'
 moon run cmd/main
 ```
 
-项目尚未发布到 Mooncakes。库入口为 `broti/mooncql/client`；值类型和查询选项分别位于 `broti/mooncql/types`、`broti/mooncql/protocol`。
+需要 Docker 密码认证时，在启动前设置 `CQL_AUTHENTICATOR=PasswordAuthenticator`；使用专用测试实例的默认账户 `cassandra`／`cassandra` 设置 `CQL_USERNAME` 和 `CQL_PASSWORD`，再运行示例。已有实例应先 `docker compose down` 再启动，配置才会生效。
+
+## 库用法
+
+导入 `moonbitlang/async`、`broti/mooncql/client`、`broti/mooncql/protocol` 和 `broti/mooncql/types`：
 
 ```moonbit
 async fn main {
-  @client.with_connection(connection => {
-    let statement = connection.prepare(
-      "SELECT id, message FROM app.events WHERE device=?",
-    )
-    let pages = statement.pages(
-      [Integer(42)],
-      options=@protocol.QueryOptions::new(page_size=100),
-    )
-    while pages.next() is Some(page) {
-      for i = 0; i < page.rows.length(); i = i + 1 {
-        let message = page.get(i, "message")
-        // 按应用需要匹配 Text、Null 等值类型。
-        ignore(message)
+  @client.with_connection(
+    config=@client.Config::new(compression=true),
+    connection => {
+      let statement = connection.prepare(
+        "SELECT id, message FROM events WHERE device=?",
+        keyspace="app",
+      )
+      let pages = statement.pages(
+        [Integer(42)],
+        options=@protocol.QueryOptions::new(page_size=100, skip_metadata=true),
+      )
+      while pages.next() is Some(page) {
+        for i = 0; i < page.rows.length(); i = i + 1 {
+          // 按应用需要匹配 Text、Null 等值类型。
+          ignore(page.get(i, "message"))
+        }
       }
-    }
-  })
+    },
+  )
 }
 ```
 
-调用包需导入 `moonbitlang/async`、`broti/mooncql/client`、`broti/mooncql/protocol` 和 `broti/mooncql/types`。`with_connection` 负责关闭连接及收发任务，推荐作为入口；`connect` 返回的连接只执行串行交换，调用方需要显式 `close`。返回的 Prepared／Pager 不能跨连接使用，也不能在作用域结束后继续访问网络。
+普通查询可通过 `QueryOptions::new(keyspace="app")` 指定 keyspace。命名绑定使用 `values=[...]` 与 `value_names=[...]`，二者顺序对应；预处理语句使用位置绑定。批处理由 `connection.batch([Query(cql, values), statement.bind_batch(values)], kind=Unlogged, options=...)` 构造，默认类型为 Logged。
+
+`Duration(months, days, nanoseconds)` 的前两项为 Int，最后一项为 Int64，所有非零分量须同号。decimal 表示为 `Decimal(scale, signed_big_endian_bytes)`，varint 同样保留二进制有符号整数；set／map 使用数组表示，不保证元素顺序。
+
+推荐使用 `with_connection` 管理关闭和收发任务；`connect` 返回的连接执行串行交换，调用方需要显式 `close`。Prepared／Pager 在所属连接存活期间有效。共享连接推荐使用完整限定表名或显式 keyspace，避免并发 `USE` 改变连接级上下文。
+
+`skip_metadata=true` 适用于已有元数据的 Prepared／Pager；低层普通请求省略元数据时，需通过 `request(..., cached=columns)` 或 `run(..., cached=columns)` 提供匹配的列定义。
 
 ## 失败语义与边界
 
-超时或取消后会关闭整条连接，使其他在途请求明确失败。连接失效后由应用重新调用 `with_connection`；普通写请求不会自动重放，取消也不表示数据库未执行该请求。
+超时、取消、EOF、损坏帧或非法长度会关闭整条连接，使其他在途请求明确失败。连接失效后由应用重新调用 `with_connection`；普通写请求不会自动重放，取消也不表示数据库未执行该请求。
 
-只有服务端返回匹配语句 ID 的 UNPREPARED 时，才会重新 PREPARE 并重试一次 EXECUTE。其他服务端错误通过 `@client.Server(error)` 返回，正常业务错误不会关闭连接。低层 `request` 返回 Reply，供调用方读取 warnings 等附加信息。
+只有服务端返回匹配语句 ID 的 UNPREPARED 时，Prepared.execute 才重新 PREPARE 并重试一次。BATCH 不自动重放；其中的预处理语句失效时，由调用方处理服务端错误。其他服务端错误通过 `@client.Server(error)` 返回，正常业务错误不会关闭连接。低层 `request` 返回 Reply，可读取 warnings 等附加信息。
 
-默认单帧正文上限为 16 MiB，最大在途请求数为 128，可通过 Config 调整；类型和值递归最多 32 层。每个 Pager 仅允许一个活动的 `next` 调用。decimal 表示为 `Decimal(scale, signed_big_endian_bytes)`，varint 同样保留二进制有符号整数；set／map 使用数组表示，不保证元素顺序。
+外层帧的载荷上限为 131071 字节；更大的消息拆分为连续分片。默认消息正文上限为 16 MiB，由 `Config.max_frame_bytes` 控制，适用于收发及重组；最大在途请求数默认为 128。类型和值递归最多 32 层，每个 Pager 仅允许一个活动的 `next` 调用。
 
 ## 验证
 
@@ -81,35 +95,27 @@ moon info
 moon fmt --check
 ```
 
-测试覆盖反序响应、拆包粘包、挂起读取的取消顺序、在途背压、半帧断连、非法长度、服务端认证、预处理失效恢复及分页状态。
+覆盖固定协议字节、CRC 损坏和截断、LZ4 长度及偏移边界、消息头各位置分割、反序响应、挂起读取取消、背压、认证切帧、并发元数据缓存、预处理失效恢复及分页。duration 固定字节由独立 Python 驱动生成。
 
-真实数据库集成入口创建并清空专用的 `mooncql_test.events` 表，默认并发预处理写入 10,000 条设备事件，再逐页核对全部字段、更新和删除行为：
+真实数据库集成入口会创建或清空专用的 `mooncql_test` 表，包括 events、v5_values、v5_counters 和 v5_metadata：
 
 ```sh
 moon run cmd/integration
-```
-
-`CQL_ROWS` 可调整记录数，范围为 1–100000。已在 Cassandra 5.0.5 的无认证及密码认证模式下各完成 10,000 条写读验证：普通分页 89 页，预处理分页完整读取 10,000 行，ID 校验和 49995000。
-
-在 Python 3.11+ 的独立虚拟环境中安装参考驱动，进一步交叉验证：
-
-```sh
 python -m pip install -r scripts/requirements-reference.txt
 python scripts/interop.py
 ```
 
-该脚本先用 Python 驱动独立核对 MoonBit 写入的全部数据，再写入不同 CQL 类型，调用 `cmd/interop` 由 MoonBit 核对并回写，最后由 Python 确认结果。两种认证模式均已通过。测试数据、临时运行时和本地日志均不纳入版本控制。
+默认并发写入 10,000 条事件，逐页核对全部字段、更新和删除；`CQL_ROWS` 可设为 1–100000。专项验收包括 400000 字节双向传输、duration、三种批处理、命名绑定、请求级 keyspace、TTL 时间覆盖、schema 变化及结果元数据 ID 通知。服务端客户端视图用于核对 MoonBit 实际使用协议 5。
 
-结束 Docker 测试环境：
+参考驱动固定使用正式 v5；先独立核对全部 MoonBit 数据，再写入不同 CQL 类型，由 MoonBit 核对和回写，最后由 Python 确认。设置 `CQL_ASSERT_V5_ONLY=1` 额外确认服务器拒绝旧协议。CI 在 Linux／Windows 上运行单元测试，并对无认证／密码认证、普通帧／LZ4 四种组合运行上述数据库与互操作验收。
 
-```sh
-docker compose down
-```
+结束 Docker 环境：`docker compose down`。测试数据、临时运行时和本地日志不纳入版本控制。
 
 ## 依据
 
-- [Apache CQL binary protocol v4](https://github.com/apache/cassandra/blob/cassandra-4.1/doc/native_protocol_v4.spec)
-- [Apache GoCQL](https://github.com/apache/cassandra-gocql-driver)
+- [Apache CQL binary protocol v5](https://github.com/apache/cassandra/blob/cassandra-5.0/doc/native_protocol_v5.spec)
+- [Apache Cassandra framing](https://github.com/apache/cassandra/tree/cassandra-5.0/src/java/org/apache/cassandra/net)
+- [LZ4 block format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md)
 - [MoonBit async](https://github.com/moonbitlang/async)
 
 Apache-2.0，见 LICENSE。

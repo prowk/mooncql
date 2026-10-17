@@ -9,6 +9,7 @@ async fn main {
     port~,
     username?=@env.get_env_var("CQL_USERNAME"),
     password?=@env.get_env_var("CQL_PASSWORD"),
+    compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
   )
   @client.with_connection(config~, connection => {
     guard connection.query("SELECT * FROM mooncql_test.interop WHERE id=1")
@@ -67,6 +68,29 @@ async fn main {
         Integer(1),
       ]),
     )
-    println("MoonBit verified Python scalar, collection, tuple and UDT values")
+    let payload = Bytes::from_array(
+      Array::makei(400000, i => (i % 251).to_byte()),
+    )
+    guard connection.query(
+        "SELECT d,payload FROM mooncql_test.interop_v5 WHERE id=1",
+      )
+      is Rows(v5) else {
+      fail("missing v5 interop row")
+    }
+    assert_eq(v5.get(0, "d"), @types.Value::Duration(-64, -128, -8192L))
+    assert_eq(v5.get(0, "payload"), @types.Value::Bytes(payload))
+    let insert = connection.prepare(
+      "INSERT INTO mooncql_test.interop_v5 (id,d,payload) VALUES (?,?,?)",
+    )
+    ignore(
+      insert.execute([
+        Integer(2),
+        Duration(2147483647, 2147483647, 9223372036854775807L),
+        Bytes(payload),
+      ]),
+    )
+    println(
+      "MoonBit verified Python scalar, collection, tuple, UDT, duration and large blob values",
+    )
   })
 }

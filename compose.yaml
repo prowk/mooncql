@@ -5,10 +5,22 @@ services:
       MAX_HEAP_SIZE: 512M
       HEAP_NEWSIZE: 100M
       CASSANDRA_CLUSTER_NAME: mooncql-test
+      CQL_AUTHENTICATOR: ${CQL_AUTHENTICATOR:-AllowAllAuthenticator}
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        sed -i 's/^native_transport_allow_older_protocols:.*/native_transport_allow_older_protocols: false/' /etc/cassandra/cassandra.yaml
+        sed -i "s/^authenticator:.*/authenticator: $${CQL_AUTHENTICATOR}/" /etc/cassandra/cassandra.yaml
+        exec /usr/local/bin/docker-entrypoint.sh cassandra -f
     ports:
       - "127.0.0.1:9042:9042"
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'SELECT release_version FROM system.local' >/dev/null 2>&1"]
+      test:
+        - CMD-SHELL
+        - >-
+          if [ "$$CQL_AUTHENTICATOR" = PasswordAuthenticator ]; then
+          cqlsh --protocol-version=5 -u cassandra -p cassandra -e 'SELECT release_version FROM system.local';
+          else cqlsh --protocol-version=5 -e 'SELECT release_version FROM system.local'; fi
       interval: 10s
       timeout: 10s
       retries: 30

@@ -17,6 +17,7 @@ async fn main {
     port=integer_env("CQL_PORT", 9042),
     username?=@env.get_env_var("CQL_USERNAME"),
     password?=@env.get_env_var("CQL_PASSWORD"),
+    compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
     max_in_flight=64,
   )
   @client.with_connection(config~, connection => {
@@ -28,6 +29,20 @@ async fn main {
       fail("missing version text")
     }
     println("Connected to Cassandra: \{release}")
+    guard connection.query(
+        "SELECT driver_name,protocol_version FROM system_views.clients",
+      )
+      is Rows(clients) else {
+      fail("missing client protocol view")
+    }
+    let mut identified = false
+    for i = 0; i < clients.rows.length(); i = i + 1 {
+      if clients.get(i, "driver_name") == @types.Value::Text("mooncql") {
+        assert_eq(clients.get(i, "protocol_version"), @types.Value::Integer(5))
+        identified = true
+      }
+    }
+    assert_true(identified)
     ignore(
       connection.query(
         "CREATE KEYSPACE IF NOT EXISTS mooncql_test WITH replication = {'class':'SimpleStrategy','replication_factor':1}",
@@ -163,6 +178,7 @@ async fn main {
     }
     assert_true(server_error)
     assert_true(!connection.is_closed())
+    verify_v5(connection)
     println(
       "PASS rows=\{count} simple_pages=\{page_count} prepared_rows=\{prepared_count} checksum=\{checksum} write_ms=\{write_ms}",
     )

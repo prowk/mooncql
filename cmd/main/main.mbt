@@ -11,6 +11,7 @@ async fn main {
     port~,
     username?=@env.get_env_var("CQL_USERNAME"),
     password?=@env.get_env_var("CQL_PASSWORD"),
+    compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
   )
   @client.with_connection(config~, connection => {
     let result = connection.query(

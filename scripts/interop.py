@@ -7,10 +7,10 @@ import subprocess
 import uuid
 
 from cassandra.auth import PlainTextAuthProvider
-from cassandra.cluster import Cluster, ExecutionProfile, EXEC_PROFILE_DEFAULT
+from cassandra.cluster import Cluster, ExecutionProfile, EXEC_PROFILE_DEFAULT, NoHostAvailable
 from cassandra.policies import RoundRobinPolicy
 from cassandra.query import SimpleStatement
-from cassandra.util import Date, Time
+from cassandra.util import Date, Time, Duration
 
 
 def main():
@@ -20,12 +20,31 @@ def main():
     cluster = Cluster(
         [os.environ.get('CQL_HOST', '127.0.0.1')],
         port=int(os.environ.get('CQL_PORT', '9042')),
-        protocol_version=4,
+        protocol_version=5,
+        compression="lz4" if os.environ.get("CQL_COMPRESSION") == "lz4" else False,
         auth_provider=auth,
         execution_profiles={EXEC_PROFILE_DEFAULT: ExecutionProfile(load_balancing_policy=RoundRobinPolicy())},
     )
     try:
         session = cluster.connect()
+        assert cluster.protocol_version == 5
+        if os.environ.get('CQL_ASSERT_V5_ONLY') == '1':
+            legacy = Cluster(
+                [os.environ.get('CQL_HOST', '127.0.0.1')],
+                port=int(os.environ.get('CQL_PORT', '9042')),
+                protocol_version=4, compression=False, auth_provider=auth,
+                execution_profiles={EXEC_PROFILE_DEFAULT: ExecutionProfile(load_balancing_policy=RoundRobinPolicy())},
+            )
+            try:
+                try:
+                    legacy.connect()
+                except NoHostAvailable as error:
+                    assert any('version' in str(reason).lower() for reason in error.errors.values()), error
+                else:
+                    raise AssertionError('Server accepted an older native protocol')
+            finally:
+                legacy.shutdown()
+            print('Server rejects older protocols; reference driver uses v5', flush=True)
         expected = int(os.environ.get('CQL_ROWS', '10000'))
         rows = session.execute(SimpleStatement(
             'SELECT id,large_value,message,recorded_at,tags,attrs FROM mooncql_test.events WHERE device=42',
@@ -58,7 +77,17 @@ def main():
             Date('1970-01-02'), Time(123456789), -32768, -128, decimal.Decimal('123.45'),
             2 ** 100 + 3, ('tuple 中文', 42), ('Main 中文', 12345), {'moon', '中文'},
         ))
+        session.execute('CREATE TABLE IF NOT EXISTS mooncql_test.interop_v5 (id int PRIMARY KEY, d duration, payload blob)')
+        v5 = session.prepare('INSERT INTO mooncql_test.interop_v5 (id,d,payload) VALUES (?,?,?)')
+        payload = bytes(i % 251 for i in range(400000))
+        session.execute(v5, (1, Duration(-64, -128, -8192), payload))
+        moonbit = session.execute('SELECT d,payload FROM mooncql_test.v5_values WHERE id=1').one()
+        assert moonbit.d == Duration(64, 128, 8192)
+        assert moonbit.payload == payload
         subprocess.run(['moon', 'run', 'cmd/interop'], check=True)
+        v5_row = session.execute('SELECT d,payload FROM mooncql_test.interop_v5 WHERE id=2').one()
+        assert v5_row.d == Duration(2147483647, 2147483647, 9223372036854775807)
+        assert v5_row.payload == payload
         row = session.execute('SELECT message FROM mooncql_test.interop WHERE id=1').one()
         assert row.message == 'MoonBit verified Python', row.message
         print('PASS independent Python ↔ MoonBit interoperability', flush=True)
