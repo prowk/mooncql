@@ -224,7 +224,14 @@ pub async fn[G] connect(
   } else {
     config.connect_timeout_ms
   }
-  let connection = timed(duration, scope, context, () => open_connection(config))
+  let mut opened : Connection? = None
+  let mut transferred = false
+  defer (if !transferred && opened is Some(connection) { connection.close() })
+  let connection = timed(duration, scope, context, () => {
+    let connection = open_connection(config)
+    opened = Some(connection)
+    connection
+  })
   connection.reader_active = true
   connection.reader_task = Some(
     group.spawn(() => connection.receive_loop(), no_wait=true),
@@ -232,6 +239,7 @@ pub async fn[G] connect(
   connection.reaper_task = Some(
     group.spawn(() => connection.reap_abandoned(), no_wait=true),
   )
+  transferred = true
   connection
 }
 

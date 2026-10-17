@@ -137,15 +137,6 @@ extern "C" fn SSL::unique_channel_binding(
 ///|
 #cfg(not(platform="windows"))
 #borrow(file)
-extern "C" fn SSL::use_certificate_file(
-  self : SSL,
-  file : Bytes,
-  file_type : X509FileType,
-) -> Int = "prowk_mooncql_secure_tls_ssl_use_certificate_file"
-
-///|
-#cfg(not(platform="windows"))
-#borrow(file)
 extern "C" fn SSL::use_private_key_file(
   self : SSL,
   file : Bytes,
