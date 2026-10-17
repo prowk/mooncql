@@ -1,11 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "broti/mooncql/protocol"
+package "prowk/mooncql/protocol"
 
 import {
-  "broti/mooncql/codec",
-  "broti/mooncql/framing",
-  "broti/mooncql/types",
   "moonbitlang/core/debug",
+  "prowk/mooncql/codec",
+  "prowk/mooncql/framing",
+  "prowk/mooncql/types",
 }
 
 // Values

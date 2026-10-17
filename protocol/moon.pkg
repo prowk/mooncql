@@ -1,7 +1,7 @@
 import {
-  "broti/mooncql/framing",
-  "broti/mooncql/codec",
-  "broti/mooncql/types",
+  "prowk/mooncql/framing",
+  "prowk/mooncql/codec",
+  "prowk/mooncql/types",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/debug",
 }

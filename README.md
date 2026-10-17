@@ -21,7 +21,7 @@
 
 ## 快速运行
 
-工具链：`moonc 0.10.14+7d59c7ec9`、`moon 0.1.20260920`、`moonbitlang/async 0.22.3`。默认后端为 native，项目尚未发布到 Mooncakes。
+工具链：`moonc 0.10.14+7d59c7ec9`、`moon 0.1.20260920`、`moonbitlang/async 0.22.3`。默认后端为 native。安装依赖：`moon add prowk/mooncql@0.1.0`。
 
 Docker 测试环境限定为 v5，默认无认证：
 
@@ -42,7 +42,7 @@ moon run cmd/main
 
 ## 库用法
 
-导入 `moonbitlang/async`、`broti/mooncql/client`、`broti/mooncql/protocol` 和 `broti/mooncql/types`：
+导入 `moonbitlang/async`、`prowk/mooncql/client`、`prowk/mooncql/protocol` 和 `prowk/mooncql/types`：
 
 ```moonbit
 async fn main {
@@ -111,11 +111,15 @@ python scripts/interop.py
 
 结束 Docker 环境：`docker compose down`。测试数据、临时运行时和本地日志不纳入版本控制。
 
-## 依据
+## 参考与许可
 
 - [Apache CQL binary protocol v5](https://github.com/apache/cassandra/blob/cassandra-5.0/doc/native_protocol_v5.spec)
 - [Apache Cassandra framing](https://github.com/apache/cassandra/tree/cassandra-5.0/src/java/org/apache/cassandra/net)
 - [LZ4 block format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md)
 - [MoonBit async](https://github.com/moonbitlang/async)
+
+Apache Cassandra 采用 Apache-2.0；本项目参考其公开 v5 规范、帧布局、CRC 参数和服务端握手行为。LZ4 仅作为块格式参考，压缩和解压由 MoonBit 实现，未链接或打包上游 C 实现；上游 `lib` 目录采用 BSD-2-Clause，其余文件的许可见上游说明。
+
+运行时依赖 MoonBit async 0.22.3（Apache-2.0），用于 TCP 与异步任务。[Apache Cassandra Python Driver](https://github.com/apache/cassandra-python-driver) 3.30.0（Apache-2.0）和 [python-lz4](https://github.com/python-lz4/python-lz4) 4.4.5（BSD-3-Clause）仅用于独立互操作、压缩块和 duration 字节样例验证，不作为驱动运行时依赖。
 
 Apache-2.0，见 LICENSE。

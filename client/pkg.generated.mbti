@@ -1,13 +1,13 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "broti/mooncql/client"
+package "prowk/mooncql/client"
 
 import {
-  "broti/mooncql/protocol",
-  "broti/mooncql/types",
   "moonbitlang/async",
   "moonbitlang/async/semaphore",
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
+  "prowk/mooncql/protocol",
+  "prowk/mooncql/types",
 }
 
 // Values

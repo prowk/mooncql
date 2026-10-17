@@ -1,12 +1,12 @@
 // import {
-//   "broti/mooncql" @lib,
+//   "prowk/mooncql" @lib,
 // }
 
 pkgtype(kind: "executable")
 
 import {
   "moonbitlang/async",
-  "broti/mooncql/client",
+  "prowk/mooncql/client",
   "moonbitlang/core/debug",
   "moonbitlang/core/env",
   "moonbitlang/core/string",

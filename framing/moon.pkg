@@ -1,3 +1,3 @@
 import {
-  "broti/mooncql/codec",
+  "prowk/mooncql/codec",
 }

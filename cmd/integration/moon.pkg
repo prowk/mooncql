@@ -1,7 +1,7 @@
 import {
-  "broti/mooncql/client",
-  "broti/mooncql/protocol",
-  "broti/mooncql/types",
+  "prowk/mooncql/client",
+  "prowk/mooncql/protocol",
+  "prowk/mooncql/types",
   "moonbitlang/async",
   "moonbitlang/core/env",
   "moonbitlang/core/string",

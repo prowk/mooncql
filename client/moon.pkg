@@ -1,12 +1,12 @@
 import {
-  "broti/mooncql/framing",
-  "broti/mooncql/protocol",
-  "broti/mooncql/types",
+  "prowk/mooncql/framing",
+  "prowk/mooncql/protocol",
+  "prowk/mooncql/types",
   "moonbitlang/async",
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
 }
 
 import {
-  "broti/mooncql/codec",
+  "prowk/mooncql/codec",
 } for "test"
