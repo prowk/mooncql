@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "broti/mooncql/framing"
+
+import {
+  "broti/mooncql/codec",
+}
+
+// Values
+pub fn crc24(Bytes) -> Int
+
+pub fn crc32(Bytes) -> UInt
+
+pub fn decode(Bytes, compressed? : Bool) -> Frame raise @codec.CodecError
+
+pub fn decode_header(Bytes, compressed? : Bool) -> Header raise @codec.CodecError
+
+pub fn decode_payload(Header, Bytes) -> Frame raise @codec.CodecError
+
+pub fn encode(Bytes, self_contained? : Bool, compressed? : Bool) -> Bytes raise @codec.CodecError
+
+pub fn lz4_compress(Bytes) -> Bytes
+
+pub fn lz4_decompress(Bytes, Int) -> Bytes raise @codec.CodecError
+
+pub fn split(Bytes, compressed? : Bool) -> Array[Bytes] raise @codec.CodecError
+
+// Errors
+
+// Types and methods
+pub(all) struct Frame {
+  header : Header
+  payload : Bytes
+}
+
+pub(all) struct Header {
+  payload_length : Int
+  uncompressed_length : Int
+  self_contained : Bool
+}
+
+// Type aliases
+
+// Traits
