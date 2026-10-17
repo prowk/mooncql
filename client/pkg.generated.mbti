@@ -3,6 +3,7 @@ package "prowk/mooncql/client"
 
 import {
   "moonbitlang/async",
+  "moonbitlang/async/cond_var",
   "moonbitlang/core/debug",
   "prowk/mooncql/protocol",
   "prowk/mooncql/types",
@@ -14,6 +15,8 @@ pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadl
 pub async fn[T] with_connection(config? : Config, async (Connection) -> T) -> T
 
 pub async fn[T] with_serial_connection(config? : Config, async (Connection) -> T) -> T
+
+pub async fn[T] with_session(config? : SessionConfig, async (Session) -> T) -> T
 
 // Errors
 pub(all) suberror DriverError {
@@ -73,6 +76,8 @@ pub struct Connection {
   wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
+  closed_changed : @cond_var.Cond
+  mut failure : Error?
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
@@ -97,6 +102,7 @@ pub async fn Connection::query(Self, String, values? : Array[@types.Value], opti
 pub async fn Connection::query_conditional(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> Reply
 pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> @protocol.ResultSet
+pub async fn Connection::shutdown(Self) -> Unit
 pub fn Connection::waiting_bytes(Self) -> Int64
 pub fn Connection::waiting_count(Self) -> Int
 
@@ -105,6 +111,22 @@ pub struct Deadline {
 }
 pub fn Deadline::after(Int) -> Self raise DriverError
 pub fn Deadline::remaining_ms(Self) -> Int
+
+pub(all) enum NodeState {
+  Connecting
+  Ready
+  Backoff
+  Stopped
+} derive(Eq, @debug.Debug)
+pub fn NodeState::equal(Self, Self) -> Bool
+pub fn NodeState::not_equal(Self, Self) -> Bool
+pub fn NodeState::to_repr(Self) -> @debug.Repr
+
+pub(all) struct NodeStatus {
+  state : NodeState
+  generation : Int
+  attempts : Int
+}
 
 pub(all) enum OverloadPolicy {
   Wait
@@ -172,6 +194,38 @@ pub fn RequestStage::equal(Self, Self) -> Bool
 pub fn RequestStage::not_equal(Self, Self) -> Bool
 pub fn RequestStage::to_repr(Self) -> @debug.Repr
 
+pub struct Session {
+  config : SessionConfig
+  changed : @cond_var.Cond
+  mut current : Connection?
+  mut worker : @async.Task[Unit]?
+  mut closed : Bool
+  mut state : NodeState
+  mut generation : Int
+  mut attempts : Int
+  mut last_error : Error?
+  mut active : Int
+  mut waiting : Int
+  mut waiting_bytes : Int64
+}
+pub fn Session::active_count(Self) -> Int
+pub async fn Session::close(Self) -> Unit
+pub fn Session::is_closed(Self) -> Bool
+pub fn Session::last_error(Self) -> Error?
+pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
+pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline) -> Reply
+pub fn Session::status(Self) -> NodeStatus
+pub fn Session::waiting_count(Self) -> Int
+
+pub(all) struct SessionConfig {
+  connection : Config
+  backoff_initial_ms : Int
+  backoff_max_ms : Int
+  jitter : Double
+  stable_reset_ms : Int
+}
+pub fn SessionConfig::new(connection? : Config, backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int) -> Self
+
 pub(all) struct TimeoutInfo {
   phase : TimeoutPhase
   scope : TimeoutScope
@@ -186,6 +240,7 @@ pub(all) enum TimeoutPhase {
   Sending
   WaitingResponse
   WaitingPrepare
+  WaitingConnection
 } derive(Eq, @debug.Debug)
 pub fn TimeoutPhase::equal(Self, Self) -> Bool
 pub fn TimeoutPhase::not_equal(Self, Self) -> Bool

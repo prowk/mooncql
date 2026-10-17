@@ -13,6 +13,8 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
     return
   }
   self.closed = true
+  self.failure = Some(error)
+  self.closed_changed.broadcast()
   self.admission.close()
   // Windows 上先取消挂起的读取，等读取任务收尾后再关闭句柄。
   if self.reader_active {

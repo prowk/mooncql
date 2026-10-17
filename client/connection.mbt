@@ -90,6 +90,8 @@ pub struct Connection {
   wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
+  closed_changed : @async.CondVar
+  mut failure : Error?
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
@@ -245,25 +247,7 @@ pub async fn[G] connect(
 
 ///|
 async fn open_connection(config : Config) -> Connection {
-  if config.timeout_ms <= 0 ||
-    config.queue_timeout_ms <= 0 ||
-    config.operation_timeout_ms <= 0 ||
-    config.max_frame_bytes <= 0 ||
-    config.port <= 0 ||
-    config.port > 65535 ||
-    config.max_in_flight < 1 ||
-    config.max_in_flight > 32768 ||
-    config.max_in_flight_bytes < 9 ||
-    config.max_waiting < 0 ||
-    config.max_waiting_bytes < 0 ||
-    config.max_abandoned < 0 ||
-    config.max_abandoned > 32768 ||
-    config.abandoned_timeout_ms <= 0 {
-    raise Configuration("invalid timeout, frame limit or port")
-  }
-  if (config.username is None) != (config.password is None) {
-    raise Configuration("username and password must be supplied together")
-  }
+  config.validate()
   let socket = Transport::connect(config)
   let connection = Connection::{
     socket,
@@ -271,6 +255,8 @@ async fn open_connection(config : Config) -> Connection {
     wire: Wire::new(socket, config.max_frame_bytes, config.compression),
     mutex: @async.Mutex(),
     closed: false,
+    closed_changed: @async.CondVar::Cond(),
+    failure: None,
     reader_active: false,
     reader_task: None,
     reaper_task: None,
@@ -342,4 +328,52 @@ pub fn Connection::pending_count(self : Connection) -> Int {
 ///|
 pub fn Connection::abandoned_count(self : Connection) -> Int {
   self.abandoned
+}
+
+///|
+fn Config::validate(self : Config) -> Unit raise DriverError {
+  if self.connect_timeout_ms <= 0 {
+    raise Configuration("invalid connection timeout")
+  }
+  if self.timeout_ms <= 0 ||
+    self.queue_timeout_ms <= 0 ||
+    self.operation_timeout_ms <= 0 ||
+    self.max_frame_bytes <= 0 ||
+    self.port <= 0 ||
+    self.port > 65535 ||
+    self.max_in_flight < 1 ||
+    self.max_in_flight > 32768 ||
+    self.max_in_flight_bytes < 9 ||
+    self.max_waiting < 0 ||
+    self.max_waiting_bytes < 0 ||
+    self.max_abandoned < 0 ||
+    self.max_abandoned > 32768 ||
+    self.abandoned_timeout_ms <= 0 {
+    raise Configuration("invalid timeout, frame limit or port")
+  }
+  if (self.username is None) != (self.password is None) {
+    raise Configuration("username and password must be supplied together")
+  }
+}
+
+///|
+async fn Connection::wait_closed(self : Connection) -> Unit {
+  while !self.closed {
+    self.closed_changed.wait()
+  }
+}
+
+///|
+pub async fn Connection::shutdown(self : Connection) -> Unit {
+  self.close()
+  if self.reader_task is Some(task) {
+    ignore(task.wait()) catch {
+      _ => ()
+    }
+  }
+  if self.reaper_task is Some(task) {
+    ignore(task.wait()) catch {
+      _ => ()
+    }
+  }
 }

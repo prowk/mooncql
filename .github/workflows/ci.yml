@@ -59,6 +59,7 @@ jobs:
           moon run cmd/integration
           python scripts/interop.py
           python scripts/tls_matrix.py --backend-port 9042
+          python scripts/session_recovery.py --docker-compose
       - if: always()
         run: docker compose logs --tail=80
       - if: always()

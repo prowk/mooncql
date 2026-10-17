@@ -6,6 +6,7 @@ pub(all) enum TimeoutPhase {
   Sending
   WaitingResponse
   WaitingPrepare
+  WaitingConnection
 } derive(Eq, @debug.Debug)
 
 ///|

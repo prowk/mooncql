@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/random",
   "prowk/mooncql/internal/secure",
   "moonbitlang/core/encoding/utf8",
   "prowk/mooncql/framing",
