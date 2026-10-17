@@ -5,6 +5,7 @@ permissions:
 jobs:
   unit:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -14,6 +15,7 @@ jobs:
         with:
           version: '0.10.14+7d59c7ec9'
           core-version: '0.10.14+7d59c7ec9'
+      - run: moon update
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
       - run: moon fmt --check
@@ -37,6 +39,7 @@ jobs:
         with:
           version: '0.10.14+7d59c7ec9'
           core-version: '0.10.14+7d59c7ec9'
+      - run: moon update
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
