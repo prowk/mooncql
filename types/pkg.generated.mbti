@@ -11,7 +11,11 @@ pub fn decode_value(CqlType, Bytes?) -> Value raise @codec.CodecError
 
 pub fn encode_scalar(Value) -> Bytes raise @codec.CodecError
 
+pub fn encode_value(Value) -> Bytes raise @codec.CodecError
+
 pub fn read_type(@codec.Reader, depth? : Int) -> CqlType raise @codec.CodecError
+
+pub fn snapshot(Array[Value]) -> Array[Value] raise @codec.CodecError
 
 pub fn validate(CqlType, Value) -> Unit raise @codec.CodecError
 
@@ -70,6 +74,11 @@ pub(all) enum Value {
   Inet(Bytes)
   Decimal(Int, Bytes)
   VarInt(Bytes)
+  ListValue(Array[Value])
+  SetValue(Array[Value])
+  MapValue(Array[(Value, Value)])
+  TupleValue(Array[Value])
+  UdtValue(Array[(String, Value)])
 } derive(Eq, @debug.Debug)
 pub fn Value::equal(Self, Self) -> Bool
 pub fn Value::not_equal(Self, Self) -> Bool

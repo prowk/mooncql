@@ -22,9 +22,9 @@ pub fn Connection::pages(
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
-) -> Pager {
+) -> Pager raise {
   {
-    query: Simple(self, cql, values.copy()),
+    query: Simple(self, cql, @types.snapshot(values)),
     options,
     state: options.paging_state,
     done: false,
@@ -40,9 +40,9 @@ pub fn Prepared::pages(
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
-) -> Pager {
+) -> Pager raise {
   {
-    query: PreparedQuery(self, values.copy()),
+    query: PreparedQuery(self, @types.snapshot(values)),
     options,
     state: options.paging_state,
     done: false,

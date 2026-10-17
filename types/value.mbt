@@ -47,6 +47,11 @@ pub(all) enum Value {
   Inet(Bytes)
   Decimal(Int, Bytes)
   VarInt(Bytes)
+  ListValue(Array[Value])
+  SetValue(Array[Value])
+  MapValue(Array[(Value, Value)])
+  TupleValue(Array[Value])
+  UdtValue(Array[(String, Value)])
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -65,6 +70,8 @@ pub extend Value with @debug.Debug::{to_repr}
 pub fn encode_scalar(value : Value) -> Bytes raise @codec.CodecError {
   let w = @codec.Writer::new()
   match value {
+    ListValue(_) | SetValue(_) | MapValue(_) | TupleValue(_) | UdtValue(_) =>
+      raise @codec.CodecError("expected scalar value")
     Null | Unset =>
       raise @codec.CodecError("null and unset have no scalar payload")
     Text(s) => w.raw(@utf8.encode(s))
@@ -130,7 +137,7 @@ pub fn write_value(
   match value {
     Null => w.i32(-1)
     Unset => w.i32(-2)
-    _ => w.bytes(Some(encode_scalar(value)))
+    _ => w.bytes(Some(encode_value(value)))
   }
 }
 
@@ -139,6 +146,18 @@ pub fn decode_value(
   typ : CqlType,
   bytes : Bytes?,
 ) -> Value raise @codec.CodecError {
+  decode_value_at(typ, bytes, 0)
+}
+
+///|
+fn decode_value_at(
+  typ : CqlType,
+  bytes : Bytes?,
+  depth : Int,
+) -> Value raise @codec.CodecError {
+  if depth >= 32 {
+    raise @codec.CodecError("value nesting exceeds limit")
+  }
   guard bytes is Some(data) else { return Null }
   let r = @codec.Reader::new(data)
   let value = match typ {
@@ -207,7 +226,9 @@ pub fn decode_value(
       }
       VarInt(b)
     }
-    _ => raise @codec.CodecError("composite type not implemented")
+    List(_) | Set(_) | Map(_, _) | Tuple(_) | Udt(_, _, _) =>
+      decode_composite(typ, r, depth)
+    Custom(_) => raise @codec.CodecError("custom CQL types are unsupported")
   }
   r.finish()
   value

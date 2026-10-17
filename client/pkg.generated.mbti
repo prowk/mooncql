@@ -53,7 +53,7 @@ pub struct Connection {
 }
 pub fn Connection::close(Self) -> Unit
 pub fn Connection::is_closed(Self) -> Bool
-pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager
+pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
 pub async fn Connection::prepare(Self, String) -> Prepared
 pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
 pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> Reply
@@ -82,7 +82,7 @@ pub struct Prepared {
   mut generation : Int
 }
 pub async fn Prepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
-pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> Pager
+pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
 pub fn Prepared::parameters(Self) -> Array[@protocol.Column]
 
 pub(all) struct Reply {
