@@ -14,8 +14,11 @@ pub async fn Connection::batch(
   statements : Array[@protocol.BatchStatement],
   kind? : @protocol.BatchType = Logged,
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  deadline? : Deadline,
 ) -> Unit {
-  guard self.run(@protocol.batch(statements, kind~, options~)) is Void else {
+  let deadline = self.operation_deadline(deadline)
+  guard self.run(@protocol.batch(statements, kind~, options~), deadline~)
+    is Void else {
     raise Unexpected("expected VOID batch result")
   }
 }

@@ -52,7 +52,7 @@ pub fn Prepared::pages(
 }
 
 ///|
-pub async fn Pager::next(self : Pager) -> @protocol.Page? {
+pub async fn Pager::next(self : Pager, deadline? : Deadline) -> @protocol.Page? {
   if self.busy {
     raise Configuration("pager already has an active next call")
   }
@@ -79,8 +79,10 @@ pub async fn Pager::next(self : Pager) -> @protocol.Page? {
       connection.run(
         @protocol.query(cql, values~, options~),
         cached=self.columns,
+        deadline?,
       )
-    PreparedQuery(statement, values) => statement.execute(values, options~)
+    PreparedQuery(statement, values) =>
+      statement.execute(values, options~, deadline?)
   }
   guard result is Rows(page) else {
     raise Unexpected("pager requires ROWS result")

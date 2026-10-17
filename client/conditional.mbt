@@ -39,10 +39,11 @@ pub async fn Connection::query_conditional(
   cql : String,
   values? : Array[@types.Value] = [],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  deadline? : Deadline,
 ) -> ConditionalResult {
   // QUERY 没有 EXECUTE 的 LWT 元数据特例，首次条件查询必须请求列定义。
   let options = { ..options, skip_metadata: false, }
-  conditional_result(self.query(cql, values~, options~))
+  conditional_result(self.query(cql, values~, options~, deadline?))
 }
 
 ///|
@@ -51,6 +52,7 @@ pub async fn Prepared::execute_conditional(
   self : Prepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  deadline? : Deadline,
 ) -> ConditionalResult {
-  conditional_result(self.execute(values, options~))
+  conditional_result(self.execute(values, options~, deadline?))
 }

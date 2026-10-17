@@ -75,7 +75,7 @@ async test "serial timeout retains a stream until its delayed response is draine
               ignore(connection.query("write once"))
               false
             } catch {
-              @client.RequestTimedOut => true
+              @client.TimedOut(_) => true
               _ => false
             },
           )
@@ -237,6 +237,23 @@ async test "write lock cancellation is isolated while partial send cancellation 
             assert_true(!connection.is_closed())
             assert_eq(connection.pending_count(), 1)
             assert_eq(connection.abandoned_count(), 0)
+            assert_true(
+              try {
+                ignore(
+                  connection.query(
+                    "lock deadline",
+                    deadline=@client.Deadline::after(50),
+                  ),
+                )
+                false
+              } catch {
+                @client.TimedOut(info) =>
+                  info.phase == WaitingWriteLock &&
+                  info.scope == Operation &&
+                  !info.may_have_been_sent
+                _ => false
+              },
+            )
             first.cancel()
             ignore(first.wait()) catch {
               _ => ()

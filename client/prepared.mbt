@@ -13,8 +13,9 @@ async fn Connection::prepare_metadata(
   self : Connection,
   cql : String,
   keyspace : String?,
+  deadline : Deadline,
 ) -> @protocol.PreparedStatement {
-  match self.run(@protocol.prepare(cql, keyspace?)) {
+  match self.run(@protocol.prepare(cql, keyspace?), deadline~) {
     Prepared(metadata) => metadata
     _ => raise Unexpected("expected PREPARED result")
   }
@@ -25,31 +26,33 @@ pub async fn Connection::prepare(
   self : Connection,
   cql : String,
   keyspace? : String,
+  deadline? : Deadline,
 ) -> Prepared {
+  let deadline = self.operation_deadline(deadline)
   let keyspace = if keyspace is Some(_) { keyspace } else { self.keyspace }
   let cache_key = @protocol.prepare(cql, keyspace?).body
-  self.prepare_mutex.acquire()
-  defer self.prepare_mutex.release()
-  if self.closed {
-    raise Closed
-  }
-  if self.prepared_cache.get(cache_key) is Some(statement) {
-    return statement
-  }
-  let metadata = self.prepare_metadata(cql, keyspace)
-  let prepared = Prepared::{
-    connection: self,
-    cql,
-    keyspace,
-    metadata,
-    refresh_mutex: @async.Mutex(),
-    generation: 0,
-  }
-  // 限制缓存条数，未缓存的语句仍可通过返回对象正常执行。
-  if self.prepared_cache.length() < 64 {
-    self.prepared_cache[cache_key] = prepared
-  }
-  prepared
+  deadline.with_lock(self.prepare_mutex, () => {
+    if self.closed {
+      raise Closed
+    }
+    if self.prepared_cache.get(cache_key) is Some(statement) {
+      return statement
+    }
+    let metadata = self.prepare_metadata(cql, keyspace, deadline)
+    let prepared = Prepared::{
+      connection: self,
+      cql,
+      keyspace,
+      metadata,
+      refresh_mutex: @async.Mutex(),
+      generation: 0,
+    }
+    // 限制缓存条数，未缓存的语句仍可通过返回对象正常执行。
+    if self.prepared_cache.length() < 64 {
+      self.prepared_cache[cache_key] = prepared
+    }
+    prepared
+  })
 }
 
 ///|
@@ -75,7 +78,9 @@ pub async fn Prepared::execute(
   self : Prepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  deadline? : Deadline,
 ) -> @protocol.ResultSet {
+  let deadline = self.connection.operation_deadline(deadline)
   if options.value_names is Some(_) {
     raise Configuration("prepared statements use positional bindings")
   }
@@ -93,6 +98,7 @@ pub async fn Prepared::execute(
       options~,
     ),
     cached=metadata.result_columns,
+    deadline~,
   )
   match reply.response {
     Result(result) => return self.accept_result(result, metadata)
@@ -103,14 +109,16 @@ pub async fn Prepared::execute(
     }
     _ => raise Unexpected("expected RESULT response")
   }
-  {
-    self.refresh_mutex.acquire()
-    defer self.refresh_mutex.release()
+  deadline.with_lock(self.refresh_mutex, () => {
     if self.generation == generation {
-      self.metadata = self.connection.prepare_metadata(self.cql, self.keyspace)
+      self.metadata = self.connection.prepare_metadata(
+        self.cql,
+        self.keyspace,
+        deadline,
+      )
       self.generation += 1
     }
-  }
+  })
   // 仅 UNPREPARED 可以触发一次恢复，超时、断连及写错误不重放。
   self.validate_bindings(values)
   let metadata = self.metadata
@@ -123,6 +131,7 @@ pub async fn Prepared::execute(
         options~,
       ),
       cached=metadata.result_columns,
+      deadline~,
     ),
     metadata,
   )

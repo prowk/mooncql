@@ -49,10 +49,16 @@ async fn Connection::exchange(
   self : Connection,
   request : @protocol.Request,
   cached : Array[@protocol.Column],
+  context : TimeoutContext,
 ) -> Reply {
-  self.slots.acquire()
+  let queue_until = @async.now() + self.config.queue_timeout_ms.to_int64()
+  let mut slot_owned = false
+  defer (if slot_owned { self.slots.release() })
+  timed(self.config.queue_timeout_ms, Queue, context, () => {
+    self.slots.acquire()
+    slot_owned = true
+  })
   if self.closed {
-    self.slots.release()
     raise Closed
   }
   let stream = self.allocate_stream()
@@ -63,25 +69,42 @@ async fn Connection::exchange(
     slot_held: true,
     abandoned_at: None,
   }
+  slot_owned = false
   self.pending[stream] = pending
   let mut completed = false
   defer (if !completed { self.abandon(stream, pending) })
-  {
+  context.phase = WaitingWriteLock
+  let remaining = (queue_until - @async.now()).to_int()
+  let mut lock_owned = false
+  defer (if lock_owned { self.mutex.release() })
+  timed(remaining, Queue, context, () => {
     self.mutex.acquire()
-    defer self.mutex.release()
-    if self.closed {
-      raise Closed
-    }
-    self.wire.send(stream, request, on_write=() => {
-      if pending.stage != Received {
-        pending.stage = Sending
+    lock_owned = true
+  })
+  // 获取锁后立即注册释放；发送和等待响应共用执行计时。
+  let reply = timed(self.config.timeout_ms, Execution, context, () => {
+    {
+      defer {
+        lock_owned = false
+        self.mutex.release()
       }
-    })
-    if pending.stage != Received {
-      pending.stage = Sent
+      if self.closed {
+        raise Closed
+      }
+      context.phase = Sending
+      self.wire.send(stream, request, on_write=() => {
+        context.sent = true
+        if pending.stage != Received {
+          pending.stage = Sending
+        }
+      })
+      if pending.stage != Received {
+        pending.stage = Sent
+      }
     }
-  }
-  let reply = pending.reply.get()
+    context.phase = WaitingResponse
+    pending.reply.get()
+  })
   completed = true
   reply
 }

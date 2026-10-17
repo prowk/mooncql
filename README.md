@@ -74,6 +74,8 @@ async fn main {
 
 推荐使用 `with_connection` 管理关闭和收发任务；`with_serial_connection` 将在途额度固定为 1，并使用相同的收发逻辑。main 分支的 `connect(group, config~)` 要求传入调用方任务组，退出该组会回收后台任务；该签名变更尚未发布到 0.1.0。Prepared／Pager 在所属连接存活期间有效。共享连接推荐使用完整限定表名或显式 keyspace，避免并发 `USE` 改变连接级上下文。
 
+main 分支支持连接、排队、执行超时和逻辑操作总截止时间，`TimedOut` 会保留阶段与可能发送状态，详见[超时与取消](docs/timeouts.md)。
+
 `skip_metadata=true` 适用于已有元数据的 Prepared／Pager；低层普通请求省略元数据时，需通过 `request(..., cached=columns)` 或 `run(..., cached=columns)` 提供匹配的列定义。
 
 ## 失败语义与边界

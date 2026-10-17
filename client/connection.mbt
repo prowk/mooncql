@@ -4,7 +4,7 @@ pub(all) suberror DriverError {
   Unexpected(String)
   Authentication(String)
   Server(@protocol.ServerError)
-  RequestTimedOut
+  TimedOut(TimeoutInfo)
   Configuration(String)
   AbandonedLimitExceeded
   AbandonedRequestExpired
@@ -20,6 +20,9 @@ pub(all) struct Config {
   username : String?
   password : String?
   timeout_ms : Int
+  connect_timeout_ms : Int
+  queue_timeout_ms : Int
+  operation_timeout_ms : Int
   max_frame_bytes : Int
   max_in_flight : Int
   compression : Bool
@@ -34,6 +37,9 @@ pub fn Config::new(
   username? : String,
   password? : String,
   timeout_ms? : Int = 10000,
+  connect_timeout_ms? : Int,
+  queue_timeout_ms? : Int,
+  operation_timeout_ms? : Int,
   max_frame_bytes? : Int = 16777216,
   max_in_flight? : Int = 128,
   compression? : Bool = false,
@@ -46,6 +52,9 @@ pub fn Config::new(
     username,
     password,
     timeout_ms,
+    connect_timeout_ms: connect_timeout_ms.unwrap_or(timeout_ms),
+    queue_timeout_ms: queue_timeout_ms.unwrap_or(timeout_ms),
+    operation_timeout_ms: operation_timeout_ms.unwrap_or(timeout_ms),
     max_frame_bytes,
     max_in_flight,
     compression,
@@ -98,6 +107,7 @@ pub async fn Connection::request(
   self : Connection,
   request : @protocol.Request,
   cached? : Array[@protocol.Column] = [],
+  deadline? : Deadline,
 ) -> Reply {
   if self.closed {
     raise Closed
@@ -105,44 +115,30 @@ pub async fn Connection::request(
   if request.body.length() > self.config.max_frame_bytes {
     raise Configuration("request exceeds frame limit")
   }
-  if self.reader_active {
-    return @async.with_timeout(self.config.timeout_ms, error=RequestTimedOut, () => {
-      self.exchange(request, cached)
-    })
+  let deadline = self.operation_deadline(deadline)
+  let context = TimeoutContext::{ phase: WaitingSlot, sent: false, }
+  timed(deadline.remaining_ms(), Operation, context, () => {
+    self.exchange(request, cached, context)
+  })
+}
+
+///|
+async fn Connection::handshake_request(
+  self : Connection,
+  request : @protocol.Request,
+) -> Reply {
+  self.wire.send(0, request)
+  let frame = self.wire.receive()
+  if frame.header.stream != 0 {
+    raise Unexpected("response stream mismatch")
   }
-  self.mutex.acquire()
-  defer self.mutex.release()
-  if self.closed {
-    raise Closed
+  let envelope = @protocol.decode_payload(frame)
+  Reply::{
+    response: @protocol.decode_response(frame.header.opcode, envelope.message),
+    warnings: envelope.warnings,
+    tracing_id: envelope.tracing_id,
+    custom_payload: envelope.custom_payload,
   }
-  let mut completed = false
-  // 超时或取消可能发生在半帧读写中，关闭连接避免后续请求错配。
-  defer (if !completed { self.close() })
-  let reply = @async.with_timeout(
-    self.config.timeout_ms,
-    error=RequestTimedOut,
-    () => {
-      self.wire.send(0, request)
-      let frame = self.wire.receive()
-      if frame.header.stream != 0 {
-        raise Unexpected("response stream mismatch")
-      }
-      let envelope = @protocol.decode_payload(frame)
-      let response = @protocol.decode_response(
-        frame.header.opcode,
-        envelope.message,
-        cached~,
-      )
-      Reply::{
-        response,
-        warnings: envelope.warnings,
-        tracing_id: envelope.tracing_id,
-        custom_payload: envelope.custom_payload,
-      }
-    },
-  )
-  completed = true
-  reply
 }
 
 ///|
@@ -150,8 +146,9 @@ pub async fn Connection::run(
   self : Connection,
   request : @protocol.Request,
   cached? : Array[@protocol.Column] = [],
+  deadline? : Deadline,
 ) -> @protocol.ResultSet {
-  match self.request(request, cached~).response {
+  match self.request(request, cached~, deadline?).response {
     Result(result) => {
       if result is SetKeyspace(name) {
         self.keyspace = Some(name)
@@ -170,16 +167,52 @@ pub async fn Connection::query(
   cql : String,
   values? : Array[@types.Value] = [],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  deadline? : Deadline,
 ) -> @protocol.ResultSet {
-  self.run(@protocol.query(cql, values~, options~))
+  let deadline = self.operation_deadline(deadline)
+  self.run(@protocol.query(cql, values~, options~), deadline~)
 }
 
 ///|
 pub async fn[G] connect(
   group : @async.TaskGroup[G],
   config? : Config = Config::new(),
+  deadline? : Deadline,
 ) -> Connection {
+  if config.connect_timeout_ms <= 0 {
+    raise Configuration("invalid connection timeout")
+  }
+  let context = TimeoutContext::{ phase: Connecting, sent: false, }
+  let remaining = match deadline {
+    Some(deadline) => deadline.remaining_ms()
+    None => config.connect_timeout_ms
+  }
+  let scope = if remaining < config.connect_timeout_ms {
+    TimeoutScope::Operation
+  } else {
+    Connection
+  }
+  let duration = if remaining < config.connect_timeout_ms {
+    remaining
+  } else {
+    config.connect_timeout_ms
+  }
+  let connection = timed(duration, scope, context, () => open_connection(config))
+  connection.reader_active = true
+  connection.reader_task = Some(
+    group.spawn(() => connection.receive_loop(), no_wait=true),
+  )
+  connection.reaper_task = Some(
+    group.spawn(() => connection.reap_abandoned(), no_wait=true),
+  )
+  connection
+}
+
+///|
+async fn open_connection(config : Config) -> Connection {
   if config.timeout_ms <= 0 ||
+    config.queue_timeout_ms <= 0 ||
+    config.operation_timeout_ms <= 0 ||
     config.max_frame_bytes <= 0 ||
     config.port <= 0 ||
     config.port > 65535 ||
@@ -193,9 +226,7 @@ pub async fn[G] connect(
   if (config.username is None) != (config.password is None) {
     raise Configuration("username and password must be supplied together")
   }
-  let socket = @async.with_timeout(config.timeout_ms, error=RequestTimedOut, () => {
-    @socket.Tcp::connect_to_host(config.host, port=config.port)
-  })
+  let socket = @socket.Tcp::connect_to_host(config.host, port=config.port)
   let connection = Connection::{
     socket,
     config,
@@ -215,7 +246,7 @@ pub async fn[G] connect(
   }
   let mut ready = false
   defer (if !ready { connection.close() })
-  match connection.request(@protocol.options()).response {
+  match connection.handshake_request(@protocol.options()).response {
     Supported(supported) => {
       if !supported.contains("CQL_VERSION") {
         raise Unexpected("server omitted CQL_VERSION")
@@ -231,7 +262,9 @@ pub async fn[G] connect(
     _ => raise Unexpected("expected SUPPORTED")
   }
   match
-    connection.request(@protocol.startup(compression=config.compression)).response {
+    connection.handshake_request(
+      @protocol.startup(compression=config.compression),
+    ).response {
     Ready => connection.wire.framed = true
     Authenticate(authenticator) => {
       connection.wire.framed = true
@@ -245,7 +278,9 @@ pub async fn[G] connect(
         raise Authentication("server requires password")
       }
       match
-        connection.request(@protocol.password_auth(username, password)).response {
+        connection.handshake_request(
+          @protocol.password_auth(username, password),
+        ).response {
         AuthSuccess(_) => ()
         Failure(error) => raise Server(error)
         _ => raise Authentication("unexpected authentication response")
@@ -255,13 +290,6 @@ pub async fn[G] connect(
     _ => raise Unexpected("unexpected STARTUP response")
   }
   ready = true
-  connection.reader_active = true
-  connection.reader_task = Some(
-    group.spawn(() => connection.receive_loop(), no_wait=true),
-  )
-  connection.reaper_task = Some(
-    group.spawn(() => connection.reap_abandoned(), no_wait=true),
-  )
   connection
 }
 

@@ -291,7 +291,7 @@ async test "zero abandoned budget closes on sent timeout without replaying write
             ignore(connection.query("write"))
             false
           } catch {
-            @client.RequestTimedOut => true
+            @client.TimedOut(_) => true
             _ => false
           }
           assert_true(timed_out)

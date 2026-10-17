@@ -11,7 +11,7 @@ import {
 }
 
 // Values
-pub async fn[G] connect(@async.TaskGroup[G], config? : Config) -> Connection
+pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadline) -> Connection
 
 pub async fn[T] with_connection(config? : Config, async (Connection) -> T) -> T
 
@@ -23,7 +23,7 @@ pub(all) suberror DriverError {
   Unexpected(String)
   Authentication(String)
   Server(@protocol.ServerError)
-  RequestTimedOut
+  TimedOut(TimeoutInfo)
   Configuration(String)
   AbandonedLimitExceeded
   AbandonedRequestExpired
@@ -43,13 +43,16 @@ pub(all) struct Config {
   username : String?
   password : String?
   timeout_ms : Int
+  connect_timeout_ms : Int
+  queue_timeout_ms : Int
+  operation_timeout_ms : Int
   max_frame_bytes : Int
   max_in_flight : Int
   compression : Bool
   max_abandoned : Int
   abandoned_timeout_ms : Int
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, compression? : Bool, max_abandoned? : Int, abandoned_timeout_ms? : Int) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, compression? : Bool, max_abandoned? : Int, abandoned_timeout_ms? : Int) -> Self
 
 pub struct Connection {
   socket : @socket.Tcp
@@ -69,16 +72,22 @@ pub struct Connection {
   mut keyspace : String?
 }
 pub fn Connection::abandoned_count(Self) -> Int
-pub async fn Connection::batch(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions) -> Unit
+pub async fn Connection::batch(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline) -> Unit
 pub fn Connection::close(Self) -> Unit
 pub fn Connection::is_closed(Self) -> Bool
 pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
 pub fn Connection::pending_count(Self) -> Int
-pub async fn Connection::prepare(Self, String, keyspace? : String) -> Prepared
-pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
-pub async fn Connection::query_conditional(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> ConditionalResult
-pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> Reply
-pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> @protocol.ResultSet
+pub async fn Connection::prepare(Self, String, keyspace? : String, deadline? : Deadline) -> Prepared
+pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
+pub async fn Connection::query_conditional(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
+pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> Reply
+pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> @protocol.ResultSet
+
+pub struct Deadline {
+  at : Int64
+}
+pub fn Deadline::after(Int) -> Self raise DriverError
+pub fn Deadline::remaining_ms(Self) -> Int
 
 type PageQuery
 
@@ -91,7 +100,7 @@ pub struct Pager {
   mut columns : Array[@protocol.Column]
 }
 pub async fn Pager::for_each_row(Self, async (Array[@protocol.Column], Array[@types.Value]) -> Unit) -> Unit
-pub async fn Pager::next(Self) -> @protocol.Page?
+pub async fn Pager::next(Self, deadline? : Deadline) -> @protocol.Page?
 
 type Pending
 
@@ -104,8 +113,8 @@ pub struct Prepared {
   mut generation : Int
 }
 pub fn Prepared::bind_batch(Self, Array[@types.Value]) -> @protocol.BatchStatement raise
-pub async fn Prepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
-pub async fn Prepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> ConditionalResult
+pub async fn Prepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
+pub async fn Prepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
 pub fn Prepared::parameters(Self) -> Array[@protocol.Column]
 
@@ -126,6 +135,35 @@ pub(all) enum RequestStage {
 pub fn RequestStage::equal(Self, Self) -> Bool
 pub fn RequestStage::not_equal(Self, Self) -> Bool
 pub fn RequestStage::to_repr(Self) -> @debug.Repr
+
+pub(all) struct TimeoutInfo {
+  phase : TimeoutPhase
+  scope : TimeoutScope
+  may_have_been_sent : Bool
+} derive(@debug.Debug)
+pub fn TimeoutInfo::to_repr(Self) -> @debug.Repr
+
+pub(all) enum TimeoutPhase {
+  Connecting
+  WaitingSlot
+  WaitingWriteLock
+  Sending
+  WaitingResponse
+  WaitingPrepare
+} derive(Eq, @debug.Debug)
+pub fn TimeoutPhase::equal(Self, Self) -> Bool
+pub fn TimeoutPhase::not_equal(Self, Self) -> Bool
+pub fn TimeoutPhase::to_repr(Self) -> @debug.Repr
+
+pub(all) enum TimeoutScope {
+  Connection
+  Queue
+  Execution
+  Operation
+} derive(Eq, @debug.Debug)
+pub fn TimeoutScope::equal(Self, Self) -> Bool
+pub fn TimeoutScope::not_equal(Self, Self) -> Bool
+pub fn TimeoutScope::to_repr(Self) -> @debug.Repr
 
 type Wire
 
