@@ -22,9 +22,13 @@ pub fn decode_result(Bytes, cached? : Array[Column]) -> ResultSet raise @codec.C
 
 pub fn encode_frame(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
 
+pub fn execute(Bytes, Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
+
 pub fn options() -> Request
 
 pub fn password_auth(String, String) -> Request raise @codec.CodecError
+
+pub fn prepare(String) -> Request
 
 pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
@@ -112,6 +116,14 @@ pub(all) struct Page {
 pub fn Page::get(Self, Int, String) -> @types.Value raise @codec.CodecError
 pub fn Page::to_repr(Self) -> @debug.Repr
 
+pub(all) struct PreparedStatement {
+  id : Bytes
+  parameters : Array[Column]
+  partition_key_indices : Array[Int]
+  result_columns : Array[Column]
+} derive(@debug.Debug)
+pub fn PreparedStatement::to_repr(Self) -> @debug.Repr
+
 pub(all) struct QueryOptions {
   consistency : Consistency
   page_size : Int?
@@ -144,6 +156,7 @@ pub(all) enum ResultSet {
   Void
   Rows(Page)
   SetKeyspace(String)
+  Prepared(PreparedStatement)
   SchemaChanged(SchemaChange)
 } derive(@debug.Debug)
 pub fn ResultSet::to_repr(Self) -> @debug.Repr

@@ -61,6 +61,7 @@ pub(all) enum ResultSet {
   Void
   Rows(Page)
   SetKeyspace(String)
+  Prepared(PreparedStatement)
   SchemaChanged(SchemaChange)
 } derive(@debug.Debug)
 
@@ -211,6 +212,7 @@ pub fn decode_result(
       Rows({ columns: meta.columns, rows, paging_state: meta.paging_state, })
     }
     3 => SetKeyspace(r.string())
+    4 => Prepared(read_prepared(r))
     5 => SchemaChanged(read_schema_change(r))
     _ => raise @codec.CodecError("unknown result kind")
   }
