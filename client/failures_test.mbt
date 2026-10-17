@@ -32,7 +32,7 @@ async test "in-flight limit applies backpressure before a second request is sent
 }
 
 ///|
-async test "caller cancellation terminates the connection and its pending read" {
+async test "sent cancellation reserves its stream and absorbs a late response" {
   @async.with_timeout(3000, () => {
     @async.with_task_group(group => {
       let sent : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
@@ -43,8 +43,14 @@ async test "caller cancellation terminates the connection and its pending read" 
         let socket = Peer::new(tcp)
         defer socket.close()
         handshake(socket)
-        ignore(receive(socket))
+        let abandoned = receive(socket)
         sent.put(())
+        let current = receive(socket)
+        assert_true(current.header.stream != abandoned.header.stream)
+        respond(socket, current.header.stream, 8, named_result("current"))
+        respond(socket, abandoned.header.stream, 8, named_result("late"))
+        let last = receive(socket)
+        respond(socket, last.header.stream, 8, named_result("last"))
         assert_eq(socket.read_some(), None)
       })
       @client.with_connection(
@@ -58,7 +64,13 @@ async test "caller cancellation terminates the connection and its pending read" 
               _ => ()
             }
           })
-          assert_true(connection.is_closed())
+          assert_true(!connection.is_closed())
+          assert_eq(connection.pending_count(), 1)
+          assert_eq(connection.abandoned_count(), 1)
+          assert_true(connection.query("current") is SetKeyspace("current"))
+          assert_true(connection.query("last") is SetKeyspace("last"))
+          assert_eq(connection.pending_count(), 0)
+          assert_eq(connection.abandoned_count(), 0)
         },
       )
       worker.wait()
@@ -175,6 +187,7 @@ async test "missing credentials close the handshake without sending an auth toke
     assert_true(
       try {
         let connection = @client.connect(
+          group,
           config=@client.Config::new(port=server.addr.port()),
         )
         connection.close()

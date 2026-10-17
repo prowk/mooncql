@@ -267,7 +267,7 @@ async test "scope exit cancels idle reader before closing socket handle" {
 }
 
 ///|
-async test "request timeout closes connection and does not replay writes" {
+async test "zero abandoned budget closes on sent timeout without replaying writes" {
   @async.with_timeout(2000, () => {
     @async.with_task_group(group => {
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
@@ -281,7 +281,11 @@ async test "request timeout closes connection and does not replay writes" {
         assert_eq(socket.read_some(), None)
       })
       @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), timeout_ms=200),
+        config=@client.Config::new(
+          port=server.addr.port(),
+          timeout_ms=200,
+          max_abandoned=0,
+        ),
         connection => {
           let timed_out = try {
             ignore(connection.query("write"))

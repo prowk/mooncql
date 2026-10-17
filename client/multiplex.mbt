@@ -2,6 +2,9 @@
 struct Pending {
   reply : @async.Queue[Reply]
   cached : Array[@protocol.Column]
+  mut stage : RequestStage
+  mut slot_held : Bool
+  mut abandoned_at : Int64?
 }
 
 ///|
@@ -18,9 +21,14 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
   } else {
     self.socket.close()
   }
+  if self.reaper_task is Some(task) {
+    task.cancel()
+  }
   for pending in self.pending.values() {
     pending.reply.close(error~)
+    self.release_slot(pending)
   }
+  self.abandoned = 0
   self.pending.clear()
 }
 
@@ -43,28 +51,35 @@ async fn Connection::exchange(
   cached : Array[@protocol.Column],
 ) -> Reply {
   self.slots.acquire()
-  defer self.slots.release()
   if self.closed {
+    self.slots.release()
     raise Closed
   }
   let stream = self.allocate_stream()
-  let pending = Pending::{ reply: @async.Queue(kind=Blocking(1)), cached, }
+  let pending = Pending::{
+    reply: @async.Queue(kind=Blocking(1)),
+    cached,
+    stage: WaitingWriteLock,
+    slot_held: true,
+    abandoned_at: None,
+  }
   self.pending[stream] = pending
   let mut completed = false
-  defer {
-    self.pending.remove(stream)
-    // 已发送或部分发送的请求取消后不能回收编号继续使用这条连接。
-    if !completed {
-      self.fail(Closed)
-    }
-  }
+  defer (if !completed { self.abandon(stream, pending) })
   {
     self.mutex.acquire()
     defer self.mutex.release()
     if self.closed {
       raise Closed
     }
-    self.wire.send(stream, request)
+    self.wire.send(stream, request, on_write=() => {
+      if pending.stage != Received {
+        pending.stage = Sending
+      }
+    })
+    if pending.stage != Received {
+      pending.stage = Sent
+    }
   }
   let reply = pending.reply.get()
   completed = true
@@ -91,7 +106,11 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
         envelope.message,
         cached=pending.cached,
       )
-      self.pending.remove(frame.header.stream)
+      self.retire(frame.header.stream, pending)
+      pending.stage = Received
+      if pending.abandoned_at is Some(_) {
+        continue
+      }
       let delivered = pending.reply.try_put({
         response,
         warnings: envelope.warnings,
@@ -112,13 +131,95 @@ pub async fn[T] with_connection(
   config? : Config = Config::new(),
   body : async (Connection) -> T,
 ) -> T {
-  let connection = connect(config~)
-  defer connection.close()
   @async.with_task_group(group => {
-    connection.reader_active = true
-    connection.reader_task = Some(
-      group.spawn(() => connection.receive_loop(), no_wait=true),
-    )
+    let connection = connect(group, config~)
+    defer connection.close()
     body(connection)
   })
+}
+
+///|
+pub async fn[T] with_serial_connection(
+  config? : Config = Config::new(),
+  body : async (Connection) -> T,
+) -> T {
+  with_connection(config={ ..config, max_in_flight: 1, }, body)
+}
+
+///|
+pub(all) enum RequestStage {
+  WaitingSlot
+  WaitingWriteLock
+  Sending
+  Sent
+  Received
+} derive(Eq, @debug.Debug)
+
+///|
+pub extend RequestStage with Eq::{equal, not_equal}
+
+///|
+pub extend RequestStage with @debug.Debug::{to_repr}
+
+///|
+fn Connection::release_slot(self : Connection, pending : Pending) -> Unit {
+  if pending.slot_held {
+    pending.slot_held = false
+    self.slots.release()
+  }
+}
+
+///|
+fn Connection::retire(
+  self : Connection,
+  stream : Int,
+  pending : Pending,
+) -> Unit {
+  self.pending.remove(stream)
+  self.release_slot(pending)
+  if pending.abandoned_at is Some(_) {
+    self.abandoned -= 1
+  }
+}
+
+///|
+fn Connection::abandon(
+  self : Connection,
+  stream : Int,
+  pending : Pending,
+) -> Unit {
+  if self.closed {
+    return
+  }
+  match pending.stage {
+    WaitingSlot | WaitingWriteLock => self.retire(stream, pending)
+    Sending => self.fail(Closed)
+    Sent => {
+      // 完整消息占用编号和在途额度，直至迟到响应或有界回收关闭连接。
+      pending.abandoned_at = Some(@async.now())
+      pending.reply.close(error=Closed)
+      self.abandoned += 1
+      if self.abandoned > self.config.max_abandoned {
+        self.fail(AbandonedLimitExceeded)
+      }
+    }
+    Received => ()
+  }
+}
+
+///|
+async fn Connection::reap_abandoned(self : Connection) -> Unit {
+  let half = self.config.abandoned_timeout_ms / 2
+  let interval = if half < 1 { 1 } else if half > 1000 { 1000 } else { half }
+  while !self.closed {
+    @async.sleep(interval)
+    let now = @async.now()
+    for pending in self.pending.values() {
+      if pending.abandoned_at is Some(since) &&
+        now - since >= self.config.abandoned_timeout_ms.to_int64() {
+        self.fail(AbandonedRequestExpired)
+        return
+      }
+    }
+  }
 }

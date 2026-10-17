@@ -11,9 +11,11 @@ import {
 }
 
 // Values
-pub async fn connect(config? : Config) -> Connection
+pub async fn[G] connect(@async.TaskGroup[G], config? : Config) -> Connection
 
 pub async fn[T] with_connection(config? : Config, async (Connection) -> T) -> T
+
+pub async fn[T] with_serial_connection(config? : Config, async (Connection) -> T) -> T
 
 // Errors
 pub(all) suberror DriverError {
@@ -23,6 +25,8 @@ pub(all) suberror DriverError {
   Server(@protocol.ServerError)
   RequestTimedOut
   Configuration(String)
+  AbandonedLimitExceeded
+  AbandonedRequestExpired
 } derive(@debug.Debug)
 pub fn DriverError::to_repr(Self) -> @debug.Repr
 
@@ -42,8 +46,10 @@ pub(all) struct Config {
   max_frame_bytes : Int
   max_in_flight : Int
   compression : Bool
+  max_abandoned : Int
+  abandoned_timeout_ms : Int
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, compression? : Bool) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, compression? : Bool, max_abandoned? : Int, abandoned_timeout_ms? : Int) -> Self
 
 pub struct Connection {
   socket : @socket.Tcp
@@ -53,6 +59,8 @@ pub struct Connection {
   mut closed : Bool
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
+  mut reaper_task : @async.Task[Unit]?
+  mut abandoned : Int
   pending : Map[Int, Pending]
   slots : @semaphore.Semaphore
   mut next_stream : Int
@@ -60,10 +68,12 @@ pub struct Connection {
   prepare_mutex : @async.Mutex
   mut keyspace : String?
 }
+pub fn Connection::abandoned_count(Self) -> Int
 pub async fn Connection::batch(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions) -> Unit
 pub fn Connection::close(Self) -> Unit
 pub fn Connection::is_closed(Self) -> Bool
 pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
+pub fn Connection::pending_count(Self) -> Int
 pub async fn Connection::prepare(Self, String, keyspace? : String) -> Prepared
 pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
 pub async fn Connection::query_conditional(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> ConditionalResult
@@ -105,6 +115,17 @@ pub(all) struct Reply {
   tracing_id : Bytes?
   custom_payload : Map[String, Bytes?]
 }
+
+pub(all) enum RequestStage {
+  WaitingSlot
+  WaitingWriteLock
+  Sending
+  Sent
+  Received
+} derive(Eq, @debug.Debug)
+pub fn RequestStage::equal(Self, Self) -> Bool
+pub fn RequestStage::not_equal(Self, Self) -> Bool
+pub fn RequestStage::to_repr(Self) -> @debug.Repr
 
 type Wire
 

@@ -6,6 +6,8 @@ pub(all) suberror DriverError {
   Server(@protocol.ServerError)
   RequestTimedOut
   Configuration(String)
+  AbandonedLimitExceeded
+  AbandonedRequestExpired
 } derive(@debug.Debug)
 
 ///|
@@ -21,6 +23,8 @@ pub(all) struct Config {
   max_frame_bytes : Int
   max_in_flight : Int
   compression : Bool
+  max_abandoned : Int
+  abandoned_timeout_ms : Int
 }
 
 ///|
@@ -33,6 +37,8 @@ pub fn Config::new(
   max_frame_bytes? : Int = 16777216,
   max_in_flight? : Int = 128,
   compression? : Bool = false,
+  max_abandoned? : Int = 64,
+  abandoned_timeout_ms? : Int = 30000,
 ) -> Config {
   {
     host,
@@ -43,6 +49,8 @@ pub fn Config::new(
     max_frame_bytes,
     max_in_flight,
     compression,
+    max_abandoned,
+    abandoned_timeout_ms,
   }
 }
 
@@ -55,6 +63,8 @@ pub struct Connection {
   mut closed : Bool
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
+  mut reaper_task : @async.Task[Unit]?
+  mut abandoned : Int
   pending : Map[Int, Pending]
   slots : @async.Semaphore
   mut next_stream : Int
@@ -165,13 +175,19 @@ pub async fn Connection::query(
 }
 
 ///|
-pub async fn connect(config? : Config = Config::new()) -> Connection {
+pub async fn[G] connect(
+  group : @async.TaskGroup[G],
+  config? : Config = Config::new(),
+) -> Connection {
   if config.timeout_ms <= 0 ||
     config.max_frame_bytes <= 0 ||
     config.port <= 0 ||
     config.port > 65535 ||
     config.max_in_flight < 1 ||
-    config.max_in_flight > 32768 {
+    config.max_in_flight > 32768 ||
+    config.max_abandoned < 0 ||
+    config.max_abandoned > 32768 ||
+    config.abandoned_timeout_ms <= 0 {
     raise Configuration("invalid timeout, frame limit or port")
   }
   if (config.username is None) != (config.password is None) {
@@ -188,6 +204,8 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
     closed: false,
     reader_active: false,
     reader_task: None,
+    reaper_task: None,
+    abandoned: 0,
     pending: Map([]),
     slots: @async.Semaphore(config.max_in_flight),
     next_stream: 0,
@@ -237,5 +255,22 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
     _ => raise Unexpected("unexpected STARTUP response")
   }
   ready = true
+  connection.reader_active = true
+  connection.reader_task = Some(
+    group.spawn(() => connection.receive_loop(), no_wait=true),
+  )
+  connection.reaper_task = Some(
+    group.spawn(() => connection.reap_abandoned(), no_wait=true),
+  )
   connection
+}
+
+///|
+pub fn Connection::pending_count(self : Connection) -> Int {
+  self.pending.length()
+}
+
+///|
+pub fn Connection::abandoned_count(self : Connection) -> Int {
+  self.abandoned
 }

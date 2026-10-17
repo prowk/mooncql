@@ -27,14 +27,17 @@ async fn Wire::send(
   self : Wire,
   stream : Int,
   request : @protocol.Request,
+  on_write? : () -> Unit = () => (),
 ) -> Unit {
   let bytes = @protocol.encode_envelope(stream, request.opcode, request.body)
   if self.framed {
     // 调用方持有写锁，保证同一消息的各个分片连续发送。
     for frame in @framing.split(bytes, compressed=self.compressed) {
+      on_write()
       self.socket.write(frame)
     }
   } else {
+    on_write()
     self.socket.write(bytes)
   }
 }

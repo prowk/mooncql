@@ -72,13 +72,13 @@ async fn main {
 
 `Duration(months, days, nanoseconds)` 的前两项为 Int，最后一项为 Int64，所有非零分量须同号。decimal 表示为 `Decimal(scale, signed_big_endian_bytes)`，varint 同样保留二进制有符号整数；set／map 使用数组表示，不保证元素顺序。
 
-推荐使用 `with_connection` 管理关闭和收发任务；`connect` 返回的连接执行串行交换，调用方需要显式 `close`。Prepared／Pager 在所属连接存活期间有效。共享连接推荐使用完整限定表名或显式 keyspace，避免并发 `USE` 改变连接级上下文。
+推荐使用 `with_connection` 管理关闭和收发任务；`with_serial_connection` 将在途额度固定为 1，并使用相同的收发逻辑。main 分支的 `connect(group, config~)` 要求传入调用方任务组，退出该组会回收后台任务；该签名变更尚未发布到 0.1.0。Prepared／Pager 在所属连接存活期间有效。共享连接推荐使用完整限定表名或显式 keyspace，避免并发 `USE` 改变连接级上下文。
 
 `skip_metadata=true` 适用于已有元数据的 Prepared／Pager；低层普通请求省略元数据时，需通过 `request(..., cached=columns)` 或 `run(..., cached=columns)` 提供匹配的列定义。
 
 ## 失败语义与边界
 
-超时、取消、EOF、损坏帧或非法长度会关闭整条连接，使其他在途请求明确失败。连接失效后由应用重新调用 `with_connection`；普通写请求不会自动重放，取消也不表示数据库未执行该请求。
+main 分支中，等待名额或写锁时取消只移除该请求；完整发送后取消或超时会保留 stream 和在途额度，并吸收迟到响应。`max_abandoned`（默认 64）与 `abandoned_timeout_ms`（默认 30000）限制废弃请求，超限关闭连接，设数量为 0 可立即关闭。部分发送、EOF、损坏帧或非法长度仍关闭整条连接，使其他在途请求明确失败。连接失效后由应用重新调用 `with_connection`；普通写请求不会自动重放，取消也不表示数据库未执行该请求。已发布的 0.1.0 仍采用取消或超时即关闭的规则。
 
 只有服务端返回匹配语句 ID 的 UNPREPARED 时，Prepared.execute 才重新 PREPARE 并重试一次。BATCH 不自动重放；其中的预处理语句失效时，由调用方处理服务端错误。其他服务端错误通过 `@client.Server(error)` 返回，正常业务错误不会关闭连接。低层 `request` 返回 Reply，可读取 warnings 等附加信息。
 
