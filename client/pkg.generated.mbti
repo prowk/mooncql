@@ -48,14 +48,42 @@ pub struct Connection {
   pending : Map[Int, Pending]
   slots : @semaphore.Semaphore
   mut next_stream : Int
+  prepared_cache : Map[String, Prepared]
+  prepare_mutex : @async.Mutex
 }
 pub fn Connection::close(Self) -> Unit
 pub fn Connection::is_closed(Self) -> Bool
+pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager
+pub async fn Connection::prepare(Self, String) -> Prepared
 pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
 pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> Reply
 pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> @protocol.ResultSet
 
+type PageQuery
+
+pub struct Pager {
+  query : PageQuery
+  options : @protocol.QueryOptions
+  mut state : Bytes?
+  mut done : Bool
+  mut busy : Bool
+  mut columns : Array[@protocol.Column]
+}
+pub async fn Pager::for_each_row(Self, async (Array[@protocol.Column], Array[@types.Value]) -> Unit) -> Unit
+pub async fn Pager::next(Self) -> @protocol.Page?
+
 type Pending
+
+pub struct Prepared {
+  connection : Connection
+  cql : String
+  mut metadata : @protocol.PreparedStatement
+  refresh_mutex : @async.Mutex
+  mut generation : Int
+}
+pub async fn Prepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
+pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> Pager
+pub fn Prepared::parameters(Self) -> Array[@protocol.Column]
 
 pub(all) struct Reply {
   response : @protocol.Response

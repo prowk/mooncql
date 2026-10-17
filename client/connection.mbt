@@ -54,6 +54,8 @@ pub struct Connection {
   pending : Map[Int, Pending]
   slots : @async.Semaphore
   mut next_stream : Int
+  prepared_cache : Map[String, Prepared]
+  prepare_mutex : @async.Mutex
 }
 
 ///|
@@ -192,6 +194,8 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
     pending: Map([]),
     slots: @async.Semaphore(config.max_in_flight),
     next_stream: 0,
+    prepared_cache: Map([]),
+    prepare_mutex: @async.Mutex(),
   }
   let mut ready = false
   defer (if !ready { connection.close() })
