@@ -1,0 +1,76 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "broti/mooncql/types"
+
+import {
+  "broti/mooncql/codec",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn decode_value(CqlType, Bytes?) -> Value raise @codec.CodecError
+
+pub fn encode_scalar(Value) -> Bytes raise @codec.CodecError
+
+pub fn write_value(@codec.Writer, Value) -> Unit raise @codec.CodecError
+
+// Errors
+
+// Types and methods
+pub(all) enum CqlType {
+  Ascii
+  BigInt
+  Blob
+  Boolean
+  Counter
+  Decimal
+  Double
+  Float
+  Int
+  Timestamp
+  Uuid
+  Varchar
+  VarInt
+  TimeUuid
+  Inet
+  Date
+  Time
+  SmallInt
+  TinyInt
+  List(CqlType)
+  Set(CqlType)
+  Map(CqlType, CqlType)
+  Tuple(Array[CqlType])
+  Udt(String, String, Array[(String, CqlType)])
+  Custom(String)
+} derive(Eq, @debug.Debug)
+pub fn CqlType::equal(Self, Self) -> Bool
+pub fn CqlType::not_equal(Self, Self) -> Bool
+pub fn CqlType::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Value {
+  Null
+  Unset
+  Text(String)
+  Integer(Int)
+  BigInteger(Int64)
+  Bytes(Bytes)
+  Boolean(Bool)
+  Real(Double)
+  Single(Float)
+  Uuid(Bytes)
+  Timestamp(Int64)
+  Date(Int)
+  Time(Int64)
+  SmallInteger(Int)
+  TinyInteger(Int)
+  Inet(Bytes)
+  Decimal(Int, Bytes)
+  VarInt(Bytes)
+} derive(Eq, @debug.Debug)
+pub fn Value::equal(Self, Self) -> Bool
+pub fn Value::not_equal(Self, Self) -> Bool
+pub fn Value::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits
