@@ -1,0 +1,2 @@
+cassandra-driver==3.30.0
+pyasyncore==1.0.4; python_version >= "3.12"

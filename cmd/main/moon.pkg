@@ -8,4 +8,6 @@ import {
   "moonbitlang/async",
   "broti/mooncql/client",
   "moonbitlang/core/debug",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }

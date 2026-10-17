@@ -7,3 +7,10 @@ target
 .tools/
 .artifacts/
 __pycache__/
+.env
+.env.*
+*research*
+*调研*
+*比赛*
+*hackathon*
+*competition*

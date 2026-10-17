@@ -1,0 +1,10 @@
+* text=auto
+*.mbt text eol=lf
+*.mbti text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+moon.mod text eol=lf
+moon.pkg text eol=lf

@@ -1,0 +1,162 @@
+///|
+fn integer_env(name : String, fallback : Int) -> Int raise {
+  match @env.get_env_var(name) {
+    Some(value) => @string.parse_int(value)
+    None => fallback
+  }
+}
+
+///|
+async fn main {
+  let count = integer_env("CQL_ROWS", 10000)
+  if count < 1 || count > 100000 {
+    fail("CQL_ROWS must be between 1 and 100000")
+  }
+  let config = @client.Config::new(
+    host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
+    port=integer_env("CQL_PORT", 9042),
+    username?=@env.get_env_var("CQL_USERNAME"),
+    password?=@env.get_env_var("CQL_PASSWORD"),
+    max_in_flight=64,
+  )
+  @client.with_connection(config~, connection => {
+    guard connection.query("SELECT release_version FROM system.local")
+      is Rows(version) else {
+      fail("missing server version")
+    }
+    guard version.get(0, "release_version") is Text(release) else {
+      fail("missing version text")
+    }
+    println("Connected to Cassandra: \{release}")
+    ignore(
+      connection.query(
+        "CREATE KEYSPACE IF NOT EXISTS mooncql_test WITH replication = {'class':'SimpleStrategy','replication_factor':1}",
+      ),
+    )
+    ignore(
+      connection.query(
+        "CREATE TABLE IF NOT EXISTS mooncql_test.events (device int, id int, large_value bigint, message text, recorded_at timestamp, tags list<text>, attrs map<text,int>, PRIMARY KEY (device,id))",
+      ),
+    )
+    ignore(connection.query("TRUNCATE mooncql_test.events"))
+    let insert = connection.prepare(
+      "INSERT INTO mooncql_test.events (device,id,large_value,message,recorded_at,tags,attrs) VALUES (?,?,?,?,?,?,?)",
+    )
+    let started = @async.now()
+    let writes : Array[async () -> Unit] = Array::makei(count, id => {
+      () => {
+        ignore(
+          insert.execute([
+            Integer(42),
+            Integer(id),
+            BigInteger(9007199254740993L + id.to_int64()),
+            Text("事件 \{id}"),
+            Timestamp(1700000000000L + id.to_int64()),
+            ListValue([Text("moon"), Text("中文")]),
+            MapValue([(Text("index"), Integer(id))]),
+          ]),
+        )
+      }
+    })
+    ignore(@async.all(writes, max_concurrent=32))
+    let write_ms = @async.now() - started
+    let pager = connection.pages(
+      "SELECT id,large_value,message,recorded_at,tags,attrs FROM mooncql_test.events WHERE device=?",
+      values=[Integer(42)],
+      options=@protocol.QueryOptions::new(page_size=113),
+    )
+    let mut seen = 0
+    let mut page_count = 0
+    while pager.next() is Some(page) {
+      page_count += 1
+      for row = 0; row < page.rows.length(); row = row + 1 {
+        let id = seen
+        assert_eq(page.get(row, "id"), @types.Value::Integer(id))
+        assert_eq(
+          page.get(row, "large_value"),
+          @types.Value::BigInteger(9007199254740993L + id.to_int64()),
+        )
+        assert_eq(page.get(row, "message"), @types.Value::Text("事件 \{id}"))
+        assert_eq(
+          page.get(row, "recorded_at"),
+          @types.Value::Timestamp(1700000000000L + id.to_int64()),
+        )
+        assert_eq(
+          page.get(row, "tags"),
+          @types.Value::ListValue([Text("moon"), Text("中文")]),
+        )
+        assert_eq(
+          page.get(row, "attrs"),
+          @types.Value::MapValue([(Text("index"), Integer(id))]),
+        )
+        seen += 1
+      }
+    }
+    assert_eq(seen, count)
+    if count > 113 {
+      assert_true(page_count > 1)
+    }
+    let select = connection.prepare(
+      "SELECT id FROM mooncql_test.events WHERE device=?",
+    )
+    let prepared_pages = select.pages(
+      [Integer(42)],
+      options=@protocol.QueryOptions::new(page_size=127),
+    )
+    let mut prepared_count = 0
+    let mut checksum = 0L
+    prepared_pages.for_each_row((_, row) => {
+      guard row[0] is Integer(id) else { fail("expected integer") }
+      checksum += id.to_int64()
+      prepared_count += 1
+    })
+    assert_eq(prepared_count, count)
+    assert_eq(checksum, count.to_int64() * (count - 1).to_int64() / 2L)
+    ignore(
+      connection.query(
+        "INSERT INTO mooncql_test.events (device,id,message) VALUES (42,-1,'temporary')",
+      ),
+    )
+    ignore(
+      connection.query(
+        "UPDATE mooncql_test.events SET message=? WHERE device=? AND id=?",
+        values=[Text("updated"), Integer(42), Integer(-1)],
+      ),
+    )
+    guard connection.query(
+        "SELECT message FROM mooncql_test.events WHERE device=42 AND id=-1",
+      )
+      is Rows(updated) else {
+      fail("missing updated row")
+    }
+    assert_eq(updated.get(0, "message"), @types.Value::Text("updated"))
+    ignore(
+      connection.query(
+        "DELETE FROM mooncql_test.events WHERE device=42 AND id=-1",
+      ),
+    )
+    guard connection.query(
+        "SELECT id FROM mooncql_test.events WHERE device=42 AND id=-1",
+      )
+      is Rows(deleted) else {
+      fail("expected empty rows")
+    }
+    assert_eq(deleted.rows.length(), 0)
+    let server_error = try {
+      ignore(
+        connection.query(
+          "SELECT missing_column FROM mooncql_test.events WHERE device=42",
+        ),
+      )
+      false
+    } catch {
+      @client.Server(error) => error.code == 0x2200
+      _ => false
+    }
+    assert_true(server_error)
+    assert_true(!connection.is_closed())
+    println(
+      "PASS rows=\{count} simple_pages=\{page_count} prepared_rows=\{prepared_count} checksum=\{checksum} write_ms=\{write_ms}",
+    )
+  })
+}

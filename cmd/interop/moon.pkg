@@ -1,0 +1,9 @@
+import {
+  "broti/mooncql/client",
+  "broti/mooncql/types",
+  "moonbitlang/async",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+pkgtype(kind: "executable")
