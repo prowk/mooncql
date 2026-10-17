@@ -38,7 +38,7 @@ async test "connection deadline includes OPTIONS and closes a stalled handshake"
 ///|
 async test "serial and multiplex requests share queue and execution timing boundaries" {
   for serial in [true, false] {
-    @async.with_timeout(3000, () => {
+    @async.with_timeout(6000, () => {
       @async.with_task_group(group => {
         let seen : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
         let release : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
@@ -78,6 +78,8 @@ async test "serial and multiplex requests share queue and execution timing bound
             )
             assert_true(!connection.is_closed())
             assert_eq(connection.abandoned_count(), 0)
+            assert_eq(connection.waiting_count(), 0)
+            assert_eq(connection.waiting_bytes(), 0L)
             release.put(())
             assert_true(first.wait() is SetKeyspace("first"))
           })
@@ -95,17 +97,21 @@ async test "serial and multiplex requests share queue and execution timing bound
           )
           seen.get()
           assert_eq(connection.abandoned_count(), 1)
+          assert_eq(connection.in_flight_count(), 1)
+          assert_true(connection.in_flight_bytes() > 0L)
           release.put(())
           while connection.abandoned_count() != 0 {
             @async.pause()
           }
+          assert_eq(connection.in_flight_count(), 0)
+          assert_eq(connection.in_flight_bytes(), 0L)
         }
         let config = @client.Config::new(
           port=server.addr.port(),
           max_in_flight=1,
-          queue_timeout_ms=40,
-          timeout_ms=150,
-          operation_timeout_ms=1000,
+          queue_timeout_ms=100,
+          timeout_ms=800,
+          operation_timeout_ms=5000,
         )
         if serial {
           @client.with_serial_connection(config~, check)

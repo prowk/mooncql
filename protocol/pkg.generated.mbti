@@ -37,7 +37,7 @@ pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> 
 
 pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError
 
-pub fn startup(compression? : Bool) -> Request raise @codec.CodecError
+pub fn startup(compression? : Bool, throw_on_overload? : Bool) -> Request raise @codec.CodecError
 
 // Errors
 

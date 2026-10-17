@@ -76,6 +76,8 @@ async fn main {
 
 main 分支支持连接、排队、执行超时和逻辑操作总截止时间，`TimedOut` 会保留阶段与可能发送状态，详见[超时与取消](docs/timeouts.md)。
 
+main 分支另提供等待数量、等待字节、在途数量和在途字节上限，支持满载时等待或拒绝，以及服务端 `THROW_ON_OVERLOAD`，详见[背压与过载](docs/backpressure.md)。
+
 `skip_metadata=true` 适用于已有元数据的 Prepared／Pager；低层普通请求省略元数据时，需通过 `request(..., cached=columns)` 或 `run(..., cached=columns)` 提供匹配的列定义。
 
 ## 失败语义与边界

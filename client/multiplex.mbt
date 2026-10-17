@@ -3,7 +3,7 @@ struct Pending {
   reply : @async.Queue[Reply]
   cached : Array[@protocol.Column]
   mut stage : RequestStage
-  mut slot_held : Bool
+  reservation : Reservation
   mut abandoned_at : Int64?
 }
 
@@ -13,6 +13,7 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
     return
   }
   self.closed = true
+  self.admission.close()
   // Windows 上先取消挂起的读取，等读取任务收尾后再关闭句柄。
   if self.reader_active {
     if self.reader_task is Some(task) {
@@ -26,7 +27,7 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
   }
   for pending in self.pending.values() {
     pending.reply.close(error~)
-    self.release_slot(pending)
+    self.release_resources(pending)
   }
   self.abandoned = 0
   self.pending.clear()
@@ -50,13 +51,11 @@ async fn Connection::exchange(
   request : @protocol.Request,
   cached : Array[@protocol.Column],
   context : TimeoutContext,
+  reservation : Reservation,
 ) -> Reply {
   let queue_until = @async.now() + self.config.queue_timeout_ms.to_int64()
-  let mut slot_owned = false
-  defer (if slot_owned { self.slots.release() })
   timed(self.config.queue_timeout_ms, Queue, context, () => {
-    self.slots.acquire()
-    slot_owned = true
+    self.admission.admit(reservation)
   })
   if self.closed {
     raise Closed
@@ -66,10 +65,10 @@ async fn Connection::exchange(
     reply: @async.Queue(kind=Blocking(1)),
     cached,
     stage: WaitingWriteLock,
-    slot_held: true,
+    reservation,
     abandoned_at: None,
   }
-  slot_owned = false
+  reservation.owned_by_pending = true
   self.pending[stream] = pending
   let mut completed = false
   defer (if !completed { self.abandon(stream, pending) })
@@ -185,11 +184,8 @@ pub extend RequestStage with Eq::{equal, not_equal}
 pub extend RequestStage with @debug.Debug::{to_repr}
 
 ///|
-fn Connection::release_slot(self : Connection, pending : Pending) -> Unit {
-  if pending.slot_held {
-    pending.slot_held = false
-    self.slots.release()
-  }
+fn Connection::release_resources(self : Connection, pending : Pending) -> Unit {
+  self.admission.release(pending.reservation)
 }
 
 ///|
@@ -199,7 +195,7 @@ fn Connection::retire(
   pending : Pending,
 ) -> Unit {
   self.pending.remove(stream)
-  self.release_slot(pending)
+  self.release_resources(pending)
   if pending.abandoned_at is Some(_) {
     self.abandoned -= 1
   }

@@ -6,6 +6,7 @@ pub(all) suberror DriverError {
   Server(@protocol.ServerError)
   TimedOut(TimeoutInfo)
   Configuration(String)
+  Overloaded(OverloadReason)
   AbandonedLimitExceeded
   AbandonedRequestExpired
 } derive(@debug.Debug)
@@ -25,6 +26,11 @@ pub(all) struct Config {
   operation_timeout_ms : Int
   max_frame_bytes : Int
   max_in_flight : Int
+  max_in_flight_bytes : Int
+  max_waiting : Int
+  max_waiting_bytes : Int
+  overload_policy : OverloadPolicy
+  throw_on_overload : Bool
   compression : Bool
   max_abandoned : Int
   abandoned_timeout_ms : Int
@@ -42,6 +48,11 @@ pub fn Config::new(
   operation_timeout_ms? : Int,
   max_frame_bytes? : Int = 16777216,
   max_in_flight? : Int = 128,
+  max_in_flight_bytes? : Int = 67108864,
+  max_waiting? : Int = 64,
+  max_waiting_bytes? : Int = 67108864,
+  overload_policy? : OverloadPolicy = Wait,
+  throw_on_overload? : Bool = false,
   compression? : Bool = false,
   max_abandoned? : Int = 64,
   abandoned_timeout_ms? : Int = 30000,
@@ -57,6 +68,11 @@ pub fn Config::new(
     operation_timeout_ms: operation_timeout_ms.unwrap_or(timeout_ms),
     max_frame_bytes,
     max_in_flight,
+    max_in_flight_bytes,
+    max_waiting,
+    max_waiting_bytes,
+    overload_policy,
+    throw_on_overload,
     compression,
     max_abandoned,
     abandoned_timeout_ms,
@@ -75,7 +91,7 @@ pub struct Connection {
   mut reaper_task : @async.Task[Unit]?
   mut abandoned : Int
   pending : Map[Int, Pending]
-  slots : @async.Semaphore
+  admission : Admission
   mut next_stream : Int
   prepared_cache : Map[Bytes, Prepared]
   prepare_mutex : @async.Mutex
@@ -117,8 +133,15 @@ pub async fn Connection::request(
   }
   let deadline = self.operation_deadline(deadline)
   let context = TimeoutContext::{ phase: WaitingSlot, sent: false, }
+  // 第一次异步等待前登记预算，满载拒绝不会累积计时器和编码缓冲。
+  let reservation = self.admission.register(
+    request.body.length().to_int64() + 9L,
+  )
+  defer (if !reservation.owned_by_pending {
+    self.admission.release(reservation)
+  })
   timed(deadline.remaining_ms(), Operation, context, () => {
-    self.exchange(request, cached, context)
+    self.exchange(request, cached, context, reservation)
   })
 }
 
@@ -218,6 +241,9 @@ async fn open_connection(config : Config) -> Connection {
     config.port > 65535 ||
     config.max_in_flight < 1 ||
     config.max_in_flight > 32768 ||
+    config.max_in_flight_bytes < 9 ||
+    config.max_waiting < 0 ||
+    config.max_waiting_bytes < 0 ||
     config.max_abandoned < 0 ||
     config.max_abandoned > 32768 ||
     config.abandoned_timeout_ms <= 0 {
@@ -238,7 +264,7 @@ async fn open_connection(config : Config) -> Connection {
     reaper_task: None,
     abandoned: 0,
     pending: Map([]),
-    slots: @async.Semaphore(config.max_in_flight),
+    admission: Admission::new(config),
     next_stream: 0,
     prepared_cache: Map([]),
     prepare_mutex: @async.Mutex(),
@@ -263,7 +289,10 @@ async fn open_connection(config : Config) -> Connection {
   }
   match
     connection.handshake_request(
-      @protocol.startup(compression=config.compression),
+      @protocol.startup(
+        compression=config.compression,
+        throw_on_overload=config.throw_on_overload,
+      ),
     ).response {
     Ready => connection.wire.framed = true
     Authenticate(authenticator) => {

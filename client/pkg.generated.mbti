@@ -3,7 +3,6 @@ package "prowk/mooncql/client"
 
 import {
   "moonbitlang/async",
-  "moonbitlang/async/semaphore",
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
   "prowk/mooncql/protocol",
@@ -25,12 +24,15 @@ pub(all) suberror DriverError {
   Server(@protocol.ServerError)
   TimedOut(TimeoutInfo)
   Configuration(String)
+  Overloaded(OverloadReason)
   AbandonedLimitExceeded
   AbandonedRequestExpired
 } derive(@debug.Debug)
 pub fn DriverError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+type Admission
+
 pub(all) struct ConditionalResult {
   applied : Bool
   page : @protocol.Page
@@ -48,11 +50,16 @@ pub(all) struct Config {
   operation_timeout_ms : Int
   max_frame_bytes : Int
   max_in_flight : Int
+  max_in_flight_bytes : Int
+  max_waiting : Int
+  max_waiting_bytes : Int
+  overload_policy : OverloadPolicy
+  throw_on_overload : Bool
   compression : Bool
   max_abandoned : Int
   abandoned_timeout_ms : Int
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, compression? : Bool, max_abandoned? : Int, abandoned_timeout_ms? : Int) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, max_abandoned? : Int, abandoned_timeout_ms? : Int) -> Self
 
 pub struct Connection {
   socket : @socket.Tcp
@@ -65,7 +72,7 @@ pub struct Connection {
   mut reaper_task : @async.Task[Unit]?
   mut abandoned : Int
   pending : Map[Int, Pending]
-  slots : @semaphore.Semaphore
+  admission : Admission
   mut next_stream : Int
   prepared_cache : Map[Bytes, Prepared]
   prepare_mutex : @async.Mutex
@@ -74,6 +81,8 @@ pub struct Connection {
 pub fn Connection::abandoned_count(Self) -> Int
 pub async fn Connection::batch(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline) -> Unit
 pub fn Connection::close(Self) -> Unit
+pub fn Connection::in_flight_bytes(Self) -> Int64
+pub fn Connection::in_flight_count(Self) -> Int
 pub fn Connection::is_closed(Self) -> Bool
 pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
 pub fn Connection::pending_count(Self) -> Int
@@ -82,12 +91,33 @@ pub async fn Connection::query(Self, String, values? : Array[@types.Value], opti
 pub async fn Connection::query_conditional(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> Reply
 pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> @protocol.ResultSet
+pub fn Connection::waiting_bytes(Self) -> Int64
+pub fn Connection::waiting_count(Self) -> Int
 
 pub struct Deadline {
   at : Int64
 }
 pub fn Deadline::after(Int) -> Self raise DriverError
 pub fn Deadline::remaining_ms(Self) -> Int
+
+pub(all) enum OverloadPolicy {
+  Wait
+  Reject
+} derive(Eq, @debug.Debug)
+pub fn OverloadPolicy::equal(Self, Self) -> Bool
+pub fn OverloadPolicy::not_equal(Self, Self) -> Bool
+pub fn OverloadPolicy::to_repr(Self) -> @debug.Repr
+
+pub(all) enum OverloadReason {
+  InFlightLimit
+  ByteLimit
+  WaitingQueueFull
+  WaitingBytesFull
+  RequestTooLarge
+} derive(Eq, @debug.Debug)
+pub fn OverloadReason::equal(Self, Self) -> Bool
+pub fn OverloadReason::not_equal(Self, Self) -> Bool
+pub fn OverloadReason::to_repr(Self) -> @debug.Repr
 
 type PageQuery
 

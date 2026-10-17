@@ -92,9 +92,16 @@ pub fn options() -> Request {
 }
 
 ///|
-pub fn startup(compression? : Bool = false) -> Request raise @codec.CodecError {
+pub fn startup(
+  compression? : Bool = false,
+  throw_on_overload? : Bool = false,
+) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
-  w.u16(if compression { 4 } else { 3 })
+  w.u16(
+    3 +
+    (if compression { 1 } else { 0 }) +
+    (if throw_on_overload { 1 } else { 0 }),
+  )
   w.string("CQL_VERSION")
   w.string("3.0.0")
   w.string("DRIVER_NAME")
@@ -104,6 +111,10 @@ pub fn startup(compression? : Bool = false) -> Request raise @codec.CodecError {
   if compression {
     w.string("COMPRESSION")
     w.string("lz4")
+  }
+  if throw_on_overload {
+    w.string("THROW_ON_OVERLOAD")
+    w.string("1")
   }
   { opcode: 1, body: w.to_bytes(), }
 }

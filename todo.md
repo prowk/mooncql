@@ -6,7 +6,7 @@
 
 - [x] 增加连接超时、排队超时、请求执行超时和逻辑操作总截止时间。验收：串行与多路复用接口的计时范围一致；等待锁、重新 PREPARE、重试均受总截止时间约束；超时错误能够区分失败阶段及请求是否可能已发送。
 
-- [ ] 增加有界等待队列和在途字节预算，并提供 `THROW_ON_OVERLOAD` 启动选项。验收：达到数量或字节上限时按配置等待或明确拒绝；成功、异常、取消均归还额度；编码缓冲不因排队请求数无限增长；模拟过载测试覆盖服务端背压与 OVERLOADED 响应，不自动重放结果未知的写入。参考：[StartupMessage.java](https://github.com/apache/cassandra/blob/cassandra-5.0/src/java/org/apache/cassandra/transport/messages/StartupMessage.java)。
+- [x] 增加有界等待队列和在途字节预算，并提供 `THROW_ON_OVERLOAD` 启动选项。验收：达到数量或字节上限时按配置等待或明确拒绝；成功、异常、取消均归还额度；编码缓冲不因排队请求数无限增长；模拟过载测试覆盖服务端背压与 OVERLOADED 响应，不自动重放结果未知的写入。参考：[StartupMessage.java](https://github.com/apache/cassandra/blob/cassandra-5.0/src/java/org/apache/cassandra/transport/messages/StartupMessage.java)。
 
 - [ ] 抽象 TCP／TLS 共用的传输接口，使用成熟 TLS 实现接入证书验证。验收：支持自定义 CA、主机名验证和可选客户端证书；有效证书连接成功，错误主机名、过期证书及不可信证书连接失败；TLS 下认证、LZ4、大消息和取消测试通过。
 

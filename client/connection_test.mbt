@@ -77,7 +77,11 @@ async fn respond(
 }
 
 ///|
-async fn handshake(socket : Peer, auth? : Bool = false) -> Unit {
+async fn handshake(
+  socket : Peer,
+  auth? : Bool = false,
+  throw_on_overload? : Bool,
+) -> Unit {
   let options = receive(socket)
   assert_eq(options.header.opcode, 5)
   let w = @codec.Writer::new()
@@ -93,6 +97,23 @@ async fn handshake(socket : Peer, auth? : Bool = false) -> Unit {
   respond(socket, options.header.stream, 6, w.to_bytes())
   let startup = receive(socket)
   assert_eq(startup.header.opcode, 1)
+  if throw_on_overload is Some(expected) {
+    let r = @codec.Reader::new(startup.body)
+    let entries : Map[String, String] = Map([])
+    for _ in 0..<r.u16() {
+      let key = r.string()
+      entries[key] = r.string()
+    }
+    assert_eq(
+      entries.get("THROW_ON_OVERLOAD"),
+      if expected {
+        Some("1")
+      } else {
+        None
+      },
+    )
+    r.finish()
+  }
   if auth {
     let w = @codec.Writer::new()
     w.string("org.apache.cassandra.auth.PasswordAuthenticator")

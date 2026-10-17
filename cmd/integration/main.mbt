@@ -19,6 +19,7 @@ async fn main {
     password?=@env.get_env_var("CQL_PASSWORD"),
     compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
     max_in_flight=64,
+    throw_on_overload=true,
   )
   @client.with_connection(config~, connection => {
     guard connection.query("SELECT release_version FROM system.local")

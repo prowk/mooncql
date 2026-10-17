@@ -32,9 +32,18 @@ async fn Wire::send(
   let bytes = @protocol.encode_envelope(stream, request.opcode, request.body)
   if self.framed {
     // 调用方持有写锁，保证同一消息的各个分片连续发送。
-    for frame in @framing.split(bytes, compressed=self.compressed) {
+    let mut offset = 0
+    while offset < bytes.length() {
+      let remaining = bytes.length() - offset
+      let length = if remaining > 131071 { 131071 } else { remaining }
+      let frame = @framing.encode(
+        bytes[offset:offset + length].to_owned(),
+        self_contained=bytes.length() <= 131071,
+        compressed=self.compressed,
+      )
       on_write()
       self.socket.write(frame)
+      offset += length
     }
   } else {
     on_write()
