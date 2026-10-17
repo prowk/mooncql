@@ -1,4 +1,5 @@
 import {
+  "prowk/mooncql/codec",
   "prowk/mooncql/client",
   "prowk/mooncql/protocol",
   "prowk/mooncql/types",

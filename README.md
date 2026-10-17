@@ -86,6 +86,8 @@ async fn main {
 
 ## 验证
 
+主线新增的条件写入 API 见[条件写入说明](docs/conditional-writes.md)，尚未包含在 Mooncakes 0.1.0 中。固定 Cassandra 5.0.5 提交的协议回归依据见[协议清单](docs/protocol-v5-regression.md)。
+
 单元和本地 TCP 模拟测试无需 Cassandra：
 
 ```sh

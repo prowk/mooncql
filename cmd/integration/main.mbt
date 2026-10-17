@@ -179,6 +179,7 @@ async fn main {
     assert_true(server_error)
     assert_true(!connection.is_closed())
     verify_v5(connection)
+    verify_conditional(connection)
     println(
       "PASS rows=\{count} simple_pages=\{page_count} prepared_rows=\{prepared_count} checksum=\{checksum} write_ms=\{write_ms}",
     )

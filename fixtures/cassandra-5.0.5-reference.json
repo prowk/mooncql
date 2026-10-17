@@ -1,0 +1,39 @@
+{
+  "repository": "https://github.com/apache/cassandra",
+  "tag": "cassandra-5.0.5",
+  "commit": "c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8",
+  "files": [
+    {
+      "path": "doc/native_protocol_v5.spec",
+      "sha256": "d89b3072030f7b42c32671b9627133c7068294c59c05e1765eb754038bb2469e"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/net/Crc.java",
+      "sha256": "2a1874cfc53fbba284e60683643d88096ff672c62c04ab93be4425e4bafdf4cc"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/net/FrameDecoderLZ4.java",
+      "sha256": "c3af151d2299ce3fa712b2a7fc4a2b7032c85fa9ada78303aa0d2555db57c9ba"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/net/FrameEncoderLZ4.java",
+      "sha256": "bb3a9d2bc838682320b6cffd56be4933f187379c7655d22fc63e2f97fd7ce15d"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/transport/messages/ExecuteMessage.java",
+      "sha256": "88596bdb2c5acb7debac765600368326dd15e230b5e7ca7895dbf3e6a10e986f"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/transport/messages/StartupMessage.java",
+      "sha256": "f93c810ecf54f27e31a4473adae5ea03dcd123d4e3dd1908bdb93ac19093080b"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/transport/Event.java",
+      "sha256": "8c782e7166bdfbf0929f14bc7fd43840204fd50eda460bef479addc59e8fccfa"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/transport/messages/QueryMessage.java",
+      "sha256": "e7ef9e5b3c5156167101a7d0943fc6c5bd1f2a776f42e1eb8fe5fc8fdd054186"
+    }
+  ]
+}

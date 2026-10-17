@@ -16,6 +16,7 @@ jobs:
           version: '0.10.14+7d59c7ec9'
           core-version: '0.10.14+7d59c7ec9'
       - run: moon update
+      - run: python scripts/protocol_reference.py
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
       - run: moon fmt --check

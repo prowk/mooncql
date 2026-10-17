@@ -1,0 +1,18 @@
+{
+  "reference_commit": "c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8",
+  "generator": "python-stdlib zlib.crc32 and explicit little-endian packing",
+  "cases": {
+    "uncompressed_abc": "03000242967c616263087a36c5",
+    "lz4_raw_abc": "0300000004772283616263087a36c5",
+    "query_envelope": "050000030700000003616263",
+    "options_before_startup": "050000000500000000",
+    "ready_before_switch": "850000000200000000",
+    "options_after_startup": "090002a4c8c10500000005000000001086284d",
+    "ready_with_extension": "850000000200000003aabbcc"
+  },
+  "crc32_seeded": {
+    "": 1148681939,
+    "abc": 3308681736,
+    "123456789": 3802292647
+  }
+}
