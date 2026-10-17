@@ -70,6 +70,7 @@ async fn Transport::connect(config : Config) -> Transport {
       }
       Some(@secure.Tls::client(tcp, host=server_name, trust~, identity?)) catch {
         @secure.TlsError(message) => raise TlsFailure(message)
+        @secure.ConnectionClosed => raise Closed
         error => raise error
       }
     }
@@ -101,6 +102,7 @@ async fn Transport::read_exactly(self : Transport, length : Int) -> Bytes {
     }
   } catch {
     @secure.TlsError(message) => raise TlsFailure(message)
+    @secure.ConnectionClosed => raise Closed
     error => raise error
   }
 }
@@ -117,6 +119,7 @@ async fn Transport::write(self : Transport, bytes : Bytes) -> Unit {
     }
   } catch {
     @secure.TlsError(message) => raise TlsFailure(message)
+    @secure.ConnectionClosed => raise Closed
     error => raise error
   }
 }

@@ -267,8 +267,11 @@ async def matrix(args):
             context.verify_mode = ssl.CERT_REQUIRED
             context.load_verify_locations(folder / "ca.pem")
         delay = 0.3 if name == "cancel-late" else 0
+        accepted = 0
 
         async def handle(reader, writer):
+            nonlocal accepted
+            accepted += 1
             if mutual:
                 assert writer.get_extra_info("peercert")
             if args.backend_port:
@@ -305,6 +308,8 @@ async def matrix(args):
                     await asyncio.to_thread(windows_certificate, folder, identity, True)
             if result.returncode:
                 raise RuntimeError(f"{name}: {result.stdout[-4000:]}\n{result.stderr[-4000:]}")
+            if name in ("missing-client", "untrusted-client"):
+                assert accepted == 0, "TLS server accepted invalid client credentials"
             print(f"PASS TLS {name}", flush=True)
             report.append({"case": name, "status": "passed"})
     destination = ROOT / ".artifacts/tls-matrix.json"

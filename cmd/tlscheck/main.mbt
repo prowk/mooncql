@@ -72,6 +72,7 @@ async fn main {
       false
     }
     @os_error.OSError(_, ..) if expected_failure => false
+    @client.Closed if expected_failure => false
     error => raise error
   }
   assert_eq(connected, !expected_failure)
