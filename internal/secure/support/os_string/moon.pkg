@@ -1,0 +1,8 @@
+import {
+  "moonbitlang/core/encoding/utf8",
+  "prowk/mooncql/internal/secure/support/c_buffer",
+}
+
+options(
+  "native-stub": [ "stub.c" ],
+)

@@ -1,0 +1,19 @@
+import {
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/cmp",
+  "moonbitlang/async/io",
+  "moonbitlang/async/semaphore",
+  "prowk/mooncql/internal/secure/support/bytes_util",
+  "prowk/mooncql/internal/secure/support/c_buffer",
+  "moonbitlang/async",
+  "prowk/mooncql/internal/secure/support/io_buffer",
+  "prowk/mooncql/internal/secure/support/os_string",
+  "moonbitlang/async/os_error",
+  "moonbitlang/async/fs",
+}
+
+options(
+  "native-stub": [ "openssl.c", "schannel.c" ],
+)

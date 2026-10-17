@@ -1,0 +1,20 @@
+{
+  "module": "moonbitlang/async",
+  "version": "0.22.3",
+  "source": "https://github.com/moonbitlang/async/tree/v0.22.3/src/tls",
+  "sha256": {
+    "tls.mbt": "82a17d0ce86b487e89b21560db2bd0ffe0785115755aa3a34b01f9d0ba40d32a",
+    "transport.mbt": "ec31971e4e228b9ead00fcda32b4b1a5858970ab8337b0636fe3249d6db3ca14",
+    "openssl.mbt": "ea4c4eda2dc41ba16889be0994da26aaab32eab8c42ac0161a9f18fe4c5178a6",
+    "openssl_loader.mbt": "5a823cf171f2cf6c9ec3cf6be938db959c450c7cf102196fbfb7695bb96e3002",
+    "schannel.mbt": "f7ad9e4349317b2fdf08fac80b8d7246eb06a5e3eef988b880eb123c5d30bfc0",
+    "openssl.c": "d20f09c5dd84e7a132d7c66cafb881099d3a6007ea45ecb9c05c0018152ae925",
+    "schannel.c": "d5741d675b117151248abea1532ecc96b837137d358a006f649c8b70cc0e3cfc",
+    "../internal/c_buffer/c_buffer.mbt": "7f1394e8fcf4288b2413850102b1e82988958f4fdf193161ed5a1d631015db79",
+    "../internal/c_buffer/stub.c": "07ef32049e1a92419fcaddfdfd53dedd00818a3e5d72002a5a4f240621d2bc50",
+    "../internal/os_string/os_string.mbt": "e9067d1e0e2b7cab0193a04b1f5281d5b284d14c31828ab99484158204e66b35",
+    "../internal/os_string/stub.c": "ef8376b24b9c5ea9d3b1eee11c89d0788e89fd35719d81e3d2f8041257fdc195",
+    "../internal/io_buffer/read_buffer.mbt": "c7ca3fa17f3db07f05b66c093dcb4c2e89efb6214da3e2b50ce3faa6d006f2ed",
+    "../internal/bytes_util/util.mbt": "3e2fdf0fd328278c1d3f68751371826f2e9609d183da74fa10acf7857e1cbdee"
+  }
+}

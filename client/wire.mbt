@@ -1,6 +1,6 @@
 ///|
 struct Wire {
-  socket : @socket.Tcp
+  socket : Transport
   max_body : Int
   compressed : Bool
   mut framed : Bool
@@ -10,7 +10,7 @@ struct Wire {
 }
 
 ///|
-fn Wire::new(socket : @socket.Tcp, max_body : Int, compressed : Bool) -> Wire {
+fn Wire::new(socket : Transport, max_body : Int, compressed : Bool) -> Wire {
   {
     socket,
     max_body,

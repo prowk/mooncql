@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "prowk/mooncql/internal/secure/support/os_string"
+
+import {
+  "prowk/mooncql/internal/secure/support/c_buffer",
+}
+
+// Values
+pub fn decode(@c_buffer.Buffer, offset? : Int, len? : Int) -> String
+
+pub let empty : OsString
+
+pub fn encode(StringView) -> OsString
+
+// Errors
+
+// Types and methods
+type OsString
+pub fn OsString::bytes_length(Self) -> Int
+pub fn OsString::output(Self, &Logger) -> Unit
+pub fn OsString::to_string(Self) -> String
+pub impl Show for OsString
+
+// Type aliases
+
+// Traits

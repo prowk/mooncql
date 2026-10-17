@@ -1,0 +1,560 @@
+// Copyright 2025 International Digital Economy Academy
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+///|
+#cfg(platform="windows")
+#external
+priv type Schannel
+
+///|
+#cfg(platform="windows")
+extern "C" fn Schannel::new() -> Schannel = "prowk_mooncql_secure_schannel_new"
+
+///|
+#cfg(platform="windows")
+extern "C" fn Schannel::free(ch : Schannel) = "prowk_mooncql_secure_schannel_free"
+
+///|
+#cfg(platform="windows")
+#borrow(certificate_sha1)
+extern "C" fn Schannel::init_client(
+  ch : Schannel,
+  verify~ : Bool,
+  certificate_sha1 : Bytes?,
+) -> Int = "prowk_mooncql_secure_schannel_init_client"
+
+///|
+#cfg(platform="windows")
+#borrow(der)
+extern "C" fn Schannel::add_root_certificate(ch : Schannel, der : Bytes) -> Int = "prowk_mooncql_secure_schannel_add_root_certificate"
+
+///|
+#cfg(platform="windows")
+extern "C" fn Schannel::bytes_read(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_bytes_read"
+
+///|
+#cfg(platform="windows")
+extern "C" fn Schannel::bytes_to_write(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_bytes_to_write"
+
+///|
+#cfg(platform="windows")
+extern "C" fn Schannel::header_size(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_header_size"
+
+///|
+#cfg(platform="windows")
+extern "C" fn Schannel::trailer_size(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_trailer_size"
+
+///|
+#cfg(platform="windows")
+fn Schannel::record_overhead(ch : Schannel) -> Int {
+  ch.header_size() + ch.trailer_size()
+}
+
+///|
+#cfg(platform="windows")
+priv enum TlsState {
+  Completed = 0
+  WantRead = 1
+  WantWrite = 2
+  Error = 3
+  Eof = 4
+  ReNegotiation = 5
+}
+
+///|
+#cfg(platform="windows")
+#borrow(ch, host, in_buffer, out_buffer)
+extern "C" fn Schannel::connect(
+  ch : Schannel,
+  host : @os_string.OsString?,
+  in_buffer~ : Bytes,
+  in_buffer_offset~ : Int,
+  in_buffer_len~ : Int,
+  out_buffer~ : FixedArray[Byte],
+  out_buffer_offset~ : Int,
+  out_buffer_len~ : Int,
+) -> TlsState = "prowk_mooncql_secure_schannel_connect"
+
+///|
+#cfg(platform="windows")
+#borrow(ch, host)
+extern "C" fn Schannel::verify_peer_certificate(
+  ch : Schannel,
+  host : @os_string.OsString?,
+) -> Int = "prowk_mooncql_secure_schannel_verify_peer_certificate"
+
+///|
+#cfg(platform="windows")
+#borrow(ch, in_buffer, out_buffer)
+extern "C" fn Schannel::accept(
+  ch : Schannel,
+  in_buffer~ : Bytes,
+  in_buffer_offset~ : Int,
+  in_buffer_len~ : Int,
+  out_buffer~ : FixedArray[Byte],
+  out_buffer_offset~ : Int,
+  out_buffer_len~ : Int,
+) -> TlsState = "prowk_mooncql_secure_schannel_accept"
+
+///|
+#cfg(platform="windows")
+struct Tls {
+  context : Schannel
+  is_client : Bool
+  host : String?
+  transport : Transport
+  mut curr_msg_remaining : Int
+  mut curr_msg_trailer : Int
+  mut shutdown : Bool
+  mut closed : Bool
+}
+
+///|
+/// Close a TLS connection and release related resource.
+/// THIS FUNCTION MUST BE CALLED BEFORE CLOSING UNDERLYING TRANSPORT!!!
+///
+/// Note that this function will not perform the TLS shutdown process,
+/// for graceful shutdown of a TLS connection, see `TLS::shutdown`.
+#cfg(platform="windows")
+pub fn Tls::close(self : Tls) -> Unit {
+  guard !self.closed else {  }
+  self.closed = true
+  if self.transport.state is Normal {
+    self.transport.state = Closed
+  }
+  self.context.free()
+}
+
+///|
+#cfg(platform="windows")
+async fn Tls::connect(self : Tls) -> Unit {
+  let host = match self.host {
+    None => None
+    Some(str) => Some(@os_string.encode(str))
+  }
+  let read_buf = self.transport.read_buf
+  let write_buf = self.transport.write_buf
+  for ;; {
+    let ret = self.context.connect(
+      host,
+      in_buffer=read_buf.buf.unsafe_reinterpret_as_bytes(),
+      in_buffer_offset=read_buf.start,
+      in_buffer_len=read_buf.len,
+      out_buffer=write_buf.buf,
+      out_buffer_offset=write_buf.start,
+      out_buffer_len=write_buf.buf.length() - write_buf.start - write_buf.len,
+    )
+    read_buf.drop(self.context.bytes_read())
+    write_buf.len += self.context.bytes_to_write()
+    match ret {
+      Completed | Eof => {
+        self.transport.flush_write()
+        break
+      }
+      WantRead => self.transport.read_more()
+      WantWrite => self.transport.flush_write()
+      Error => {
+        let errno = @os_error.get_errno()
+        raise TlsError(platform_error(errno))
+      }
+      ReNegotiation => panic()
+    }
+  }
+}
+
+///|
+/// Create a TLS client that read from `r` and write to `w`.
+/// `client_from_pair` will block until TLS handshake to remote server completed.
+///
+/// `trust` specifies which servers are trusted and how certificate validation is performed.
+/// See `TrustedRoot` for more details. The default is `SystemRoot`.
+///
+/// If `host` is present, it will be used to verify the peer's certificate.
+///
+/// If `host` is present and `sni` is `true` (`true` by default),
+/// Server Name Indication (SNI) field of TLS will be set to `host`.
+/// `sni=false` is currently unsupported on Windows.
+#cfg(platform="windows")
+#label_migration(verify, fill=false, msg="use `trust` instead")
+pub async fn[R : @io.Reader, W : @io.Writer] Tls::client_from_pair(
+  reader : R,
+  writer : W,
+  verify? : Bool = true,
+  host? : String,
+  sni? : Bool = true,
+  trust? : TrustedRoot,
+  identity? : ClientIdentity,
+) -> Tls {
+  ignore(sni)
+  let trust = match trust {
+    Some(trust) => trust
+    None => if verify { SystemRoot } else { NoVerification }
+  }
+  let context = Schannel::new()
+  let transport = Transport::new(reader, writer)
+  let tls = {
+    context,
+    is_client: true,
+    host,
+    curr_msg_remaining: 0,
+    curr_msg_trailer: 0,
+    transport,
+    shutdown: false,
+    closed: false,
+  }
+  let mut ready = false
+  defer (if !ready { tls.close() })
+  let certificate_sha1 = match identity {
+    None => None
+    Some(WindowsStore(thumbprint)) => Some(@utf8.encode(thumbprint))
+    Some(Pem(_, _)) =>
+      raise TlsError(
+        "Windows client identity requires a certificate store thumbprint",
+      )
+  }
+  if context.init_client(verify=trust is SystemRoot, certificate_sha1) is err &&
+    err != 0 {
+    raise TlsError("client credentials: " + platform_error(err))
+  }
+  if trust is CustomPemFile(root_cert) {
+    let pem = @fs.read_file(root_cert).text()
+    for cert in decode_pem_certificates(pem) {
+      if context.add_root_certificate(cert) is err && err != 0 {
+        raise TlsError(platform_error(err))
+      }
+    }
+  }
+  tls.connect()
+  if trust is CustomPemFile(_) {
+    let host = match host {
+      None => None
+      Some(str) => Some(@os_string.encode(str))
+    }
+    if tls.context.verify_peer_certificate(host) is err && err != 0 {
+      raise TlsError(platform_error(err))
+    }
+  }
+  ready = true
+  tls
+}
+
+///|
+#cfg(platform="windows")
+async fn Tls::accept(self : Tls) -> Unit {
+  let read_buf = self.transport.read_buf
+  let write_buf = self.transport.write_buf
+  for ;; {
+    let ret = self.context.accept(
+      in_buffer=read_buf.buf.unsafe_reinterpret_as_bytes(),
+      in_buffer_offset=read_buf.start,
+      in_buffer_len=read_buf.len,
+      out_buffer=write_buf.buf,
+      out_buffer_offset=write_buf.start + write_buf.len,
+      out_buffer_len=write_buf.buf.length() - write_buf.start - write_buf.len,
+    )
+    read_buf.drop(self.context.bytes_read())
+    write_buf.len += self.context.bytes_to_write()
+    match ret {
+      Completed | Eof => {
+        self.transport.flush_write()
+        break
+      }
+      WantRead => self.transport.read_more()
+      WantWrite => self.transport.flush_write()
+      Error => {
+        let errno = @os_error.get_errno()
+        raise TlsError(platform_error(errno))
+      }
+      ReNegotiation => panic()
+    }
+  }
+}
+
+///|
+#cfg(platform="windows")
+#borrow(self, buf)
+extern "C" fn Schannel::read(
+  self : Schannel,
+  buf : FixedArray[Byte],
+  offset~ : Int,
+  len~ : Int,
+) -> TlsState = "prowk_mooncql_secure_schannel_read"
+
+///|
+#cfg(platform="windows")
+extern "C" fn Schannel::msg_trailer(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_msg_trailer"
+
+///|
+#cfg(platform="windows")
+async fn Tls::read_raw(
+  self : Tls,
+  buf : FixedArray[Byte],
+  offset~ : Int,
+  max_len~ : Int,
+) -> Int {
+  if self.closed {
+    return 0
+  }
+  let read_buf = self.transport.read_buf
+  while self.curr_msg_remaining == 0 {
+    if self.closed {
+      return 0
+    }
+    read_buf.enlarge_to(self.context.record_overhead() + 1)
+    let ret = self.context.read(
+      read_buf.buf,
+      offset=read_buf.start,
+      len=read_buf.len,
+    )
+    match ret {
+      Completed => {
+        let msg_size = self.context.bytes_read()
+        read_buf.drop(self.context.header_size())
+        self.curr_msg_trailer = self.context.msg_trailer()
+        self.curr_msg_remaining = msg_size -
+          self.context.header_size() -
+          self.curr_msg_trailer
+      }
+      WantRead if read_buf.len == 0 && self.transport.state is Closed =>
+        return 0
+      WantRead => self.transport.read_more()
+      Eof => {
+        self.shutdown()
+        return 0
+      }
+      WantWrite => panic()
+      Error => {
+        let errno = @os_error.get_errno()
+        raise TlsError(platform_error(errno))
+      }
+      ReNegotiation =>
+        if self.is_client {
+          self.connect()
+        } else {
+          self.accept()
+        }
+    }
+  }
+
+  // check if there is remaining data
+  let len = @cmp.minimum(self.curr_msg_remaining, max_len)
+  read_buf.buf.blit_to(buf, len~, src_offset=read_buf.start, dst_offset=offset)
+  read_buf.drop(len)
+  self.curr_msg_remaining -= len
+  if self.curr_msg_remaining == 0 {
+    read_buf.drop(self.curr_msg_trailer)
+  }
+  len
+}
+
+///|
+#cfg(platform="windows")
+#borrow(self, buf)
+extern "C" fn Schannel::write(
+  self : Schannel,
+  buf : FixedArray[Byte],
+  offset~ : Int, // `offset` marks the start of the whole message
+  len~ : Int, // `len` is the length of payload
+) -> TlsState = "prowk_mooncql_secure_schannel_write"
+
+///|
+#cfg(platform="windows")
+async fn Tls::write_once(
+  self : Tls,
+  buf : Bytes,
+  offset~ : Int,
+  len~ : Int,
+) -> Int {
+  if self.closed {
+    raise ConnectionClosed
+  }
+  let write_buf = self.transport.write_buf
+  guard! write_buf.len == 0
+  let max_len = write_buf.buf.length() -
+    write_buf.start -
+    self.context.record_overhead()
+  let len = @cmp.minimum(len, max_len)
+  write_buf.buf.blit_from_bytes(
+    write_buf.start + self.context.header_size(), // dst offset
+    buf, // dst
+    offset, // src offset
+    len, // length
+  )
+  let ret = self.context.write(write_buf.buf, offset=write_buf.start, len~)
+  write_buf.len += self.context.bytes_to_write()
+  if ret is WantWrite {
+    self.transport.flush_write()
+    len
+  } else {
+    let errno = @os_error.get_errno()
+    raise TlsError(platform_error(errno))
+  }
+}
+
+///|
+#cfg(platform="windows")
+#borrow(ch)
+extern "C" fn Schannel::shutdown(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_shutdown"
+
+///|
+#cfg(platform="windows")
+pub async fn Tls::shutdown(self : Tls) -> Unit {
+  guard !self.shutdown else {  }
+  self.shutdown = true
+  match self.transport.state {
+    Normal => ()
+    Closed => return
+    Error(err) => raise err
+  }
+  if self.context.shutdown() is err && err != 0 {
+    raise TlsError(platform_error(err))
+  }
+  if self.is_client {
+    self.connect()
+  } else {
+    self.accept()
+  }
+}
+
+///|
+#cfg(platform="windows")
+priv struct PeerCertificate(@c_buffer.Buffer)
+
+///|
+#cfg(platform="windows")
+extern "C" fn PeerCertificate::free(self : PeerCertificate) -> Unit = "prowk_mooncql_secure_schannel_free_peer_certificate"
+
+///|
+#cfg(platform="windows")
+extern "C" fn PeerCertificate::length(self : PeerCertificate) -> Int = "prowk_mooncql_secure_schannel_peer_certificate_length"
+
+///|
+#cfg(platform="windows")
+#borrow(buf)
+extern "C" fn PeerCertificate::blit_to(
+  self : PeerCertificate,
+  buf : FixedArray[Byte],
+  len~ : Int,
+) -> Unit = "prowk_mooncql_secure_schannel_peer_certificate_blit_to"
+
+///|
+#cfg(platform="windows")
+#borrow(ch)
+extern "C" fn Schannel::get_peer_certificate(ch : Schannel) -> PeerCertificate = "prowk_mooncql_secure_schannel_get_peer_certificate"
+
+///|
+#cfg(platform="windows")
+priv struct ChannelBinding(@c_buffer.Buffer)
+
+///|
+#cfg(platform="windows")
+extern "C" fn ChannelBinding::free(self : ChannelBinding) -> Unit = "prowk_mooncql_secure_schannel_free_channel_binding"
+
+///|
+#cfg(platform="windows")
+extern "C" fn ChannelBinding::length(self : ChannelBinding) -> Int = "prowk_mooncql_secure_schannel_channel_binding_length"
+
+///|
+#cfg(platform="windows")
+#borrow(buf)
+extern "C" fn ChannelBinding::blit_to(
+  self : ChannelBinding,
+  buf : FixedArray[Byte],
+  len~ : Int,
+) -> Unit = "prowk_mooncql_secure_schannel_channel_binding_blit_to"
+
+///|
+#cfg(platform="windows")
+#borrow(ch)
+extern "C" fn Schannel::unique_channel_binding(ch : Schannel) -> ChannelBinding = "prowk_mooncql_secure_schannel_unique_channel_binding"
+
+///|
+#cfg(platform="windows")
+#borrow(ch)
+extern "C" fn Schannel::server_endpoint_channel_binding(
+  ch : Schannel,
+) -> ChannelBinding = "prowk_mooncql_secure_schannel_server_endpoint_channel_binding"
+
+///|
+#cfg(platform="windows")
+pub fn Tls::get_peer_certificate(self : Tls) -> Bytes? raise {
+  let cert = self.context.get_peer_certificate()
+  if cert.0.is_null() {
+    @os_error.check_errno("@tls.Tls::get_peer_certificate()")
+    // if the error number is 0,
+    // no error is happening, the certificate simply does not exist
+    return None
+  }
+  defer cert.free()
+  let len = cert.length()
+  guard! len > 0
+  let result = FixedArray::make(len, b'\x00')
+  cert.blit_to(result, len~)
+  Some(result.unsafe_reinterpret_as_bytes())
+}
+
+///|
+#cfg(platform="windows")
+fn ChannelBinding::to_bytes(self : ChannelBinding) -> Bytes {
+  defer self.free()
+  let len = self.length()
+  guard! len > 0
+  let buf = FixedArray::make(len, b'\x00')
+  self.blit_to(buf, len~)
+  buf.unsafe_reinterpret_as_bytes()
+}
+
+///|
+/// Return `tls-unique` type of channel binding data for this TLS connection,
+/// according to RFC 5929
+#cfg(platform="windows")
+pub fn Tls::unique_channel_binding(self : Tls) -> Bytes raise {
+  let binding = self.context.unique_channel_binding()
+  if binding.0.is_null() {
+    let errno = @os_error.get_errno()
+    if errno != 0 {
+      raise TlsError(platform_error(errno))
+    } else {
+      raise TlsError("tls-unique channel binding unavailable")
+    }
+  }
+  binding.to_bytes()
+}
+
+///|
+/// Return `tls-server-endpoint` type of channel binding data for this TLS connection,
+/// according to RFC 5929.
+/// Not all TLS connection has such thing as a server certificate,
+/// so `tls-unique` is the more recommended approach when available.
+#cfg(platform="windows")
+pub fn Tls::server_endpoint_channel_binding(self : Tls) -> Bytes raise {
+  let binding = self.context.server_endpoint_channel_binding()
+  if binding.0.is_null() {
+    let errno = @os_error.get_errno()
+    if errno != 0 {
+      raise TlsError(platform_error(errno))
+    } else {
+      raise TlsError("tls-server-endpoint channel binding unavailable")
+    }
+  }
+  binding.to_bytes()
+}
+
+///|
+// mute unused warning
+#cfg(platform="windows")
+let _unused : Unit = {
+  ignore(@bytes_util.ascii_to_string)
+  ignore(@utf8.encode(""))
+}

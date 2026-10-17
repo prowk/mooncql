@@ -78,6 +78,8 @@ main 分支支持连接、排队、执行超时和逻辑操作总截止时间，
 
 main 分支另提供等待数量、等待字节、在途数量和在途字节上限，支持满载时等待或拒绝，以及服务端 `THROW_ON_OVERLOAD`，详见[背压与过载](docs/backpressure.md)。
 
+main 分支正在验证 TCP／TLS 共用传输、自定义 CA、名称校验和显式客户端证书，接口及验收方法见 [TLS 连接](docs/tls.md)。
+
 `skip_metadata=true` 适用于已有元数据的 Prepared／Pager；低层普通请求省略元数据时，需通过 `request(..., cached=columns)` 或 `run(..., cached=columns)` 提供匹配的列定义。
 
 ## 失败语义与边界

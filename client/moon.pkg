@@ -1,4 +1,6 @@
 import {
+  "prowk/mooncql/internal/secure",
+  "moonbitlang/core/encoding/utf8",
   "prowk/mooncql/framing",
   "prowk/mooncql/protocol",
   "prowk/mooncql/types",

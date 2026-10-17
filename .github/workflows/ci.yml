@@ -19,6 +19,11 @@ jobs:
       - run: python scripts/protocol_reference.py
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r scripts/requirements-tls.txt
+      - run: python scripts/tls_matrix.py
       - run: moon fmt --check
       - run: moon info
       - run: git diff --exit-code
@@ -53,6 +58,7 @@ jobs:
           fi
           moon run cmd/integration
           python scripts/interop.py
+          python scripts/tls_matrix.py --backend-port 9042
       - if: always()
         run: docker compose logs --tail=80
       - if: always()

@@ -3,7 +3,6 @@ package "prowk/mooncql/client"
 
 import {
   "moonbitlang/async",
-  "moonbitlang/async/socket",
   "moonbitlang/core/debug",
   "prowk/mooncql/protocol",
   "prowk/mooncql/types",
@@ -21,6 +20,7 @@ pub(all) suberror DriverError {
   Closed
   Unexpected(String)
   Authentication(String)
+  TlsFailure(String)
   Server(@protocol.ServerError)
   TimedOut(TimeoutInfo)
   Configuration(String)
@@ -32,6 +32,11 @@ pub fn DriverError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 type Admission
+
+pub(all) enum ClientIdentity {
+  Pem(String, String)
+  WindowsStore(String)
+}
 
 pub(all) struct ConditionalResult {
   applied : Bool
@@ -56,13 +61,14 @@ pub(all) struct Config {
   overload_policy : OverloadPolicy
   throw_on_overload : Bool
   compression : Bool
+  tls : TlsConfig?
   max_abandoned : Int
   abandoned_timeout_ms : Int
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, max_abandoned? : Int, abandoned_timeout_ms? : Int) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, max_abandoned? : Int, abandoned_timeout_ms? : Int) -> Self
 
 pub struct Connection {
-  socket : @socket.Tcp
+  socket : Transport
   config : Config
   wire : Wire
   mutex : @async.Mutex
@@ -194,6 +200,15 @@ pub(all) enum TimeoutScope {
 pub fn TimeoutScope::equal(Self, Self) -> Bool
 pub fn TimeoutScope::not_equal(Self, Self) -> Bool
 pub fn TimeoutScope::to_repr(Self) -> @debug.Repr
+
+pub(all) struct TlsConfig {
+  server_name : String?
+  ca_file : String?
+  identity : ClientIdentity?
+}
+pub fn TlsConfig::new(server_name? : String, ca_file? : String, identity? : ClientIdentity) -> Self
+
+type Transport
 
 type Wire
 

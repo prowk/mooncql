@@ -1,0 +1,55 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "prowk/mooncql/internal/secure"
+
+import {
+  "moonbitlang/async/io",
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub suberror ConnectionClosed derive(ToJson, @debug.Debug)
+pub fn ConnectionClosed::to_json(Self) -> Json
+pub fn ConnectionClosed::to_repr(Self) -> @debug.Repr
+
+pub suberror TlsError {
+  TlsError(String)
+} derive(ToJson, @debug.Debug)
+pub fn TlsError::to_json(Self) -> Json
+pub fn TlsError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum ClientIdentity {
+  Pem(String, String)
+  WindowsStore(String)
+}
+
+type Tls
+#label_migration(verify, fill=false, msg="use `trust` instead")
+pub async fn[Inner : @io.Reader + @io.Writer] Tls::client(Inner, verify? : Bool, host? : String, sni? : Bool, trust? : TrustedRoot, identity? : ClientIdentity) -> Self
+#label_migration(verify, fill=false, msg="use `trust` instead")
+pub async fn[R : @io.Reader, W : @io.Writer] Tls::client_from_pair(R, W, verify? : Bool, host? : String, sni? : Bool, trust? : TrustedRoot, identity? : ClientIdentity) -> Self
+pub fn Tls::close(Self) -> Unit
+pub fn Tls::get_peer_certificate(Self) -> Bytes? raise
+pub async fn Tls::read_exactly(Self, Int) -> Bytes
+pub async fn Tls::read_some(Self) -> Bytes?
+pub fn Tls::server_endpoint_channel_binding(Self) -> Bytes raise
+pub async fn Tls::shutdown(Self) -> Unit
+pub fn Tls::unique_channel_binding(Self) -> Bytes raise
+pub async fn Tls::write(Self, Bytes) -> Unit
+
+pub(all) enum TrustedRoot {
+  NoVerification
+  SystemRoot
+  CustomPemFile(String)
+}
+
+pub(all) enum X509FileType {
+  PEM
+  ANS1
+}
+
+// Type aliases
+
+// Traits

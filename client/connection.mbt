@@ -3,6 +3,7 @@ pub(all) suberror DriverError {
   Closed
   Unexpected(String)
   Authentication(String)
+  TlsFailure(String)
   Server(@protocol.ServerError)
   TimedOut(TimeoutInfo)
   Configuration(String)
@@ -32,6 +33,7 @@ pub(all) struct Config {
   overload_policy : OverloadPolicy
   throw_on_overload : Bool
   compression : Bool
+  tls : TlsConfig?
   max_abandoned : Int
   abandoned_timeout_ms : Int
 }
@@ -54,6 +56,7 @@ pub fn Config::new(
   overload_policy? : OverloadPolicy = Wait,
   throw_on_overload? : Bool = false,
   compression? : Bool = false,
+  tls? : TlsConfig,
   max_abandoned? : Int = 64,
   abandoned_timeout_ms? : Int = 30000,
 ) -> Config {
@@ -74,6 +77,7 @@ pub fn Config::new(
     overload_policy,
     throw_on_overload,
     compression,
+    tls,
     max_abandoned,
     abandoned_timeout_ms,
   }
@@ -81,7 +85,7 @@ pub fn Config::new(
 
 ///|
 pub struct Connection {
-  socket : @socket.Tcp
+  socket : Transport
   config : Config
   wire : Wire
   mutex : @async.Mutex
@@ -252,7 +256,7 @@ async fn open_connection(config : Config) -> Connection {
   if (config.username is None) != (config.password is None) {
     raise Configuration("username and password must be supplied together")
   }
-  let socket = @socket.Tcp::connect_to_host(config.host, port=config.port)
+  let socket = Transport::connect(config)
   let connection = Connection::{
     socket,
     config,
