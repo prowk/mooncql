@@ -9,9 +9,10 @@ import {
 // Values
 
 // Errors
-pub suberror CodecError {
+pub(all) suberror CodecError {
   CodecError(String)
 } derive(@debug.Debug)
+pub fn CodecError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Reader {

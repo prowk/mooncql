@@ -1,7 +1,10 @@
 ///|
-pub suberror CodecError {
+pub(all) suberror CodecError {
   CodecError(String)
 } derive(@debug.Debug)
+
+///|
+pub extend CodecError with @debug.Debug::{to_repr}
 
 ///|
 pub struct Reader {
