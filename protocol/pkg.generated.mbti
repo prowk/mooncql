@@ -9,6 +9,8 @@ import {
 }
 
 // Values
+pub fn batch(Array[BatchStatement], kind? : BatchType, options? : QueryOptions) -> Request raise @codec.CodecError
+
 pub fn decode_envelope_header(Bytes, max_body? : Int) -> EnvelopeHeader raise @codec.CodecError
 
 pub fn decode_error(Bytes) -> ServerError raise @codec.CodecError
@@ -23,13 +25,13 @@ pub fn decode_result(Bytes, cached? : Array[Column]) -> ResultSet raise @codec.C
 
 pub fn encode_envelope(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
 
-pub fn execute(Bytes, Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
+pub fn execute(Bytes, Bytes, Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
 pub fn options() -> Request
 
 pub fn password_auth(String, String) -> Request raise @codec.CodecError
 
-pub fn prepare(String) -> Request
+pub fn prepare(String, keyspace? : String) -> Request raise @codec.CodecError
 
 pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
@@ -40,6 +42,17 @@ pub fn startup(compression? : Bool) -> Request raise @codec.CodecError
 // Errors
 
 // Types and methods
+pub(all) enum BatchStatement {
+  Query(String, Array[@types.Value])
+  Prepared(Bytes, Array[@types.Value])
+}
+
+pub(all) enum BatchType {
+  Logged
+  Unlogged
+  Counter
+}
+
 pub(all) struct Column {
   keyspace : String
   table : String
@@ -91,11 +104,21 @@ pub(all) enum ErrorDetail {
   Other(Bytes)
   Unavailable(Int, Int, Int)
   ReadTimeout(Int, Int, Int, Bool)
-  WriteTimeout(Int, Int, Int, String)
+  WriteTimeout(Int, Int, Int, String, Int?)
+  ReadFailure(Int, Int, Int, Array[FailureReason], Bool)
+  WriteFailure(Int, Int, Int, Array[FailureReason], String)
+  FunctionFailure(String, String, Array[String])
+  CasWriteUnknown(Int, Int, Int)
   AlreadyExists(String, String)
   Unprepared(Bytes)
 } derive(@debug.Debug)
 pub fn ErrorDetail::to_repr(Self) -> @debug.Repr
+
+pub(all) struct FailureReason {
+  endpoint : Bytes
+  code : Int
+} derive(@debug.Debug)
+pub fn FailureReason::to_repr(Self) -> @debug.Repr
 
 pub(all) struct MessageEnvelope {
   header : EnvelopeHeader
@@ -116,6 +139,7 @@ pub fn MessagePayload::to_repr(Self) -> @debug.Repr
 pub(all) struct Metadata {
   columns : Array[Column]
   paging_state : Bytes?
+  new_metadata_id : Bytes?
 } derive(@debug.Debug)
 pub fn Metadata::to_repr(Self) -> @debug.Repr
 
@@ -123,12 +147,14 @@ pub(all) struct Page {
   columns : Array[Column]
   rows : Array[Array[@types.Value]]
   paging_state : Bytes?
+  new_metadata_id : Bytes?
 } derive(@debug.Debug)
 pub fn Page::get(Self, Int, String) -> @types.Value raise @codec.CodecError
 pub fn Page::to_repr(Self) -> @debug.Repr
 
 pub(all) struct PreparedStatement {
   id : Bytes
+  result_metadata_id : Bytes
   parameters : Array[Column]
   partition_key_indices : Array[Int]
   result_columns : Array[Column]
@@ -141,8 +167,13 @@ pub(all) struct QueryOptions {
   paging_state : Bytes?
   serial_consistency : Consistency?
   timestamp : Int64?
+  keyspace : String?
+  now_in_seconds : Int?
+  value_names : Array[String]?
+  skip_metadata : Bool
 } derive(@debug.Debug)
-pub fn QueryOptions::new(consistency? : Consistency, page_size? : Int, paging_state? : Bytes, serial_consistency? : Consistency, timestamp? : Int64) -> Self
+pub fn QueryOptions::new(consistency? : Consistency, page_size? : Int, paging_state? : Bytes, serial_consistency? : Consistency, timestamp? : Int64, keyspace? : String, now_in_seconds? : Int, value_names? : Array[String], skip_metadata? : Bool) -> Self
+pub fn QueryOptions::snapshot(Self) -> Self
 pub fn QueryOptions::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Request {

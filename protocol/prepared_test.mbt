@@ -3,6 +3,7 @@ test "prepared metadata includes partition indices and result columns" {
   let w = @codec.Writer::new()
   w.i32(4)
   w.short_bytes(b"statement-id")
+  w.short_bytes(b"metadata")
   w.i32(1)
   w.i32(2)
   w.i32(1)
@@ -32,12 +33,14 @@ test "prepared metadata includes partition indices and result columns" {
 test "execute includes opaque id and paging continuation" {
   let request = @protocol.execute(
     b"id",
+    b"metadata",
     [Integer(7)],
     options=@protocol.QueryOptions::new(page_size=3, paging_state=b"next"),
   )
   assert_eq(request.opcode, 10)
   let r = @codec.Reader::new(request.body)
   assert_eq(r.short_bytes(), b"id")
+  assert_eq(r.short_bytes(), b"metadata")
   assert_eq(r.u16(), 10)
   assert_eq(r.i32(), 13)
   assert_eq(r.u16(), 1)

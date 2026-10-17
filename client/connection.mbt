@@ -58,8 +58,9 @@ pub struct Connection {
   pending : Map[Int, Pending]
   slots : @async.Semaphore
   mut next_stream : Int
-  prepared_cache : Map[String, Prepared]
+  prepared_cache : Map[Bytes, Prepared]
   prepare_mutex : @async.Mutex
+  mut keyspace : String?
 }
 
 ///|
@@ -141,7 +142,13 @@ pub async fn Connection::run(
   cached? : Array[@protocol.Column] = [],
 ) -> @protocol.ResultSet {
   match self.request(request, cached~).response {
-    Result(result) => result
+    Result(result) => {
+      if result is SetKeyspace(name) {
+        self.keyspace = Some(name)
+        self.prepared_cache.clear()
+      }
+      result
+    }
     Failure(error) => raise Server(error)
     _ => raise Unexpected("expected RESULT response")
   }
@@ -186,6 +193,7 @@ pub async fn connect(config? : Config = Config::new()) -> Connection {
     next_stream: 0,
     prepared_cache: Map([]),
     prepare_mutex: @async.Mutex(),
+    keyspace: None,
   }
   let mut ready = false
   defer (if !ready { connection.close() })

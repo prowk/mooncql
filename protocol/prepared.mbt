@@ -1,6 +1,7 @@
 ///|
 pub(all) struct PreparedStatement {
   id : Bytes
+  result_metadata_id : Bytes
   parameters : Array[Column]
   partition_key_indices : Array[Int]
   result_columns : Array[Column]
@@ -10,20 +11,29 @@ pub(all) struct PreparedStatement {
 pub extend PreparedStatement with @debug.Debug::{to_repr}
 
 ///|
-pub fn prepare(cql : String) -> Request {
+pub fn prepare(
+  cql : String,
+  keyspace? : String,
+) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.long_string(cql)
+  w.i32(if keyspace is Some(_) { 1 } else { 0 })
+  if keyspace is Some(name) {
+    w.string(name)
+  }
   { opcode: 9, body: w.to_bytes(), }
 }
 
 ///|
 pub fn execute(
   id : Bytes,
+  result_metadata_id : Bytes,
   values : Array[@types.Value],
   options? : QueryOptions = QueryOptions::new(),
 ) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.short_bytes(id)
+  w.short_bytes(result_metadata_id)
   write_parameters(w, values, options)
   { opcode: 10, body: w.to_bytes(), }
 }
@@ -33,6 +43,7 @@ fn read_prepared(
   r : @codec.Reader,
 ) -> PreparedStatement raise @codec.CodecError {
   let id = r.short_bytes()
+  let result_metadata_id = r.short_bytes()
   let flags = r.i32()
   let count = r.i32()
   let pk_count = r.i32()
@@ -53,5 +64,11 @@ fn read_prepared(
   }
   let parameters = read_columns(r, flags, count)
   let result = read_metadata(r)
-  { id, parameters, partition_key_indices, result_columns: result.columns, }
+  {
+    id,
+    result_metadata_id,
+    parameters,
+    partition_key_indices,
+    result_columns: result.columns,
+  }
 }

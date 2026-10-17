@@ -99,6 +99,8 @@ pub fn lz4_decompress(
   }
   let r = @codec.Reader::new(bytes)
   let output : Array[Byte] = []
+  let mut finished = false
+  let mut matched = false
   while r.remaining() > 0 {
     let token = r.u8()
     let literals = read_length(r, token >> 4, expected - output.length())
@@ -106,6 +108,12 @@ pub fn lz4_decompress(
       output.push(byte)
     }
     if r.remaining() == 0 {
+      if matched && literals < 5 {
+        raise @codec.CodecError(
+          "LZ4 block must end with at least five literals",
+        )
+      }
+      finished = true
       break
     }
     let low = r.u8()
@@ -114,16 +122,20 @@ pub fn lz4_decompress(
       raise @codec.CodecError("invalid LZ4 match offset")
     }
     let available = expected - output.length()
+    if available < 12 {
+      raise @codec.CodecError("LZ4 final match starts too close to block end")
+    }
     if available < 4 {
       raise @codec.CodecError("LZ4 match exceeds output limit")
     }
     let length = read_length(r, token & 15, available - 4) + 4
+    matched = true
     for i = 0; i < length; i = i + 1 {
       // 逐字节读取新输出，支持匹配源与目标重叠。
       output.push(output[output.length() - distance])
     }
   }
-  if output.length() != expected {
+  if !finished || output.length() != expected {
     raise @codec.CodecError("LZ4 output length mismatch")
   }
   Bytes::from_array(output)

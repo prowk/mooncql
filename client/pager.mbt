@@ -25,7 +25,7 @@ pub fn Connection::pages(
 ) -> Pager raise {
   {
     query: Simple(self, cql, @types.snapshot(values)),
-    options,
+    options: options.snapshot(),
     state: options.paging_state,
     done: false,
     busy: false,
@@ -43,7 +43,7 @@ pub fn Prepared::pages(
 ) -> Pager raise {
   {
     query: PreparedQuery(self, @types.snapshot(values)),
-    options,
+    options: options.snapshot(),
     state: options.paging_state,
     done: false,
     busy: false,
@@ -69,6 +69,10 @@ pub async fn Pager::next(self : Pager) -> @protocol.Page? {
     paging_state: self.state,
     serial_consistency: self.options.serial_consistency,
     timestamp: self.options.timestamp,
+    keyspace: self.options.keyspace,
+    now_in_seconds: self.options.now_in_seconds,
+    value_names: self.options.value_names,
+    skip_metadata: self.options.skip_metadata,
   }
   let result = match self.query {
     Simple(connection, cql, values) =>

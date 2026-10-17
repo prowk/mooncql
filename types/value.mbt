@@ -19,6 +19,7 @@ pub(all) enum CqlType {
   Time
   SmallInt
   TinyInt
+  Duration
   List(CqlType)
   Set(CqlType)
   Map(CqlType, CqlType)
@@ -47,6 +48,7 @@ pub(all) enum Value {
   Inet(Bytes)
   Decimal(Int, Bytes)
   VarInt(Bytes)
+  Duration(Int, Int, Int64)
   ListValue(Array[Value])
   SetValue(Array[Value])
   MapValue(Array[(Value, Value)])
@@ -118,6 +120,12 @@ pub fn encode_scalar(value : Value) -> Bytes raise @codec.CodecError {
       }
       w.i32(scale)
       w.raw(unscaled)
+    }
+    Duration(months, days, nanos) => {
+      validate_duration(months, days, nanos)
+      write_vint(w, months.to_int64())
+      write_vint(w, days.to_int64())
+      write_vint(w, nanos)
     }
     VarInt(b) => {
       if b.length() == 0 {
@@ -226,6 +234,7 @@ fn decode_value_at(
       }
       VarInt(b)
     }
+    Duration => read_duration(r)
     List(_) | Set(_) | Map(_, _) | Tuple(_) | Udt(_, _, _) =>
       decode_composite(typ, r, depth)
     Custom(_) => raise @codec.CodecError("custom CQL types are unsupported")

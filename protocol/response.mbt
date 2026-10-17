@@ -11,6 +11,7 @@ pub(all) struct Page {
   columns : Array[Column]
   rows : Array[Array[@types.Value]]
   paging_state : Bytes?
+  new_metadata_id : Bytes?
 } derive(@debug.Debug)
 
 ///|
@@ -35,7 +36,11 @@ pub(all) enum ErrorDetail {
   Other(Bytes)
   Unavailable(Int, Int, Int)
   ReadTimeout(Int, Int, Int, Bool)
-  WriteTimeout(Int, Int, Int, String)
+  WriteTimeout(Int, Int, Int, String, Int?)
+  ReadFailure(Int, Int, Int, Array[FailureReason], Bool)
+  WriteFailure(Int, Int, Int, Array[FailureReason], String)
+  FunctionFailure(String, String, Array[String])
+  CasWriteUnknown(Int, Int, Int)
   AlreadyExists(String, String)
   Unprepared(Bytes)
 } derive(@debug.Debug)
@@ -102,6 +107,7 @@ pub extend Response with @debug.Debug::{to_repr}
 pub(all) struct Metadata {
   columns : Array[Column]
   paging_state : Bytes?
+  new_metadata_id : Bytes?
 } derive(@debug.Debug)
 
 ///|
@@ -149,6 +155,14 @@ pub fn read_metadata(
   } else {
     None
   }
+  if (flags & 12) == 12 {
+    raise @codec.CodecError("changed metadata cannot be omitted")
+  }
+  let new_metadata_id = if (flags & 8) != 0 {
+    Some(r.short_bytes())
+  } else {
+    None
+  }
   let columns = if (flags & 4) != 0 {
     if cached.length() != count {
       raise @codec.CodecError("missing cached result metadata")
@@ -157,7 +171,7 @@ pub fn read_metadata(
   } else {
     read_columns(r, flags, count)
   }
-  { columns, paging_state, }
+  { columns, paging_state, new_metadata_id, }
 }
 
 ///|
@@ -209,7 +223,12 @@ pub fn decode_result(
         }
         rows.push(row)
       }
-      Rows({ columns: meta.columns, rows, paging_state: meta.paging_state, })
+      Rows({
+        columns: meta.columns,
+        rows,
+        paging_state: meta.paging_state,
+        new_metadata_id: meta.new_metadata_id,
+      })
     }
     3 => SetKeyspace(r.string())
     4 => Prepared(read_prepared(r))
@@ -225,7 +244,29 @@ pub fn decode_error(body : Bytes) -> ServerError raise @codec.CodecError {
   let message = r.string()
   let detail = match code {
     0x1000 => Unavailable(r.u16(), r.i32(), r.i32())
-    0x1100 => WriteTimeout(r.u16(), r.i32(), r.i32(), r.string())
+    0x1100 => {
+      let consistency = r.u16()
+      let received = r.i32()
+      let required = r.i32()
+      let kind = r.string()
+      let contentions = if kind == "CAS" { Some(r.u16()) } else { None }
+      WriteTimeout(consistency, received, required, kind, contentions)
+    }
+    0x1300 =>
+      ReadFailure(r.u16(), r.i32(), r.i32(), read_reasons(r), r.u8() != 0)
+    0x1500 =>
+      WriteFailure(r.u16(), r.i32(), r.i32(), read_reasons(r), r.string())
+    0x1400 => {
+      let keyspace = r.string()
+      let name = r.string()
+      let count = r.u16()
+      let arguments = []
+      for i = 0; i < count; i = i + 1 {
+        arguments.push(r.string())
+      }
+      FunctionFailure(keyspace, name, arguments)
+    }
+    0x1700 => CasWriteUnknown(r.u16(), r.i32(), r.i32())
     0x1200 => ReadTimeout(r.u16(), r.i32(), r.i32(), r.u8() != 0)
     0x2400 => AlreadyExists(r.string(), r.string())
     0x2500 => Unprepared(r.short_bytes())
@@ -265,4 +306,32 @@ pub fn decode_response(
     16 => AuthSuccess(r.bytes())
     _ => raise @codec.CodecError("unexpected response opcode")
   }
+}
+
+///|
+pub(all) struct FailureReason {
+  endpoint : Bytes
+  code : Int
+} derive(@debug.Debug)
+
+///|
+pub extend FailureReason with @debug.Debug::{to_repr}
+
+///|
+fn read_reasons(
+  r : @codec.Reader,
+) -> Array[FailureReason] raise @codec.CodecError {
+  let count = r.i32()
+  if count < 0 || count > r.remaining() / 7 {
+    raise @codec.CodecError("invalid failure reason map count")
+  }
+  let reasons = []
+  for i = 0; i < count; i = i + 1 {
+    let length = r.u8()
+    if length != 4 && length != 16 {
+      raise @codec.CodecError("invalid failure reason endpoint")
+    }
+    reasons.push({ endpoint: r.take(length), code: r.u16(), })
+  }
+  reasons
 }

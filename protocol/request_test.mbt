@@ -3,9 +3,13 @@ test "startup declares CQL language version and not binary protocol version" {
   let request = @protocol.startup()
   assert_eq(request.opcode, 1)
   let r = @codec.Reader::new(request.body)
-  assert_eq(r.u16(), 1)
+  assert_eq(r.u16(), 3)
   assert_eq(r.string(), "CQL_VERSION")
   assert_eq(r.string(), "3.0.0")
+  assert_eq(r.string(), "DRIVER_NAME")
+  assert_eq(r.string(), "mooncql")
+  assert_eq(r.string(), "DRIVER_VERSION")
+  assert_eq(r.string(), "0.1.0")
   r.finish()
 }
 

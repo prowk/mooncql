@@ -1,4 +1,108 @@
 ///|
+async test "v5 metadata cache updates and ignores stale concurrent executions" {
+  @async.with_timeout(3000, () => {
+    @async.with_task_group(group => {
+      let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
+      defer server.close()
+      let worker = group.spawn(() => {
+        let (tcp, _) = server.accept()
+        let socket = Peer::new(tcp)
+        defer socket.close()
+        handshake(socket)
+        let prepare = receive(socket)
+        respond(socket, prepare.header.stream, 8, prepared_result(b"id"))
+        let first = receive(socket)
+        let second = receive(socket)
+        for
+          (request, id, typ, value) in [
+            (first, b"new", 13, @types.Value::Text("new")),
+            (second, b"stale", 2, @types.Value::BigInteger(7L)),
+          ] {
+          let r = @codec.Reader::new(request.body)
+          assert_eq(r.short_bytes(), b"id")
+          assert_eq(r.short_bytes(), b"metadata")
+          let w = @codec.Writer::new()
+          w.i32(2)
+          w.i32(9)
+          w.i32(1)
+          w.short_bytes(id)
+          w.string("ks")
+          w.string("t")
+          w.string("value")
+          w.u16(typ)
+          w.i32(1)
+          @types.write_value(w, value)
+          respond(socket, request.header.stream, 8, w.to_bytes())
+        }
+        let next = receive(socket)
+        let r = @codec.Reader::new(next.body)
+        assert_eq(r.short_bytes(), b"id")
+        assert_eq(r.short_bytes(), b"new")
+        let w = @codec.Writer::new()
+        w.i32(2)
+        w.i32(4)
+        w.i32(1)
+        w.i32(1)
+        @types.write_value(w, Text("cached"))
+        respond(socket, next.header.stream, 8, w.to_bytes())
+      })
+      @client.with_connection(
+        config=@client.Config::new(port=server.addr.port()),
+        connection => {
+          let statement = connection.prepare("query")
+          let results = @async.all([
+            () => statement.execute([Integer(1)]),
+            () => statement.execute([Integer(2)]),
+          ])
+          assert_eq(results.length(), 2)
+          guard statement.execute(
+              [Integer(3)],
+              options=@protocol.QueryOptions::new(skip_metadata=true),
+            )
+            is Rows(page) else {
+            fail("expected cached rows")
+          }
+          assert_eq(page.get(0, "value"), @types.Value::Text("cached"))
+        },
+      )
+      worker.wait()
+    })
+  })
+}
+
+///|
+async test "prepared cache separates identical text by explicit keyspace" {
+  @async.with_task_group(group => {
+    let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
+    defer server.close()
+    let worker = group.spawn(() => {
+      let (tcp, _) = server.accept()
+      let socket = Peer::new(tcp)
+      defer socket.close()
+      handshake(socket)
+      for keyspace in ["one", "two"] {
+        let request = receive(socket)
+        let r = @codec.Reader::new(request.body)
+        assert_eq(r.long_string(), "query")
+        assert_eq(r.i32(), 1)
+        assert_eq(r.string(), keyspace)
+        r.finish()
+        respond(socket, request.header.stream, 8, prepared_result(b"id"))
+      }
+    })
+    @client.with_connection(
+      config=@client.Config::new(port=server.addr.port()),
+      connection => {
+        ignore(connection.prepare("query", keyspace="one"))
+        ignore(connection.prepare("query", keyspace="one"))
+        ignore(connection.prepare("query", keyspace="two"))
+      },
+    )
+    worker.wait()
+  })
+}
+
+///|
 async test "v5 LZ4 authentication large request and large response" {
   let payload = Bytes::from_array(
     Array::makei(300000, i => (i % 251).to_byte()),

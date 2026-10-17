@@ -43,6 +43,10 @@ pub(all) struct QueryOptions {
   paging_state : Bytes?
   serial_consistency : Consistency?
   timestamp : Int64?
+  keyspace : String?
+  now_in_seconds : Int?
+  value_names : Array[String]?
+  skip_metadata : Bool
 } derive(@debug.Debug)
 
 ///|
@@ -55,8 +59,22 @@ pub fn QueryOptions::new(
   paging_state? : Bytes,
   serial_consistency? : Consistency,
   timestamp? : Int64,
+  keyspace? : String,
+  now_in_seconds? : Int,
+  value_names? : Array[String],
+  skip_metadata? : Bool = false,
 ) -> QueryOptions {
-  { consistency, page_size, paging_state, serial_consistency, timestamp, }
+  {
+    consistency,
+    page_size,
+    paging_state,
+    serial_consistency,
+    timestamp,
+    keyspace,
+    now_in_seconds,
+    value_names,
+    skip_metadata,
+  }
 }
 
 ///|
@@ -76,9 +94,13 @@ pub fn options() -> Request {
 ///|
 pub fn startup(compression? : Bool = false) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
-  w.u16(if compression { 2 } else { 1 })
+  w.u16(if compression { 4 } else { 3 })
   w.string("CQL_VERSION")
   w.string("3.0.0")
+  w.string("DRIVER_NAME")
+  w.string("mooncql")
+  w.string("DRIVER_VERSION")
+  w.string("0.1.0")
   if compression {
     w.string("COMPRESSION")
     w.string("lz4")
@@ -125,6 +147,13 @@ fn write_parameters(
   if options.serial_consistency is Some(c) && c != Serial && c != LocalSerial {
     raise @codec.CodecError("invalid serial consistency")
   }
+  if options.timestamp is Some(ts) && ts < 0L {
+    raise @codec.CodecError("negative default timestamp")
+  }
+  if options.value_names is Some(names) &&
+    (names.length() != values.length() || values.is_empty()) {
+    raise @codec.CodecError("named values must match nonempty bound values")
+  }
   w.u16(options.consistency.code())
   let mut flags = if values.is_empty() { 0 } else { 1 }
   if options.page_size is Some(_) {
@@ -139,10 +168,25 @@ fn write_parameters(
   if options.timestamp is Some(_) {
     flags = flags | 32
   }
+  if options.skip_metadata {
+    flags = flags | 2
+  }
+  if options.value_names is Some(_) {
+    flags = flags | 64
+  }
+  if options.keyspace is Some(_) {
+    flags = flags | 128
+  }
+  if options.now_in_seconds is Some(_) {
+    flags = flags | 256
+  }
   w.i32(flags)
   if !values.is_empty() {
     w.u16(values.length())
-    for value in values {
+    for i, value in values {
+      if options.value_names is Some(names) {
+        w.string(names[i])
+      }
       @types.write_value(w, value)
     }
   }
@@ -158,6 +202,12 @@ fn write_parameters(
   if options.timestamp is Some(ts) {
     w.i64(ts)
   }
+  if options.keyspace is Some(keyspace) {
+    w.string(keyspace)
+  }
+  if options.now_in_seconds is Some(now) {
+    w.i32(now)
+  }
 }
 
 ///|
@@ -170,4 +220,9 @@ pub fn query(
   w.long_string(cql)
   write_parameters(w, values, options)
   { opcode: 7, body: w.to_bytes(), }
+}
+
+///|
+pub fn QueryOptions::snapshot(self : QueryOptions) -> QueryOptions {
+  { ..self, value_names: self.value_names.map(names => names.copy()), }
 }

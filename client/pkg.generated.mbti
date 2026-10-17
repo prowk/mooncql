@@ -50,13 +50,15 @@ pub struct Connection {
   pending : Map[Int, Pending]
   slots : @semaphore.Semaphore
   mut next_stream : Int
-  prepared_cache : Map[String, Prepared]
+  prepared_cache : Map[Bytes, Prepared]
   prepare_mutex : @async.Mutex
+  mut keyspace : String?
 }
+pub async fn Connection::batch(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions) -> Unit
 pub fn Connection::close(Self) -> Unit
 pub fn Connection::is_closed(Self) -> Bool
 pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
-pub async fn Connection::prepare(Self, String) -> Prepared
+pub async fn Connection::prepare(Self, String, keyspace? : String) -> Prepared
 pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
 pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> Reply
 pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column]) -> @protocol.ResultSet
@@ -79,10 +81,12 @@ type Pending
 pub struct Prepared {
   connection : Connection
   cql : String
+  keyspace : String?
   mut metadata : @protocol.PreparedStatement
   refresh_mutex : @async.Mutex
   mut generation : Int
 }
+pub fn Prepared::bind_batch(Self, Array[@types.Value]) -> @protocol.BatchStatement raise
 pub async fn Prepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> @protocol.ResultSet
 pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
 pub fn Prepared::parameters(Self) -> Array[@protocol.Column]

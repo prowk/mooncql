@@ -27,6 +27,7 @@ pub fn read_type(
     18 => Time
     19 => SmallInt
     20 => TinyInt
+    21 => Duration
     32 => List(read_type(r, depth=depth + 1))
     33 => {
       let key = read_type(r, depth=depth + 1)

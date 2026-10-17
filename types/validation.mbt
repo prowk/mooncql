@@ -41,7 +41,8 @@ fn validate_at(
     | (Date, Date(_))
     | (Time, Time(_))
     | (SmallInt, SmallInteger(_))
-    | (TinyInt, TinyInteger(_)) => true
+    | (TinyInt, TinyInteger(_))
+    | (Duration, Duration(_, _, _)) => true
     (List(element), ListValue(items)) | (Set(element), SetValue(items)) => {
       for item in items {
         if item == Null || item == Unset {

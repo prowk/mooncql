@@ -44,6 +44,7 @@ pub(all) enum CqlType {
   Time
   SmallInt
   TinyInt
+  Duration
   List(CqlType)
   Set(CqlType)
   Map(CqlType, CqlType)
@@ -74,6 +75,7 @@ pub(all) enum Value {
   Inet(Bytes)
   Decimal(Int, Bytes)
   VarInt(Bytes)
+  Duration(Int, Int, Int64)
   ListValue(Array[Value])
   SetValue(Array[Value])
   MapValue(Array[(Value, Value)])
