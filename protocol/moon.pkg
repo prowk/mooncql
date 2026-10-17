@@ -1,4 +1,6 @@
 import {
   "broti/mooncql/codec",
+  "broti/mooncql/types",
+  "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/debug",
 }
