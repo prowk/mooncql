@@ -4,7 +4,7 @@ version = "0.1.0"
 
 readme = "README.md"
 
-repository = ""
+repository = "https://github.com/prowk/mooncql"
 
 license = "Apache-2.0"
 
