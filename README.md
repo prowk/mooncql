@@ -149,3 +149,5 @@ main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，�
 main 分支新增 [Row 类型化读取与精确转换](docs/rows.md)：区分缺列、NULL 和类型不匹配，共享本页列名索引，保留 UUID、完整范围日期时间、decimal 和 varint 的精度与原始 Value。
 
 [可恢复分页游标](docs/paging.md) 关联查询上下文并拒绝不匹配恢复，失败不推进；Session 的普通和预处理 Pager 可跨连接恢复。分页不保证跨页快照一致性。
+
+[固定种子差分与协议状态测试](docs/differential-tests.md) 以独立 Cassandra 驱动和 LZ4 实现双向核对，覆盖嵌套类型、随机拆包、响应乱序、取消和断线组合。

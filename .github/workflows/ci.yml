@@ -23,7 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m pip install -r scripts/requirements-tls.txt
+      - run: python -m pip install -r scripts/requirements-reference.txt
+      - run: python scripts/differential.py
       - run: python scripts/tls_matrix.py
       - run: moon fmt --check
       - run: moon info

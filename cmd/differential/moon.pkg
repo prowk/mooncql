@@ -1,0 +1,12 @@
+import {
+  "prowk/mooncql/codec",
+  "prowk/mooncql/types",
+  "prowk/mooncql/framing",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/hex",
+  "moonbitlang/core/encoding/utf8",
+}
+
+pkgtype(kind: "executable")

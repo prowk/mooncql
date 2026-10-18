@@ -41,7 +41,7 @@ test "reject malformed scalar payloads and range overflow" {
   for
     (typ, bytes) in [
       (@types.CqlType::Int, b"\x01"),
-      (Boolean, b"\x02"),
+      (Boolean, b"\x02\x00"),
       (Uuid, b"short"),
       (Int, b"\x00\x00\x00\x01x"),
     ] {

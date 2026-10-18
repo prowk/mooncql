@@ -32,6 +32,7 @@ pub(all) enum CqlType {
 pub(all) enum Value {
   Null
   Unset
+  Empty
   Text(String)
   Integer(Int)
   BigInteger(Int64)
@@ -72,6 +73,7 @@ pub extend Value with @debug.Debug::{to_repr}
 pub fn encode_scalar(value : Value) -> Bytes raise @codec.CodecError {
   let w = @codec.Writer::new()
   match value {
+    Empty => return b""
     ListValue(_) | SetValue(_) | MapValue(_) | TupleValue(_) | UdtValue(_) =>
       raise @codec.CodecError("expected scalar value")
     Null | Unset =>
@@ -167,6 +169,28 @@ fn decode_value_at(
     raise @codec.CodecError("value nesting exceeds limit")
   }
   guard bytes is Some(data) else { return Null }
+  if data.is_empty() {
+    match typ {
+      BigInt
+      | Counter
+      | Boolean
+      | Int
+      | Double
+      | Float
+      | Timestamp
+      | Uuid
+      | TimeUuid
+      | Date
+      | Time
+      | SmallInt
+      | TinyInt
+      | Inet
+      | Decimal
+      | VarInt
+      | Duration => return Empty
+      _ => ()
+    }
+  }
   let r = @codec.Reader::new(data)
   let value = match typ {
     Ascii | Varchar => {
@@ -186,10 +210,7 @@ fn decode_value_at(
     Blob => Bytes(r.take(r.remaining()))
     Boolean => {
       let b = r.u8()
-      if b != 0 && b != 1 {
-        raise @codec.CodecError("invalid boolean")
-      }
-      Boolean(b == 1)
+      Boolean(b != 0)
     }
     Int => Integer(r.i32())
     Double => Real(r.i64().reinterpret_as_double())

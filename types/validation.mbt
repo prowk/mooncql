@@ -17,6 +17,26 @@ fn validate_at(
   }
   let valid = match (typ, value) {
     (_, Null | Unset) => true
+    (
+      BigInt
+      | Counter
+      | Boolean
+      | Int
+      | Double
+      | Float
+      | Timestamp
+      | Uuid
+      | TimeUuid
+      | Date
+      | Time
+      | SmallInt
+      | TinyInt
+      | Inet
+      | Decimal
+      | VarInt
+      | Duration,
+      Empty,
+    ) => true
     (Ascii, Text(s)) => {
       let mut valid = true
       for b in @utf8.encode(s) {

@@ -39,7 +39,7 @@ test "duration rejects mixed signs truncation and overflowing month count" {
   }
   for
     bytes in [
-      b"", b"\x00\x00", b"\x00\x00\xff", b"\x02\x01\x00", b"\xf1\x00\x00\x00\x00\x00\x00",
+      b"\x00", b"\x00\x00", b"\x00\x00\xff", b"\x02\x01\x00", b"\xf1\x00\x00\x00\x00\x00\x00",
     ] {
     assert_true(
       try {

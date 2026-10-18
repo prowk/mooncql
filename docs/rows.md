@@ -22,6 +22,8 @@ for index in 0..<page.rows.length() {
 
 text 接受 ascii／varchar；int 精确扩宽 tinyint／smallint／int，int64 另接受 bigint／counter。其他标量通过 boolean、double、float、bytes、inet、uuid、date、time、timestamp、decimal、varint、duration 读取。double／float 不隐式转换整数或 decimal。list／set／map／tuple／udt 返回底层 Value 数组，保留嵌套值与 NULL。
 
+v5 的旧数据可能包含零长度的非字符串标量，底层表示为 `Value.Empty`，与 Null 不同。is_null 对 Empty 返回 false，类型化标量 getter 抛出 TypeMismatch，可通过 value 保留或显式处理。空 text 和 blob 仍分别是 Text("") 与 Bytes(b"")；省略尾部字段的 UDT／tuple 补为 Null。布尔解码接受任意非零字节为 true，编码统一使用 1。
+
 `Page::new(columns, rows, paging_state?, new_metadata_id?)` 创建独立元数据快照，检查行宽、类型深度和快照规模。公开 columns 用于展示；Row 和 Page.get 使用创建时的私有快照。修改公开 columns、嵌套类型数组或 columns_snapshot() 的结果不会污染 Row 和 Prepared 缓存。需要重命名时用 Page::new 创建新页。rows 及其 Value 数组仍可修改，读取时检查缺失位置和类型；修改不会重新验证所有值。已有 Page 结构字面量应迁移到构造函数。
 
 精确值类型位于 types 包，均提供 to_value() 以用于绑定：

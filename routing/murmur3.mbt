@@ -91,7 +91,7 @@ pub fn routing_key(
     }
     seen[index] = true
     match values[index] {
-      Null | Unset => return None
+      Null | Unset | Empty => return None
       value => {
         let bytes = @types.encode_value(value)
         if bytes.length() > 65535 {

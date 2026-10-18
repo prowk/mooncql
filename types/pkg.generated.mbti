@@ -134,6 +134,7 @@ pub fn CqlVarInt::to_value(Self) -> Value
 pub(all) enum Value {
   Null
   Unset
+  Empty
   Text(String)
   Integer(Int)
   BigInteger(Int64)

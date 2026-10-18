@@ -118,14 +118,29 @@ fn decode_composite(
     Tuple(fields) => {
       let items = []
       for field in fields {
-        items.push(decode_value_at(field, r.bytes(), depth + 1))
+        items.push(
+          if r.remaining() == 0 {
+            Null
+          } else {
+            decode_value_at(field, r.bytes(), depth + 1)
+          },
+        )
       }
       TupleValue(items)
     }
     Udt(_, _, fields) => {
       let items = []
       for (name, field) in fields {
-        items.push((name, decode_value_at(field, r.bytes(), depth + 1)))
+        items.push(
+          (
+            name,
+            if r.remaining() == 0 {
+              Null
+            } else {
+              decode_value_at(field, r.bytes(), depth + 1)
+            },
+          ),
+        )
       }
       UdtValue(items)
     }
