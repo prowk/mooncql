@@ -27,7 +27,7 @@ Connection 级 Prepared／Pager 仍属于其原连接；可恢复分页尚未实
 
 多节点可通过 `SessionConfig::new(contact_points=[Endpoint::new(host=..., port=...), ...])` 配置。认证、TLS、压缩及额度继承 connection 配置，Endpoint 的 server_name 可覆盖该节点的 TLS 校验名称。每个节点独立恢复；轮询只选择已有健康连接的节点，单节点故障不会关闭其他节点连接。所有节点不可用时进入有界等待，受同一操作截止时间限制。每连接的在途预算分别计算，Session 无健康连接时的等待预算沿用 connection 配置。
 
-当前调度依据显式节点和连接健康状态，拓扑发现、数据中心感知及 token-aware 路由仍由后续事项实现。
+可通过 discovery 开启[控制连接与拓扑发现](topology.md)，自动维护完整成员快照。当前业务调度依据节点的连接健康状态；数据中心感知及 token-aware 路由仍由后续事项实现。
 
 模拟回归覆盖收到写入后断连且不重放、恢复后新请求、停在 OPTIONS 时关闭 Session、队列上限、不可用节点的总截止时间、退避限速和作用域退出后的资源回收。
 

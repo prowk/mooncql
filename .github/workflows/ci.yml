@@ -83,6 +83,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: docker compose -f compose.cluster.yaml up -d --wait --wait-timeout 360
+      - run: python scripts/discovery_recovery.py --docker-compose
       - run: python scripts/cluster_failover.py --docker-compose
       - if: always()
         run: docker compose -f compose.cluster.yaml logs --tail=80

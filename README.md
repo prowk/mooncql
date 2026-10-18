@@ -137,3 +137,5 @@ Apache Cassandra 采用 Apache-2.0；本项目参考其公开 v5 规范、帧布
 Apache-2.0，见 LICENSE。
 
 main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，使用有界事件队列，与普通请求响应独立分发。
+
+可选的 [控制连接与拓扑发现](docs/topology.md) 从种子节点读取 local／peers_v2，合并事件并定期刷新，支持 native 地址转换和断线后重新订阅。

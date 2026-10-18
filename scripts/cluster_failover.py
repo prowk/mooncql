@@ -38,6 +38,18 @@ class DockerCluster:
     def status(self, index=0):
         return self.nodetool(index, "status")
 
+    def native_hosts(self):
+        addresses = []
+        for service in self.services:
+            container = self.compose("ps", "--quiet", service).strip()
+            assert re.fullmatch(r"[a-f0-9]{12,64}", container)
+            result = subprocess.run(["docker", "inspect", container], check=True, capture_output=True, encoding="utf-8")
+            networks = json.loads(result.stdout)[0]["NetworkSettings"]["Networks"]
+            ips = [network["IPAddress"] for network in networks.values() if network["IPAddress"]]
+            assert len(ips) == 1
+            addresses.append(str(ipaddress.ip_address(ips[0])))
+        return addresses
+
     def stop(self, index):
         container = self.compose("ps", "--quiet", self.services[index]).strip()
         assert re.fullmatch(r"[a-f0-9]{12,64}", container)

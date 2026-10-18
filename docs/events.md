@@ -15,6 +15,6 @@ ServerEvent 包含 Topology／Status／Schema 三个分支。拓扑变化区分 
 
 只有 opcode=EVENT 且 stream=-1 的合法消息进入事件路径。普通消息使用负 stream、EVENT 占用业务 stream、未知事件类型、非法地址及截断消息会使连接明确失败，全部等待者结束。事件不会占用业务请求名额，与乱序普通响应交错也不会改变其关联。
 
-Config.event_capacity 默认 256，范围为 1–65536。慢消费者不会阻塞收发任务；满载时丢弃新事件并增加 dropped_event_count。事件队列不提供可靠消息日志：调用方遇到丢失、重连或怀疑元数据过期时，应重新获取完整系统表快照。事件关闭后，正在等待的 next_event 会失败并结束。当前 REGISTER 作用于具体 Connection，独立重连后的连接需要重新订阅；自动控制连接由后续功能提供。
+Config.event_capacity 默认 256，范围为 1–65536。慢消费者不会阻塞收发任务；满载时丢弃新事件并增加 dropped_event_count。事件队列不提供可靠消息日志：调用方遇到丢失、重连或怀疑元数据过期时，应重新获取完整系统表快照。事件关闭后，正在等待的 next_event 会失败并结束。REGISTER 作用于具体 Connection，独立重连后的连接需要重新订阅；Session 可通过 [DiscoveryConfig](topology.md) 启用自动控制连接，恢复订阅并刷新完整快照。
 
 固定参考 Event.java 包含 MOVED_NODE，协议规范的简写段落仅列出 NEW_NODE／REMOVED_NODE，驱动以 Cassandra 5.0.5 固定实现补齐该值。[独立字节样例](../fixtures/v5-events.json) 由 Python 标准库生成，覆盖全部变化、五种 schema 对象及两种 IP 宽度。回归还覆盖所有截断位置、非法字段、交错乱序、关闭等待者，以及 1000 个事件突发时查询仍能完成。真实集成入口验证 REGISTER 和表 CREATED／UPDATED／DROPPED 事件。

@@ -53,6 +53,16 @@ async fn SessionPrepared::statement_for(
   let state = match self.states.get(node) {
     Some(state) => state
     None => {
+      // 成员替换后移除旧节点状态，避免长期发现新成员时累积连接引用。
+      let live : Map[String, Bool] = Map([])
+      for node in self.session.nodes {
+        live["\{node.endpoint.host}:\{node.endpoint.port}"] = true
+      }
+      for key in self.states.keys().to_array() {
+        if !live.contains(key) {
+          self.states.remove(key)
+        }
+      }
       let state = SessionPreparedState::{
         mutex: @async.Mutex(),
         generation: -1,

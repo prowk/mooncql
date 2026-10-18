@@ -128,11 +128,31 @@ pub async fn Connection::shutdown(Self) -> Unit
 pub fn Connection::waiting_bytes(Self) -> Int64
 pub fn Connection::waiting_count(Self) -> Int
 
+type ControlState
+
+pub(all) struct ControlStatus {
+  connected : Bool
+  endpoint : Endpoint?
+  generation : Int
+  refreshes : Int
+  stale : Bool
+  last_error : Error?
+}
+
 pub struct Deadline {
   at : Int64
 }
 pub fn Deadline::after(Int) -> Self raise DriverError
 pub fn Deadline::remaining_ms(Self) -> Int
+
+pub(all) struct DiscoveryConfig {
+  refresh_interval_ms : Int
+  debounce_ms : Int
+  max_nodes : Int
+  max_tokens_per_node : Int
+  address_mapper : (@protocol.InetEndpoint) -> Endpoint?
+}
+pub fn DiscoveryConfig::new(refresh_interval_ms? : Int, debounce_ms? : Int, max_nodes? : Int, max_tokens_per_node? : Int, address_mapper? : (@protocol.InetEndpoint) -> Endpoint?) -> Self
 
 pub(all) struct Endpoint {
   host : String
@@ -250,9 +270,11 @@ pub struct Session {
   mut active : Int
   mut waiting : Int
   mut waiting_bytes : Int64
+  control : ControlState?
 }
 pub fn Session::active_count(Self) -> Int
 pub async fn Session::close(Self) -> Unit
+pub fn Session::control_status(Self) -> ControlStatus?
 pub fn Session::is_closed(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
 pub fn Session::nodes(Self) -> Array[NodeInfo]
@@ -260,6 +282,7 @@ pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Dead
 pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
 pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> Reply
 pub fn Session::status(Self) -> NodeStatus
+pub fn Session::topology(Self) -> TopologySnapshot?
 pub fn Session::waiting_count(Self) -> Int
 
 pub(all) struct SessionConfig {
@@ -269,8 +292,9 @@ pub(all) struct SessionConfig {
   backoff_max_ms : Int
   jitter : Double
   stable_reset_ms : Int
+  discovery : DiscoveryConfig?
 }
-pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int) -> Self
+pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig) -> Self
 
 type SessionNode
 
@@ -324,6 +348,24 @@ pub(all) struct TlsConfig {
   identity : ClientIdentity?
 }
 pub fn TlsConfig::new(server_name? : String, ca_file? : String, identity? : ClientIdentity) -> Self
+
+pub(all) struct TopologyNode {
+  host_id : Bytes
+  native : @protocol.InetEndpoint
+  endpoint : Endpoint?
+  data_center : String
+  rack : String
+  tokens : Array[Int64]
+  schema_version : Bytes
+}
+
+pub(all) struct TopologySnapshot {
+  revision : Int
+  refreshed_at : Int64
+  cluster_name : String
+  partitioner : String
+  nodes : Array[TopologyNode]
+}
 
 type Transport
 

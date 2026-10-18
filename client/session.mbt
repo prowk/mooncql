@@ -1,4 +1,48 @@
 ///|
+fn endpoint_config(
+  base : Config,
+  endpoint : Endpoint,
+) -> Config raise DriverError {
+  let tls = match base.tls {
+    Some(tls) =>
+      Some({
+        ..tls,
+        server_name: if endpoint.server_name is Some(_) {
+          endpoint.server_name
+        } else {
+          tls.server_name
+        },
+      })
+    None => {
+      if endpoint.server_name is Some(_) {
+        raise Configuration("endpoint server name requires TLS")
+      }
+      None
+    }
+  }
+  let connection = { ..base, host: endpoint.host, port: endpoint.port, tls, }
+  connection.validate()
+  connection
+}
+
+///|
+fn session_node(
+  base : Config,
+  endpoint : Endpoint,
+) -> SessionNode raise DriverError {
+  {
+    endpoint,
+    config: endpoint_config(base, endpoint),
+    current: None,
+    worker: None,
+    state: Connecting,
+    generation: 0,
+    attempts: 0,
+    last_error: None,
+  }
+}
+
+///|
 pub(all) enum NodeState {
   Connecting
   Ready
@@ -36,6 +80,7 @@ pub(all) struct SessionConfig {
   backoff_max_ms : Int
   jitter : Double
   stable_reset_ms : Int
+  discovery : DiscoveryConfig?
 }
 
 ///|
@@ -46,6 +91,7 @@ pub fn SessionConfig::new(
   backoff_max_ms? : Int = 2000,
   jitter? : Double = 0.2,
   stable_reset_ms? : Int = 1000,
+  discovery? : DiscoveryConfig,
 ) -> SessionConfig {
   {
     connection,
@@ -54,6 +100,7 @@ pub fn SessionConfig::new(
     backoff_max_ms,
     jitter,
     stable_reset_ms,
+    discovery,
   }
 }
 
@@ -95,6 +142,7 @@ pub struct Session {
   mut active : Int
   mut waiting : Int
   mut waiting_bytes : Int64
+  control : ControlState?
 }
 
 ///|
@@ -102,6 +150,7 @@ pub async fn[T] with_session(
   config? : SessionConfig = SessionConfig::new(),
   body : async (Session) -> T,
 ) -> T {
+  let config = { ..config, contact_points: config.contact_points.copy(), }
   config.connection.validate()
   if config.backoff_initial_ms < 1 ||
     config.backoff_max_ms < config.backoff_initial_ms ||
@@ -121,38 +170,26 @@ pub async fn[T] with_session(
       raise Configuration("duplicate contact point")
     }
     seen[key] = true
-    let tls = match config.connection.tls {
-      Some(tls) =>
-        Some({
-          ..tls,
-          server_name: if endpoint.server_name is Some(_) {
-            endpoint.server_name
-          } else {
-            tls.server_name
-          },
-        })
-      None => {
-        if endpoint.server_name is Some(_) {
-          raise Configuration("endpoint server name requires TLS")
-        }
-        None
-      }
+    session_node(config.connection, endpoint)
+  })
+  let control = config.discovery.map(discovery => {
+    if discovery.refresh_interval_ms < 1 ||
+      discovery.debounce_ms < 0 ||
+      discovery.debounce_ms > 60000 ||
+      discovery.max_nodes < 1 ||
+      discovery.max_nodes > 65536 ||
+      discovery.max_tokens_per_node < 1 ||
+      discovery.max_tokens_per_node > 65536 {
+      raise Configuration("invalid discovery limits")
     }
-    let connection = {
-      ..config.connection,
-      host: endpoint.host,
-      port: endpoint.port,
-      tls,
-    }
-    connection.validate()
-    SessionNode::{
-      endpoint,
-      config: connection,
-      current: None,
+    ControlState::{
+      config: discovery,
       worker: None,
-      state: Connecting,
+      connection: None,
+      snapshot: None,
+      stale: true,
       generation: 0,
-      attempts: 0,
+      refreshes: 0,
       last_error: None,
     }
   })
@@ -168,11 +205,20 @@ pub async fn[T] with_session(
       active: 0,
       waiting: 0,
       waiting_bytes: 0L,
+      control,
     }
     defer session.stop()
     for node in nodes {
       node.worker = Some(
         group.spawn(() => session.maintain(node, group), no_wait=true),
+      )
+    }
+    if control is Some(control) {
+      control.worker = Some(
+        group.spawn(
+          () => session.maintain_control(control, group),
+          no_wait=true,
+        ),
       )
     }
     body(session)
@@ -183,6 +229,14 @@ pub async fn[T] with_session(
 fn Session::stop(self : Session) -> Unit {
   if !self.closed {
     self.closed = true
+    if self.control is Some(control) {
+      if control.connection is Some(connection) {
+        connection.close()
+      }
+      if control.worker is Some(worker) {
+        worker.cancel()
+      }
+    }
     for node in self.nodes {
       if node.current is Some(connection) {
         connection.close()
@@ -198,6 +252,14 @@ fn Session::stop(self : Session) -> Unit {
 ///|
 pub async fn Session::close(self : Session) -> Unit {
   self.stop()
+  if self.control is Some(control) {
+    if control.worker is Some(worker) {
+      ignore(worker.wait()) catch {
+        _ => ()
+      }
+    }
+    control.worker = None
+  }
   for node in self.nodes {
     if node.worker is Some(task) {
       ignore(task.wait()) catch {

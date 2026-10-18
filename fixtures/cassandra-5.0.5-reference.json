@@ -34,6 +34,11 @@
     {
       "path": "src/java/org/apache/cassandra/transport/messages/QueryMessage.java",
       "sha256": "e7ef9e5b3c5156167101a7d0943fc6c5bd1f2a776f42e1eb8fe5fc8fdd054186"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/db/SystemKeyspace.java",
+      "url": "https://raw.githubusercontent.com/apache/cassandra/c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8/src/java/org/apache/cassandra/db/SystemKeyspace.java",
+      "sha256": "32c78da09741f7c8f913f8609a867838cf32a62a22c330c7747094762d0c4440"
     }
   ]
 }

@@ -22,7 +22,7 @@
 
 - [x] 实现 REGISTER 与结构化 TOPOLOGY_CHANGE、STATUS_CHANGE、SCHEMA_CHANGE 事件解码。验收：覆盖节点新增／移除／移动、UP／DOWN，以及 keyspace、table、type、function、aggregate 的 schema 事件；正确读取 IPv4／IPv6 和端口；仅合法 EVENT 使用服务端事件分发路径，事件与普通响应交错不会影响 stream 关联。参考：[Event.java](https://github.com/apache/cassandra/blob/cassandra-5.0/src/java/org/apache/cassandra/transport/Event.java)。
 
-- [ ] 实现控制连接、拓扑快照刷新和事件订阅恢复。验收：读取并核对 `system.local`、`system.peers_v2` 的节点标识、native 地址、数据中心和 token；控制连接断开后重新订阅并刷新快照；重复、乱序或遗漏事件最终收敛；支持广播地址到可连接地址的转换；事件突发不会触发无界刷新任务。
+- [x] 实现控制连接、拓扑快照刷新和事件订阅恢复。验收：读取并核对 `system.local`、`system.peers_v2` 的节点标识、native 地址、数据中心和 token；控制连接断开后重新订阅并刷新快照；重复、乱序或遗漏事件最终收敛；支持广播地址到可连接地址的转换；事件突发不会触发无界刷新任务。
 
 - [ ] 增加数据中心感知与 token-aware 路由，明确支持的 partitioner 和复制策略。验收：单字段及组合分区键 routing key、Murmur3 token 与独立实现一致；副本选择与真实集群一致；优先使用本地数据中心的合适节点；缺少分区键、元数据过期或不支持的策略能安全回退；跨数据中心回退必须显式配置。
 
