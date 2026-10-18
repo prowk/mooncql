@@ -405,6 +405,8 @@ pub async fn Session::request(
   self : Session,
   request : @protocol.Request,
   deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy = RetryPolicy::new(),
 ) -> Reply {
   let deadline = self.operation_deadline(deadline)
   if request.body.length() > self.config.connection.max_frame_bytes {
@@ -415,9 +417,20 @@ pub async fn Session::request(
     self.active -= 1
     self.changed.broadcast()
   }
-  let connection = self.select(deadline, request.body.length().to_int64() + 9L)
-  // 只选择一次连接；断线失败直接交给调用方，不重新执行未知结果的请求。
-  connection.request(request, deadline~)
+  let enabled = idempotent && (request.opcode == 7 || request.opcode == 10)
+  self.execute_retry(
+    deadline,
+    request.body.length().to_int64() + 9L,
+    enabled,
+    retry,
+    connection => {
+      let reply = connection.request(request, deadline~)
+      if enabled && retry.max_attempts > 1 && reply.response is Failure(error) {
+        raise Server(error)
+      }
+      reply
+    },
+  )
 }
 
 ///|
@@ -427,10 +440,17 @@ pub async fn Session::query(
   values? : Array[@types.Value] = [],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy = RetryPolicy::new(),
 ) -> @protocol.ResultSet {
   let deadline = self.operation_deadline(deadline)
   match
-    self.request(@protocol.query(cql, values~, options~), deadline~).response {
+    self.request(
+      @protocol.query(cql, values~, options~),
+      deadline~,
+      idempotent~,
+      retry~,
+    ).response {
     Result(result) => result
     Failure(error) => raise Server(error)
     _ => raise Unexpected("expected RESULT response")

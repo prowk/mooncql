@@ -13,7 +13,7 @@
 )
 ```
 
-`with_session` 立即启动连接维护。首次连接未完成或节点重启时，查询在有界队列中等待可用连接；等待受同一次操作的 Deadline 约束，超时报 WaitingConnection 阶段，且尚未发送应用请求。数量与字节上限沿用 connection 配置中的 max_waiting／max_waiting_bytes。取得连接后，每次调用只使用该连接一次；断线前的未知结果不会被重放。
+`with_session` 立即启动连接维护。首次连接未完成或节点重启时，查询在有界队列中等待可用连接；等待受同一次操作的 Deadline 约束，超时报 WaitingConnection 阶段，且尚未发送应用请求。数量与字节上限沿用 connection 配置中的 max_waiting／max_waiting_bytes。默认每次调用只尝试一次；显式声明幂等后可启用有界重试，见[重试语义](retries.md)。
 
 恢复采用指数退避，默认从 25 毫秒增长至最多 2000 毫秒，并加入 ±20% 随机抖动，最终延迟仍不超过上限。连接稳定 1000 毫秒后重置退避；短暂建立后立即断开的连接继续增加退避，避免频繁重连。参数可通过 SessionConfig 配置。
 

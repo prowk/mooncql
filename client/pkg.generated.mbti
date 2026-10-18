@@ -33,8 +33,19 @@ pub(all) suberror DriverError {
 } derive(@debug.Debug)
 pub fn DriverError::to_repr(Self) -> @debug.Repr
 
+pub(all) suberror RetryExhausted {
+  RetryExhausted(Array[AttemptFailure])
+}
+
 // Types and methods
 type Admission
+
+pub(all) struct AttemptFailure {
+  attempt : Int
+  endpoint : Endpoint?
+  error : Error
+  may_have_been_sent : Bool
+}
 
 pub(all) enum ClientIdentity {
   Pem(String, String)
@@ -215,6 +226,12 @@ pub fn RequestStage::equal(Self, Self) -> Bool
 pub fn RequestStage::not_equal(Self, Self) -> Bool
 pub fn RequestStage::to_repr(Self) -> @debug.Repr
 
+pub(all) struct RetryPolicy {
+  max_attempts : Int
+  delay_ms : Int
+}
+pub fn RetryPolicy::new(max_attempts? : Int, delay_ms? : Int) -> Self
+
 pub struct Session {
   config : SessionConfig
   changed : @cond_var.Cond
@@ -233,8 +250,8 @@ pub fn Session::is_closed(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
 pub fn Session::nodes(Self) -> Array[NodeInfo]
 pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline) -> SessionPrepared
-pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
-pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline) -> Reply
+pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
+pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> Reply
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::waiting_count(Self) -> Int
 
@@ -257,7 +274,7 @@ pub struct SessionPrepared {
   states : Map[String, SessionPreparedState]
   mut parameters : Array[@protocol.Column]
 }
-pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
+pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
 pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub fn SessionPrepared::parameters(Self) -> Array[@protocol.Column]
 
@@ -278,6 +295,7 @@ pub(all) enum TimeoutPhase {
   WaitingResponse
   WaitingPrepare
   WaitingConnection
+  WaitingRetry
 } derive(Eq, @debug.Debug)
 pub fn TimeoutPhase::equal(Self, Self) -> Bool
 pub fn TimeoutPhase::not_equal(Self, Self) -> Bool

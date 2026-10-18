@@ -6,6 +6,8 @@ import {
   "prowk/mooncql/protocol",
   "prowk/mooncql/types",
   "moonbitlang/async",
+  "moonbitlang/async/io",
+  "moonbitlang/async/os_error",
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
 }

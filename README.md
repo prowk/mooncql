@@ -80,7 +80,7 @@ main 分支另提供等待数量、等待字节、在途数量和在途字节上
 
 main 分支支持 TCP／TLS 共用传输、自定义 CA、名称校验和显式客户端证书，已通过 Windows／Linux 及认证／压缩矩阵，见 [TLS 连接](docs/tls.md)。
 
-main 分支提供作用域 Session，每节点独立连接并以有上限的退避和抖动恢复，健康节点间轮询调度；已失败的未知结果请求不重放。支持同一 SessionPrepared 对象跨节点及连接更换，见 [Session 与恢复](docs/session.md)。
+main 分支提供作用域 Session，每节点独立连接并以有上限的退避和抖动恢复，健康节点间轮询调度；默认不重放已失败请求，显式幂等声明可启用[有界重试](docs/retries.md)。支持同一 SessionPrepared 对象跨节点及连接更换，见 [Session 与恢复](docs/session.md)。
 
 main 分支的预处理缓存支持可配置 LRU 和按 CQL/keyspace 合并并发准备，淘汰不影响已返回对象，见[预处理缓存](docs/prepared-cache.md)。
 

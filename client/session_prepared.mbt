@@ -93,6 +93,8 @@ pub async fn SessionPrepared::execute(
   values : Array[@types.Value],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy = RetryPolicy::new(),
 ) -> @protocol.ResultSet {
   let deadline = self.session.operation_deadline(deadline)
   // 在选择连接前冻结参数，连接更换及重新准备都使用该快照。
@@ -107,9 +109,10 @@ pub async fn SessionPrepared::execute(
     self.session.active -= 1
     self.session.changed.broadcast()
   }
-  let connection = self.session.select(deadline, charge)
-  let prepared = self.statement_for(connection, deadline)
-  prepared.execute(values, options~, deadline~)
+  self.session.execute_retry(deadline, charge, idempotent, retry, connection => {
+    let prepared = self.statement_for(connection, deadline)
+    prepared.execute(values, options~, deadline~)
+  })
 }
 
 ///|
