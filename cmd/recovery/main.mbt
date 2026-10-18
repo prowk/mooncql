@@ -55,6 +55,62 @@ async fn main {
       probes.push((statement, expected))
     }
     let initial = session.status().generation
+    ignore(
+      session.query(
+        "CREATE TABLE IF NOT EXISTS mooncql_recovery_a.page_probe (partition int, id int, PRIMARY KEY (partition,id))",
+      ),
+    )
+    ignore(session.query("TRUNCATE mooncql_recovery_a.page_probe"))
+    let insert_page = session.prepare(
+      "INSERT INTO mooncql_recovery_a.page_probe (partition,id) VALUES (?,?)",
+    )
+    for id in 0..<101 {
+      ignore(insert_page.execute([Integer(7), Integer(id)]))
+    }
+    let paging_options = @protocol.QueryOptions::new(
+      page_size=17,
+      skip_metadata=true,
+    )
+    let simple_cql = "SELECT id FROM mooncql_recovery_a.page_probe WHERE partition=?"
+    let simple_pager = session.pages(
+      simple_cql,
+      values=[Integer(7)],
+      options=paging_options,
+    )
+    let paging_prepared = session.prepare(
+      "SELECT id FROM page_probe WHERE partition=?",
+      keyspace="mooncql_recovery_a",
+    )
+    let prepared_pager = paging_prepared.pages(
+      [Integer(7)],
+      options=paging_options,
+    )
+    for pager in [simple_pager, prepared_pager] {
+      let page = pager.next().unwrap()
+      assert_eq(page.rows.length(), 17)
+      for id in 0..<17 {
+        assert_eq(page.row(id).int("id"), id)
+      }
+    }
+    let simple_cursor = simple_pager.cursor().to_bytes()
+    let prepared_cursor = prepared_pager.cursor().to_bytes()
+    @fs.write_file("\{directory}/paging-simple.bin", simple_cursor)
+    @fs.write_file("\{directory}/paging-prepared.bin", prepared_cursor)
+    assert_true(
+      try {
+        ignore(
+          paging_prepared.pages(
+            [Integer(7)],
+            options=paging_options,
+            cursor=@client.PagingCursor::from_bytes(simple_cursor),
+          ),
+        )
+        false
+      } catch {
+        @client.Configuration(_) => true
+        _ => false
+      },
+    )
     @fs.write_file("\{directory}/ready", b"ready\n")
     @async.with_timeout(120000, () => {
       while !@fs.exists("\{directory}/go") {
@@ -72,6 +128,27 @@ async fn main {
     for (statement, expected) in probes {
       verify_probe(statement, expected, options)
     }
+    verify_remaining_pages(simple_pager)
+    verify_remaining_pages(prepared_pager)
+    verify_remaining_pages(
+      session.pages(
+        simple_cql,
+        values=[Integer(7)],
+        options=paging_options,
+        cursor=@client.PagingCursor::from_bytes(simple_cursor),
+      ),
+    )
+    let replacement_statement = session.prepare(
+      "SELECT id FROM page_probe WHERE partition=?",
+      keyspace="mooncql_recovery_a",
+    )
+    verify_remaining_pages(
+      replacement_statement.pages(
+        [Integer(7)],
+        options=paging_options,
+        cursor=@client.PagingCursor::from_bytes(prepared_cursor),
+      ),
+    )
     assert_true(session.status().generation > initial)
     let generation = session.status().generation
     let attempts = session.status().attempts
@@ -81,10 +158,23 @@ async fn main {
     assert_eq(session.status().state, Stopped)
     @fs.write_file(
       "\{directory}/result.json",
-      "{\"generation\":\{generation},\"attempts\":\{attempts},\"prepared_reused\":true,\"active\":0,\"waiting\":0}\n",
+      "{\"generation\":\{generation},\"attempts\":\{attempts},\"prepared_reused\":true,\"paging_rows\":101,\"paging_remaining\":84,\"paging_restores\":4,\"active\":0,\"waiting\":0}\n",
     )
     println("PASS Session recovered after server restart; all tasks drained")
   })
+}
+
+///|
+async fn verify_remaining_pages(pager : @client.Pager) -> Unit {
+  let mut expected = 17
+  while pager.next() is Some(page) {
+    for index in 0..<page.rows.length() {
+      assert_eq(page.row(index).int("id"), expected)
+      expected += 1
+    }
+  }
+  assert_eq(expected, 101)
+  assert_true(pager.cursor().is_done())
 }
 
 ///|

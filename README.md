@@ -147,3 +147,5 @@ main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，�
 可选 [Metrics 与安全请求监听](docs/metrics.md) 汇总阶段耗时、实时额度、超时／取消、重连、缓存和压缩比例；默认关闭观测，监听器错误被隔离，事件不包含 CQL、绑定值或密码。
 
 main 分支新增 [Row 类型化读取与精确转换](docs/rows.md)：区分缺列、NULL 和类型不匹配，共享本页列名索引，保留 UUID、完整范围日期时间、decimal 和 varint 的精度与原始 Value。
+
+[可恢复分页游标](docs/paging.md) 关联查询上下文并拒绝不匹配恢复，失败不推进；Session 的普通和预处理 Pager 可跨连接恢复。分页不保证跨页快照一致性。

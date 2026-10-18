@@ -6,6 +6,7 @@ import {
   "moonbitlang/async/aqueue",
   "moonbitlang/async/cond_var",
   "moonbitlang/core/debug",
+  "prowk/mooncql/codec",
   "prowk/mooncql/protocol",
   "prowk/mooncql/routing",
   "prowk/mooncql/types",
@@ -133,7 +134,7 @@ pub fn Connection::in_flight_bytes(Self) -> Int64
 pub fn Connection::in_flight_count(Self) -> Int
 pub fn Connection::is_closed(Self) -> Bool
 pub async fn Connection::next_event(Self) -> @protocol.ServerEvent
-pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
+pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
 pub fn Connection::pending_count(Self) -> Int
 pub async fn Connection::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Prepared
 pub async fn Connection::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Execution[Prepared]
@@ -329,10 +330,20 @@ pub struct Pager {
   mut done : Bool
   mut busy : Bool
   mut columns : Array[@protocol.Column]
+  binding : Bytes
 }
+pub fn Pager::cursor(Self) -> PagingCursor raise DriverError
 pub async fn Pager::for_each_row(Self, async (Array[@protocol.Column], Array[@types.Value]) -> Unit) -> Unit
 pub async fn Pager::next(Self, deadline? : Deadline) -> @protocol.Page?
 pub async fn Pager::next_with_info(Self, deadline? : Deadline) -> Execution[@protocol.Page]?
+
+pub struct PagingCursor {
+  // private fields
+}
+pub fn PagingCursor::from_bytes(Bytes) -> Self raise @codec.CodecError
+pub fn PagingCursor::is_done(Self) -> Bool
+pub fn PagingCursor::to_bytes(Self) -> Bytes raise @codec.CodecError
+pub fn PagingCursor::to_repr(Self) -> @debug.Repr
 
 type Pending
 
@@ -352,7 +363,7 @@ pub fn Prepared::bind_batch(Self, Array[@types.Value]) -> @protocol.BatchStateme
 pub async fn Prepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
 pub async fn Prepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn Prepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> Execution[@protocol.ResultSet]
-pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions) -> Pager raise
+pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
 pub fn Prepared::parameters(Self) -> Array[@protocol.Column]
 
 type PreparedCache
@@ -444,6 +455,7 @@ pub fn Session::control_status(Self) -> ControlStatus?
 pub fn Session::is_closed(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
 pub fn Session::nodes(Self) -> Array[NodeInfo]
+pub fn Session::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
 pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> SessionPrepared
 pub async fn Session::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Execution[SessionPrepared]
 pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> @protocol.ResultSet
@@ -481,6 +493,7 @@ pub struct SessionPrepared {
 pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
 pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn SessionPrepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> Execution[@protocol.ResultSet]
+pub fn SessionPrepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
 pub fn SessionPrepared::parameters(Self) -> Array[@protocol.Column]
 
 type SessionPreparedState

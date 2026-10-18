@@ -134,7 +134,7 @@ async test "pager continues after an empty page and preserves bound values" {
         let r = @codec.Reader::new(request.body)
         assert_eq(r.long_string(), "SELECT id FROM ks.t WHERE id=?")
         assert_eq(r.u16(), 10)
-        assert_eq(r.i32(), if i == 0 { 7 } else { 15 })
+        assert_eq(r.i32(), if i == 0 { 5 } else { 15 })
         assert_eq(r.u16(), 1)
         assert_eq(r.bytes(), Some(b"\x00\x00\x00\x2a"))
         assert_eq(r.i32(), 2)

@@ -7,6 +7,8 @@ import pathlib
 import subprocess
 import time
 import uuid
+from paging_reference import verify as verify_paging
+from native_runner import build_native
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -26,8 +28,9 @@ def main():
     folder = ROOT / ".artifacts" / ("session-recovery-" + uuid.uuid4().hex)
     folder.mkdir(parents=True)
     environment = dict(os.environ, CQL_RECOVERY_DIR=str(folder))
+    executable = build_native('cmd/recovery')
     with (folder / "stdout.log").open("w", encoding="utf-8") as stdout, (folder / "stderr.log").open("w", encoding="utf-8") as stderr:
-        process = subprocess.Popen(["moon", "run", "cmd/recovery"], cwd=ROOT, env=environment,
+        process = subprocess.Popen([executable], cwd=ROOT, env=environment,
                                    stdout=stdout, stderr=stderr,
                                    creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         try:
@@ -43,6 +46,8 @@ def main():
             result = json.loads((folder / "result.json").read_text(encoding="utf-8"))
             assert result["generation"] >= 2 and result["active"] == result["waiting"] == 0
             assert result["prepared_reused"] is True
+            assert result['paging_rows'] == 101 and result['paging_remaining'] == 84 and result['paging_restores'] == 4
+            verify_paging(folder)
             print("PASS real Cassandra restart with unchanged Session and drained tasks")
         finally:
             if process.poll() is None:

@@ -2,6 +2,8 @@
 enum PageQuery {
   Simple(Connection, String, Array[@types.Value])
   PreparedQuery(Prepared, Array[@types.Value])
+  SessionQuery(Session, String, Array[@types.Value])
+  SessionPreparedQuery(SessionPrepared, Array[@types.Value])
 }
 
 ///|
@@ -12,6 +14,7 @@ pub struct Pager {
   mut done : Bool
   mut busy : Bool
   mut columns : Array[@protocol.Column]
+  binding : Bytes
 }
 
 ///|
@@ -22,15 +25,23 @@ pub fn Connection::pages(
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
+  cursor? : PagingCursor,
 ) -> Pager raise {
-  {
-    query: Simple(self, cql, @types.snapshot(values)),
-    options: options.snapshot(),
-    state: options.paging_state,
-    done: false,
-    busy: false,
-    columns: [],
+  let values = @types.snapshot(values)
+  let options = {
+    ..options.snapshot(),
+    keyspace: if options.keyspace is Some(_) {
+      options.keyspace
+    } else {
+      self.keyspace
+    },
   }
+  new_pager(
+    Simple(self, cql, values),
+    options,
+    paging_binding(cql, values, options, None),
+    cursor,
+  )
 }
 
 ///|
@@ -40,15 +51,65 @@ pub fn Prepared::pages(
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
+  cursor? : PagingCursor,
 ) -> Pager raise {
-  {
-    query: PreparedQuery(self, @types.snapshot(values)),
-    options: options.snapshot(),
-    state: options.paging_state,
-    done: false,
-    busy: false,
-    columns: [],
-  }
+  let values = @types.snapshot(values)
+  let options = prepared_options(options, self.keyspace)
+  let prepare = @protocol.prepare(
+    self.cql,
+    keyspace?=self.keyspace,
+    request_options?=self.request_options,
+  )
+  new_pager(
+    PreparedQuery(self, values),
+    options,
+    paging_binding(self.cql, values, options, Some(prepare)),
+    cursor,
+  )
+}
+
+///|
+pub fn Session::pages(
+  self : Session,
+  cql : String,
+  values? : Array[@types.Value] = [],
+  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+    page_size=1000,
+  ),
+  cursor? : PagingCursor,
+) -> Pager raise {
+  let values = @types.snapshot(values)
+  let options = options.snapshot()
+  new_pager(
+    SessionQuery(self, cql, values),
+    options,
+    paging_binding(cql, values, options, None),
+    cursor,
+  )
+}
+
+///|
+pub fn SessionPrepared::pages(
+  self : SessionPrepared,
+  values : Array[@types.Value],
+  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+    page_size=1000,
+  ),
+  cursor? : PagingCursor,
+) -> Pager raise {
+  let values = @types.snapshot(values)
+  let options = prepared_options(options, self.keyspace)
+  let prepare = @protocol.prepare(
+    self.cql,
+    keyspace?=self.keyspace,
+    request_options?=self.request_options,
+  )
+  new_pager(
+    SessionPreparedQuery(self, values),
+    options,
+    paging_binding(self.cql, values, options, Some(prepare)),
+    cursor,
+  )
 }
 
 ///|
@@ -75,7 +136,13 @@ pub async fn Pager::next_with_info(
     keyspace: self.options.keyspace,
     now_in_seconds: self.options.now_in_seconds,
     value_names: self.options.value_names,
-    skip_metadata: self.options.skip_metadata,
+    // 首次或恢复后的普通查询需要完整元数据；Session 每页可能更换协调节点。
+    skip_metadata: self.options.skip_metadata &&
+    (match self.query {
+      Simple(_, _, _) => self.columns.length() > 0
+      SessionQuery(_, _, _) => false
+      _ => true
+    }),
     request_options: self.options.request_options,
   }
   let result = match self.query {
@@ -87,12 +154,15 @@ pub async fn Pager::next_with_info(
       )
     PreparedQuery(statement, values) =>
       statement.execute_with_info(values, options~, deadline?)
+    SessionQuery(session, cql, values) =>
+      session.query_with_info(cql, values~, options~, deadline?)
+    SessionPreparedQuery(statement, values) =>
+      statement.execute_with_info(values, options~, deadline?)
   }
   guard result.value is Rows(page) else {
     raise ExecutionError(Unexpected("pager requires ROWS result"), result.info)
   }
   if page.paging_state is Some(_) && page.paging_state == self.state {
-    self.done = true
     raise ExecutionError(
       Unexpected("server returned unchanged paging state"),
       result.info,
