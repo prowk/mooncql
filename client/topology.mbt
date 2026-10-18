@@ -3,6 +3,7 @@ pub(all) struct DiscoveryConfig {
   refresh_interval_ms : Int
   debounce_ms : Int
   max_nodes : Int
+  max_keyspaces : Int
   max_tokens_per_node : Int
   address_mapper : (@protocol.InetEndpoint) -> Endpoint?
 }
@@ -12,6 +13,7 @@ pub fn DiscoveryConfig::new(
   refresh_interval_ms? : Int = 30000,
   debounce_ms? : Int = 100,
   max_nodes? : Int = 1024,
+  max_keyspaces? : Int = 4096,
   max_tokens_per_node? : Int = 4096,
   address_mapper? : (@protocol.InetEndpoint) -> Endpoint? = native_endpoint,
 ) -> DiscoveryConfig {
@@ -20,6 +22,7 @@ pub fn DiscoveryConfig::new(
     debounce_ms,
     max_nodes,
     max_tokens_per_node,
+    max_keyspaces,
     address_mapper,
   }
 }
@@ -42,6 +45,7 @@ pub(all) struct TopologySnapshot {
   cluster_name : String
   partitioner : String
   nodes : Array[TopologyNode]
+  keyspaces : Map[String, @routing.Replication]
 }
 
 ///|
@@ -54,6 +58,8 @@ struct ControlState {
   mut generation : Int
   mut refreshes : Int
   mut last_error : Error?
+  mut ring : @routing.Ring?
+  mut locations : Map[String, (String, Bytes)]
 }
 
 ///|
@@ -71,11 +77,18 @@ pub fn Session::topology(self : Session) -> TopologySnapshot? {
   match self.control {
     Some(control) =>
       control.snapshot.map(snapshot => {
-        ..snapshot,
-        nodes: snapshot.nodes.map(node => {
-          ..node,
-          tokens: node.tokens.copy(),
-        }),
+        let keyspaces : Map[String, @routing.Replication] = Map([])
+        for keyspace, replication in snapshot.keyspaces {
+          keyspaces[keyspace] = replication.snapshot()
+        }
+        {
+          ..snapshot,
+          nodes: snapshot.nodes.map(node => {
+            ..node,
+            tokens: node.tokens.copy(),
+          }),
+          keyspaces,
+        }
       })
     None => None
   }
@@ -231,12 +244,41 @@ async fn read_topology(
       nodes.push(node)
     }
   }
+  let keyspaces : Map[String, @routing.Replication] = Map([])
+  let schemas = connection.pages(
+    "SELECT keyspace_name,replication FROM system_schema.keyspaces",
+    options=@protocol.QueryOptions::new(page_size=256),
+  )
+  while schemas.next(deadline~) is Some(page) {
+    for row in 0..<page.rows.length() {
+      if keyspaces.length() >= config.max_keyspaces {
+        raise Configuration("metadata exceeds max_keyspaces")
+      }
+      let keyspace = topology_text(page, row, "keyspace_name")
+      if keyspaces.contains(keyspace) {
+        raise Unexpected("duplicate keyspace metadata")
+      }
+      guard page.get(row, "replication") is MapValue(entries) &&
+        entries.length() <= config.max_nodes + 1 else {
+        raise Unexpected("invalid replication metadata")
+      }
+      let options : Map[String, String] = Map([])
+      for pair in entries {
+        guard pair is (Text(key), Text(value)) && !options.contains(key) else {
+          raise Unexpected("invalid replication option")
+        }
+        options[key] = value
+      }
+      keyspaces[keyspace] = @routing.replication(options)
+    }
+  }
   {
     revision,
     refreshed_at: @async.now(),
     cluster_name: topology_text(local_page, 0, "cluster_name"),
     partitioner: topology_text(local_page, 0, "partitioner"),
     nodes,
+    keyspaces,
   }
 }
 
@@ -246,12 +288,14 @@ priv suberror RefreshDue
 ///|
 async fn wait_topology_signal(
   connection : Connection,
-  config : DiscoveryConfig,
+  control : ControlState,
 ) -> Unit {
+  let config = control.config
   @async.with_timeout(
     config.refresh_interval_ms,
     () => {
       ignore(connection.next_event())
+      control.stale = true
       @async.sleep(config.debounce_ms)
       // 单一控制任务合并已到达事件，不为每条通知创建刷新任务。
       while connection.events.try_get() is Some(_) {
@@ -361,7 +405,6 @@ async fn[G] Session::maintain_control(
       connection.register([TopologyChange, StatusChange, SchemaChange])
       control.generation += 1
       while !self.closed {
-        control.stale = true
         let snapshot = read_topology(
           connection,
           endpoint,
@@ -373,11 +416,30 @@ async fn[G] Session::maintain_control(
           raise Configuration("control endpoint belongs to a different cluster")
         }
         self.reconcile(snapshot, group)
+        control.ring = @routing.Ring::new(
+          snapshot.nodes.map(node => {
+            host_id: node.host_id,
+            data_center: node.data_center,
+            rack: node.rack,
+            tokens: node.tokens,
+          }),
+          snapshot.partitioner,
+        )
+        let locations : Map[String, (String, Bytes)] = Map([])
+        for node in snapshot.nodes {
+          if node.endpoint is Some(endpoint) {
+            locations["\{endpoint.host}:\{endpoint.port}"] = (
+              node.data_center,
+              node.host_id,
+            )
+          }
+        }
+        control.locations = locations
         control.snapshot = Some(snapshot)
         control.refreshes += 1
         control.stale = false
         control.last_error = None
-        wait_topology_signal(connection, control.config)
+        wait_topology_signal(connection, control)
       }
     } catch {
       error => {

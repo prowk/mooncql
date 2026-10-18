@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "prowk/mooncql/routing"
+
+import {
+  "prowk/mooncql/codec",
+  "prowk/mooncql/types",
+}
+
+// Values
+pub fn murmur3_token(Bytes) -> Int64
+
+pub fn replication(Map[String, String]) -> Replication
+
+pub fn routing_key(Array[@types.Value], Array[Int]) -> Bytes? raise @codec.CodecError
+
+// Errors
+
+// Types and methods
+type Entry
+
+pub(all) struct Node {
+  host_id : Bytes
+  data_center : String
+  rack : String
+  tokens : Array[Int64]
+}
+
+pub(all) enum Replication {
+  Simple(Int)
+  NetworkTopology(Map[String, Int])
+  Unsupported(String)
+}
+pub fn Replication::snapshot(Self) -> Self
+
+pub struct Ring {
+  nodes : Array[Node]
+  entries : Array[Entry]
+}
+pub fn Ring::new(Array[Node], String) -> Self?
+pub fn Ring::replicas(Self, Int64, Replication) -> Array[Bytes]?
+
+// Type aliases
+
+// Traits

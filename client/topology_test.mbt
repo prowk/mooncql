@@ -4,6 +4,9 @@ fn topology_rows(
   is_local : Bool,
   included : Bool,
   invalid? : Bool = false,
+  data_center? : String = "dc1",
+  wide_tokens? : Bool = false,
+  partitioner? : String = "org.apache.cassandra.dht.Murmur3Partitioner",
 ) -> Bytes raise {
   let w = @codec.Writer::new()
   w.i32(2)
@@ -49,13 +52,17 @@ fn topology_rows(
       Uuid(id),
       Inet(if index == 0 { b"\x0a\x00\x00\x01" } else { b"\x0a\x00\x00\x02" }),
       Integer(9042),
-      Text("dc1"),
+      Text(data_center),
       Text("rack\{index}"),
       if invalid {
         Null
       } else {
         SetValue(
-          if index == 0 {
+          if wide_tokens && index == 0 {
+            [Text("-4611686018427387904"), Text("0")]
+          } else if wide_tokens {
+            [Text("4611686018427387904"), Text("9223372036854775807")]
+          } else if index == 0 {
             [Text("-10"), Text("0")]
           } else {
             [Text("10"), Text("20")]
@@ -65,13 +72,51 @@ fn topology_rows(
       Uuid(b"schema-version01"),
     ]
     if is_local {
-      values.push(Text("org.apache.cassandra.dht.Murmur3Partitioner"))
+      values.push(Text(partitioner))
       values.push(Text("test-cluster"))
     }
     for value in values {
       @types.write_value(w, value)
     }
   }
+  w.to_bytes()
+}
+
+///|
+fn replication_rows(simple? : Bool = false) -> Bytes raise {
+  let w = @codec.Writer::new()
+  w.i32(2)
+  w.i32(1)
+  w.i32(2)
+  w.string("system_schema")
+  w.string("keyspaces")
+  w.string("keyspace_name")
+  w.u16(13)
+  w.string("replication")
+  w.u16(33)
+  w.u16(13)
+  w.u16(13)
+  w.i32(1)
+  @types.write_value(w, Text("ks"))
+  @types.write_value(
+    w,
+    MapValue(
+      if simple {
+        [
+          (Text("class"), Text("org.apache.cassandra.locator.SimpleStrategy")),
+          (Text("replication_factor"), Text("1")),
+        ]
+      } else {
+        [
+          (
+            Text("class"),
+            Text("org.apache.cassandra.locator.NetworkTopologyStrategy"),
+          ),
+          (Text("dc1"), Text("2")),
+        ]
+      },
+    ),
+  )
   w.to_bytes()
 }
 
@@ -145,6 +190,8 @@ async test "control snapshot converges across burst missing events removal mappe
                             phase[0] != 1,
                             invalid=phase[0] == 3,
                           )
+                        } else if cql.contains("FROM system_schema.keyspaces") {
+                          replication_rows()
                         } else {
                           b"\x00\x00\x00\x01"
                         }

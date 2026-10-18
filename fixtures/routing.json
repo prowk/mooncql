@@ -1,0 +1,1264 @@
+{
+  "reference": "cassandra-driver==3.30.0",
+  "seed": 20261018,
+  "empty_key_token": -9223372036854775808,
+  "cases": [
+    {
+      "key": "66",
+      "token": -7907455435422653521
+    },
+    {
+      "key": "a820",
+      "token": -5033115583419373189
+    },
+    {
+      "key": "ea3b71",
+      "token": -5223066260837575094
+    },
+    {
+      "key": "1c8b835f",
+      "token": -1736494050841910359
+    },
+    {
+      "key": "197a403826",
+      "token": 3362915464263324479
+    },
+    {
+      "key": "716c2031f800",
+      "token": -3569832815528539354
+    },
+    {
+      "key": "2734572e1510ac",
+      "token": 2309321631636579065
+    },
+    {
+      "key": "3a96311d28eb74f2",
+      "token": -8943717440493436681
+    },
+    {
+      "key": "fbdc650ffe66650b44",
+      "token": -1104632837564491390
+    },
+    {
+      "key": "3c9ccf661304bfbfe468",
+      "token": -6390136192956075941
+    },
+    {
+      "key": "3b27764d6028b76fd1cc5a",
+      "token": 2735011469181386239
+    },
+    {
+      "key": "e9e46083c2f0a3270b767915",
+      "token": -8030151052251689679
+    },
+    {
+      "key": "a4448ac417ffcad0c177b236e4",
+      "token": -5368360596817637067
+    },
+    {
+      "key": "724f4634da674a551018cb548d80",
+      "token": -1607119818538890855
+    },
+    {
+      "key": "c38fc3aec4671c5aa29614a41ae967",
+      "token": 7417462364127369448
+    },
+    {
+      "key": "6b4077b6ca1b4c838aa09ce51f830e71",
+      "token": 5448137318514485828
+    },
+    {
+      "key": "4a1c112c028b824331c2cacd584e6ec75e",
+      "token": 6540635612011099089
+    },
+    {
+      "key": "44440ae435f9143eb95838b79e7638bd32e1",
+      "token": 8871082308295341392
+    },
+    {
+      "key": "dd08f9635480324894a51d525e0231c5145389",
+      "token": -6891409740586008408
+    },
+    {
+      "key": "4de3305f77cd370abc6d060f98e00ee10549e9b0",
+      "token": 5660852642134642004
+    },
+    {
+      "key": "51cf08519314e78dc41fc39c2fd19d89f001974d86",
+      "token": 6004656109233681277
+    },
+    {
+      "key": "ad4968d172c24ce06b24ffc273f2d7924adf5f77e4a7",
+      "token": -1190381810335801956
+    },
+    {
+      "key": "ba98781409d3c442c9ef5f89b701ff6a6d4a7d82062234",
+      "token": 1308778343043618648
+    },
+    {
+      "key": "bf0c5ea1a8a470c80d0501397b0a254487cea5bf7ce09c50",
+      "token": 913716026926161374
+    },
+    {
+      "key": "630467e5ffc0a09e65446dfb4712530205347c29d8ac0aba11",
+      "token": 7638009198657737371
+    },
+    {
+      "key": "25b453a7e34ee3282e110771700f6aed8beda4a414a330377ecd",
+      "token": 6232907970239552051
+    },
+    {
+      "key": "f188e9c446f5bf04379a3b0955733c4e65eabb95e99665f8e727cd",
+      "token": 4958110061635881748
+    },
+    {
+      "key": "6406293de5a8eb03281d2a42826bd81decc2f172eb365f82c3ccb753",
+      "token": 774991188195571672
+    },
+    {
+      "key": "b95ca36a17142c6f1a4e8c1fb8bf07d7b7e9c9012f5870389ef212e4e1",
+      "token": -1672690610277590505
+    },
+    {
+      "key": "faa7be995420bb3a059b1d6ad8d5dd88c25b4e4c3fc6d17928ad9b285aa9",
+      "token": 3035092134033106203
+    },
+    {
+      "key": "08958300f5fc210095ed1f2178dd55cb45ad14ca150424f2feeba3f5e6ff70",
+      "token": -8077326804890936070
+    },
+    {
+      "key": "8c9030b12d5a334031e1ceef26a37ee6640c65942ca8dcb14b55805fb848e12e",
+      "token": 2842669585474002068
+    },
+    {
+      "key": "d5e83e5cf329074cba3f2a9d4fed05653c525e157f497ef5067b2a696c7016aaca",
+      "token": 6430273174553022797
+    },
+    {
+      "key": "5af7a7fe5896b41af9f1617555c89e90cd41fd73c89c67c2d1467bd31e1ce2ad56d2d648e76e622f0f0e143a3ed5d1e6266dc2218bd218cdfc5589f1d5fa81",
+      "token": 7598923833941644737
+    },
+    {
+      "key": "9686a1e8c136946d8106cc493fae4a911e0d3e5591e441d6500768cc91cf1cde87b0d1821bb80147d6d5551bbb33a2b69a1bc55617a5ce9808f9ff17018a2b67",
+      "token": -6661100071568654056
+    },
+    {
+      "key": "d3f6de83c0574967c1248850bb20b7cdc8ce84436f136163363740a9070d615cc590ff1bdd0cb8e7f8239f51d74485672b2e89230183ff6d0d8c3c1ce808451a34",
+      "token": 5200637714583192040
+    },
+    {
+      "key": "469d6624cd700a4fa6d15b876e7557c8bd17cf5600a9c413a505bc854e507d32a411aa9f551f952cf38009c4c67731b02cd0337ae020f31e9bc4a14517f85c5df2538ea53213e69b948123f9d258d83556eef48e977b6681c5524e18e4bc511f3a5f7622bf131a46ef9295c0b758a8ebcdadf4daf8835727011ad74bdfedb7",
+      "token": 5926829317655761914
+    },
+    {
+      "key": "cf63e0533ab00b5d8e9eaa2e2dfd37b26a61429eafac75e75626563561e2fd258dc438635438fdef0b935ff5b7c4829ac4464d7875691b6cdbbb77f5bd444ab3f7073eb944f447affe25ff0324dd7088fa27aa46648b62683c1208d3a6e68d303a848b0c003e9adb68be6a7cfbe04fa0a38f66398d5f13e3968de9025e2c2c0f",
+      "token": 943211724963367039
+    },
+    {
+      "key": "5e9348f8060eac04c18d270ff9720515e933984c423fc4ecb266f98af0c24a7e6ffaea35743813f31c99adac92c7f26cd932169db6cfcff78af291b86a3af01e4d5228057a60fd1e1e191fc12ee569b5a54699d0a5f2861e1664cb451614957e9537cb21312c633d6881d83bdad64f51b1e6561efe6c5412fde7e26427da71ed4f",
+      "token": -6916875360084212677
+    },
+    {
+      "key": "7bd57cf37556dcaebd4d95ccf819eca1a215348fe1763744bd7820171b3ef27d194b5dce4dbf0ea28995979c3a24f97aaba8d06806f78d6af1a0c6f36a691e35d04a4137ee28deb30d256b2d5580b2ea0588f3fad41e4b645514babe5657a00b70fcd883f1d9ff3c1de979eaa6ed08e0fa7ceb6444a0ed409a26d2d4ca9185b51dabaa44392d835246b8b7df9e4dfb13bf8b39d061096e22efe3cc006f226a241802930259bfa221a2fa0cada80abef651e3004af4aedf2f196f282687877678118c05b96e1346408829f88e305727cd01406fe5e30a1ca1fc0baeadd04054c4a5cdbe20e569ecd958cc87e055c92d01707e321417a99cf2aa0ee50a59941f0f6248d528970e0d4f7f067486f0d658e00216fc22858e99b5c97d1896e7d4860ce2a330306961bd36fbbd32bb69880eb739b647ea0ee87027d04738b767420e1bb88c27a7e6abc5f0b85b65193f095691b87d6a336d085aff85bb3f6e1c61ed51258b7ed2f2660c7e1ac61e5c5c4355a155c1bbbea111b3d92efc8c75ead3f37878211b487a565b837eb409a96ad2ec0ad622ed85a6578f1863ad3e6d1dbb2224b57ba6937fa97510a2832b28f675551642b33dabda0b67ccc04f9b5114689098ccfc0c31841291ef986966eb6848bbac7e0e26d667083200f3fb42039a9caa8562416af1b991f645263e3984f1850a0fa33427a0b7d68901642b6313f800eee48c21eef8a15c59dd10b6762de05339a542912d41441ff4167dded377c179d3f174dd2266f9c44a2f74ca256e2a840b71215a16d49e47362f518f4feb37fe95034c4916f0ce20d845e2bd513a055aeb967be5519406efc4a26c032a484be2324fd75e06f00ff980c67a33b23dc470fdbdd93ffd164b1b27fea36e2c61866648bafa348d9f350e562764b83f84761084a3cb47c4f63c6c1ed6e415871cc0aaba2a6b7cd32f4fa62603bde8f0d6cf6a0d5641616368c908bac82676696a613df52ce0a6f7106e8c93d1f03360afa5e206cd3f9d937de830d015092688bcebc2a33178e921068591bd6cd27232613d888f423c8bca3975342b2653b1eeefa2d13abf192812bc0ca4a64f9974da2eb3692ba049fce011f41b3b0bf5f2afbf35d1838371b7fbe16b2878ac84072e1740be20f9fd0ef9c207bac63c5f9591ab2be34e0a9c01d5da04a59b9a24b2eeca6402267664a7e7cd8e9502132adf3810560bb09d79d9e1bec02e5c6e844323a31d0719f415d2bbf6b422d8bad5f051f92cd421a0c524c4c323ed3bb00ed38073086afe5ef7d72bc0de6cce36a3e657e7e79491c1e9774a49e28783cfa9b9df05906437458b3be9be1641eafa0aa6ddc0d0cfea92651a5d920b275142ceb89a75bfcafc58f95b49b838df35a2b1b3820b88ac3dd88fb3ada473cee9fe02335c422082f7e9534e206de970c71bb0e82f54ab3364",
+      "token": 1290446055213868950
+    },
+    {
+      "key": "ff",
+      "token": -4442228696663692417
+    },
+    {
+      "key": "80",
+      "token": -5284281814142962636
+    },
+    {
+      "key": "8001",
+      "token": 402482646042468656
+    },
+    {
+      "key": "68656c6c6f",
+      "token": -3758069500696749310
+    },
+    {
+      "key": "e69c88",
+      "token": -525815160115121594
+    }
+  ],
+  "routing_keys": [
+    {
+      "indices": [
+        0
+      ],
+      "key": "00000007",
+      "token": 1634052884888577606
+    },
+    {
+      "indices": [
+        1
+      ],
+      "key": "e69c88",
+      "token": -525815160115121594
+    },
+    {
+      "indices": [
+        1,
+        0
+      ],
+      "key": "0003e69c880000040000000700",
+      "token": -8212754777484881858
+    },
+    {
+      "indices": [
+        2,
+        1,
+        0
+      ],
+      "key": "000280ff000003e69c880000040000000700",
+      "token": 2230084473087468231
+    }
+  ],
+  "ring_nodes": [
+    {
+      "index": 0,
+      "dc": "dc1",
+      "rack": "r1",
+      "tokens": [
+        -80,
+        0
+      ]
+    },
+    {
+      "index": 1,
+      "dc": "dc1",
+      "rack": "r1",
+      "tokens": [
+        -50
+      ]
+    },
+    {
+      "index": 2,
+      "dc": "dc1",
+      "rack": "r2",
+      "tokens": [
+        20
+      ]
+    },
+    {
+      "index": 3,
+      "dc": "dc2",
+      "rack": "r1",
+      "tokens": [
+        -20,
+        90
+      ]
+    },
+    {
+      "index": 4,
+      "dc": "dc2",
+      "rack": "r2",
+      "tokens": [
+        40
+      ]
+    },
+    {
+      "index": 5,
+      "dc": "dc2",
+      "rack": "r3",
+      "tokens": [
+        80
+      ]
+    }
+  ],
+  "replica_cases": [
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": -100,
+      "replicas": [
+        0
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": -80,
+      "replicas": [
+        0
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": -79,
+      "replicas": [
+        1
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": -20,
+      "replicas": [
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": -19,
+      "replicas": [
+        0
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": 0,
+      "replicas": [
+        0
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": 1,
+      "replicas": [
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": 50,
+      "replicas": [
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": 90,
+      "replicas": [
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": 99,
+      "replicas": [
+        0
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "1",
+        "class": "SimpleStrategy"
+      },
+      "token": 100,
+      "replicas": [
+        0
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": -100,
+      "replicas": [
+        0,
+        1
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": -80,
+      "replicas": [
+        0,
+        1
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": -79,
+      "replicas": [
+        1,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": -20,
+      "replicas": [
+        0,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": -19,
+      "replicas": [
+        0,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": 0,
+      "replicas": [
+        0,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": 1,
+      "replicas": [
+        2,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": 50,
+      "replicas": [
+        3,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": 90,
+      "replicas": [
+        0,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": 99,
+      "replicas": [
+        0,
+        1
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "2",
+        "class": "SimpleStrategy"
+      },
+      "token": 100,
+      "replicas": [
+        0,
+        1
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": -100,
+      "replicas": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": -80,
+      "replicas": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": -79,
+      "replicas": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": -20,
+      "replicas": [
+        0,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": -19,
+      "replicas": [
+        0,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": 0,
+      "replicas": [
+        0,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": 1,
+      "replicas": [
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": 50,
+      "replicas": [
+        0,
+        1,
+        3,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": 90,
+      "replicas": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": 99,
+      "replicas": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "4",
+        "class": "SimpleStrategy"
+      },
+      "token": 100,
+      "replicas": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": -100,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": -80,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": -79,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": -20,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": -19,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": 0,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": 1,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": 50,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": 90,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": 99,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "replication_factor": "99",
+        "class": "SimpleStrategy"
+      },
+      "token": 100,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -100,
+      "replicas": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -80,
+      "replicas": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -79,
+      "replicas": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -20,
+      "replicas": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -19,
+      "replicas": [
+        0,
+        2,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 0,
+      "replicas": [
+        0,
+        2,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 1,
+      "replicas": [
+        0,
+        2,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 50,
+      "replicas": [
+        0,
+        2,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 90,
+      "replicas": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 99,
+      "replicas": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "2",
+        "dc2": "1",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 100,
+      "replicas": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -100,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -80,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -79,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -20,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -19,
+      "replicas": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 0,
+      "replicas": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 1,
+      "replicas": [
+        0,
+        1,
+        2,
+        4,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 50,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 90,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 99,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "3",
+        "dc2": "2",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 100,
+      "replicas": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -100,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -80,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -79,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -20,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": -19,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 0,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 1,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 50,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 90,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 99,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "strategy": {
+        "dc1": "5",
+        "dc2": "0",
+        "class": "NetworkTopologyStrategy"
+      },
+      "token": 100,
+      "replicas": [
+        0,
+        1,
+        2
+      ]
+    }
+  ]
+}

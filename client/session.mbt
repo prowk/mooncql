@@ -80,6 +80,7 @@ pub(all) struct SessionConfig {
   backoff_max_ms : Int
   jitter : Double
   stable_reset_ms : Int
+  routing : RoutingConfig?
   discovery : DiscoveryConfig?
 }
 
@@ -92,6 +93,7 @@ pub fn SessionConfig::new(
   jitter? : Double = 0.2,
   stable_reset_ms? : Int = 1000,
   discovery? : DiscoveryConfig,
+  routing? : RoutingConfig,
 ) -> SessionConfig {
   {
     connection,
@@ -101,6 +103,7 @@ pub fn SessionConfig::new(
     jitter,
     stable_reset_ms,
     discovery,
+    routing,
   }
 }
 
@@ -152,6 +155,16 @@ pub async fn[T] with_session(
 ) -> T {
   let config = { ..config, contact_points: config.contact_points.copy(), }
   config.connection.validate()
+  if config.routing is Some(routing) &&
+    (
+      config.discovery is None ||
+      routing.local_dc.is_empty() ||
+      routing.max_metadata_age_ms < 1
+    ) {
+    raise Configuration(
+      "routing requires discovery, local_dc and positive metadata age",
+    )
+  }
   if config.backoff_initial_ms < 1 ||
     config.backoff_max_ms < config.backoff_initial_ms ||
     config.stable_reset_ms < 0 ||
@@ -179,7 +192,9 @@ pub async fn[T] with_session(
       discovery.max_nodes < 1 ||
       discovery.max_nodes > 65536 ||
       discovery.max_tokens_per_node < 1 ||
-      discovery.max_tokens_per_node > 65536 {
+      discovery.max_tokens_per_node > 65536 ||
+      discovery.max_keyspaces < 1 ||
+      discovery.max_keyspaces > 65536 {
       raise Configuration("invalid discovery limits")
     }
     ControlState::{
@@ -191,6 +206,8 @@ pub async fn[T] with_session(
       generation: 0,
       refreshes: 0,
       last_error: None,
+      ring: None,
+      locations: Map([]),
     }
   })
   @async.with_task_group(group => {
@@ -395,18 +412,18 @@ async fn[G] Session::maintain(
 }
 
 ///|
-fn Session::choose(self : Session) -> Connection? {
-  if self.nodes.is_empty() {
+fn Session::choose(
+  self : Session,
+  hint : RoutingHint?,
+  attempted : Array[String],
+) -> Connection? {
+  let indices = self.plan_indices(hint, attempted)
+  if indices.is_empty() {
     return None
   }
-  for offset in 0..<self.nodes.length() {
-    let index = (self.next_node + offset) % self.nodes.length()
-    if self.nodes[index].current is Some(connection) && !connection.is_closed() {
-      self.next_node = (index + 1) % self.nodes.length()
-      return Some(connection)
-    }
-  }
-  None
+  let index = indices[0]
+  self.next_node = (index + 1) % self.nodes.length()
+  self.nodes[index].current
 }
 
 ///|
@@ -414,11 +431,13 @@ async fn Session::select(
   self : Session,
   deadline : Deadline,
   bytes : Int64,
+  hint? : RoutingHint,
+  attempted? : Array[String] = [],
 ) -> Connection {
   if self.closed {
     raise Closed
   }
-  if self.choose() is Some(connection) {
+  if self.choose(hint, attempted) is Some(connection) {
     return connection
   }
   if self.waiting >= self.config.connection.max_waiting {
@@ -441,7 +460,7 @@ async fn Session::select(
     { phase: WaitingConnection, sent: false, },
     () => {
       while !self.closed {
-        if self.choose() is Some(connection) {
+        if self.choose(hint, attempted) is Some(connection) {
           return connection
         }
         self.changed.wait()
@@ -469,6 +488,7 @@ pub async fn Session::request(
   deadline? : Deadline,
   idempotent? : Bool = false,
   retry? : RetryPolicy = RetryPolicy::new(),
+  routing? : RoutingHint,
 ) -> Reply {
   let deadline = self.operation_deadline(deadline)
   if request.body.length() > self.config.connection.max_frame_bytes {
@@ -485,6 +505,7 @@ pub async fn Session::request(
     request.body.length().to_int64() + 9L,
     enabled,
     retry,
+    routing,
     connection => {
       let reply = connection.request(request, deadline~)
       if enabled && retry.max_attempts > 1 && reply.response is Failure(error) {
@@ -504,6 +525,7 @@ pub async fn Session::query(
   deadline? : Deadline,
   idempotent? : Bool = false,
   retry? : RetryPolicy = RetryPolicy::new(),
+  routing? : RoutingHint,
 ) -> @protocol.ResultSet {
   let deadline = self.operation_deadline(deadline)
   match
@@ -512,6 +534,7 @@ pub async fn Session::query(
       deadline~,
       idempotent~,
       retry~,
+      routing?,
     ).response {
     Result(result) => result
     Failure(error) => raise Server(error)

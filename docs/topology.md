@@ -21,15 +21,16 @@
 
 事件只触发重新读取，驱动不会把可能乱序的 DOWN／UP 通知直接当作最终成员状态。单个控制任务以 debounce_ms（默认 100 毫秒）合并突发通知；没有为每个事件创建任务。refresh_interval_ms 默认 30000 毫秒，定期完整刷新补偿遗漏通知和满载队列丢失。max_nodes 默认 1024，max_tokens_per_node 默认 4096，均可配置，范围为 1–65536。控制连接恢复使用 Session 的有上限退避和抖动；快速反复断开不会因刚建立过连接就重置退避。
 
-`session.topology()` 返回复制的快照，修改公开节点或 token 数组不会污染内部状态。`control_status()` 提供 connected、实际连接 Endpoint、generation、refreshes、stale 和 last_error。stale 表示正在刷新、断开或上次刷新失败；旧快照保留以供诊断，不代表节点当前健康。节点的实际连接状态仍通过 nodes() 读取。
+`session.topology()` 返回复制的快照，修改公开节点或 token 数组不会污染内部状态。`control_status()` 提供 connected、实际连接 Endpoint、generation、refreshes、stale 和 last_error。stale 表示事件提示元数据失效、控制连接断开或上次刷新失败；旧快照保留以供诊断，不代表节点当前健康。节点的实际连接状态仍通过 nodes() 读取。
 
 广播地址通过 `DiscoveryConfig::new(address_mapper=native => Some(Endpoint::new(...)))` 转换。默认按 native 地址连接，支持 IPv4／IPv6；返回 None 可排除某个节点，返回的 Endpoint 可指定 TLS server_name。多个节点不能映射到同一个地址和端口。local 的 rpc_address 为通配地址时沿用实际种子连接端点。NAT／端口映射环境应明确提供映射，避免将集群内部地址当成宿主机地址。
 
 系统表字段以 [固定 Cassandra 5.0.5 SystemKeyspace.java](https://github.com/apache/cassandra/blob/c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8/src/java/org/apache/cassandra/db/SystemKeyspace.java) 为准：local 使用 rpc_address／rpc_port，peers_v2 使用 native_address／native_port。
 
-模拟回归覆盖 1000 个事件合并、遗漏事件、错误快照保留、成员移除与恢复、地址映射、快照隔离和重新订阅。单节点真实集成也校验了标识、端口、数据中心和 token。专用三节点验收命令如下：
+模拟回归覆盖 1000 个事件合并、遗漏事件、错误快照保留、成员移除与恢复、地址映射、快照隔离和重新订阅。单节点真实集成也校验了标识、端口、数据中心和 token。复制策略和 token-aware 调度见[路由文档](routing.md)。专用三节点验收命令如下：
 
 ```sh
+python -m pip install -r scripts/requirements-reference.txt
 docker compose -f compose.cluster.yaml up -d --wait --wait-timeout 360
 CQL_USERNAME=cassandra CQL_PASSWORD=cassandra CQL_COMPRESSION=lz4 python scripts/discovery_recovery.py --docker-compose
 docker compose -f compose.cluster.yaml down --volumes

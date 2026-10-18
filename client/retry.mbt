@@ -88,6 +88,7 @@ async fn[T] Session::execute_retry(
   bytes : Int64,
   idempotent : Bool,
   policy : RetryPolicy,
+  hint : RoutingHint?,
   action : async (Connection) -> T,
 ) -> T {
   if policy.max_attempts < 1 || policy.max_attempts > 64 || policy.delay_ms < 0 {
@@ -96,10 +97,12 @@ async fn[T] Session::execute_retry(
   let enabled = idempotent && policy.max_attempts > 1
   let failures = []
   let mut any_sent = false
+  let attempted = []
   for attempt = 1; ; attempt = attempt + 1 {
     let mut endpoint = None
     let outcome = try {
-      let connection = self.select(deadline, bytes)
+      let connection = self.select(deadline, bytes, hint?, attempted~)
+      attempted.push("\{connection.config.host}:\{connection.config.port}")
       endpoint = Some(
         Endpoint::new(host=connection.config.host, port=connection.config.port),
       )

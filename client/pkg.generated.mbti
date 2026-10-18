@@ -7,6 +7,7 @@ import {
   "moonbitlang/async/cond_var",
   "moonbitlang/core/debug",
   "prowk/mooncql/protocol",
+  "prowk/mooncql/routing",
   "prowk/mooncql/types",
 }
 
@@ -149,10 +150,11 @@ pub(all) struct DiscoveryConfig {
   refresh_interval_ms : Int
   debounce_ms : Int
   max_nodes : Int
+  max_keyspaces : Int
   max_tokens_per_node : Int
   address_mapper : (@protocol.InetEndpoint) -> Endpoint?
 }
-pub fn DiscoveryConfig::new(refresh_interval_ms? : Int, debounce_ms? : Int, max_nodes? : Int, max_tokens_per_node? : Int, address_mapper? : (@protocol.InetEndpoint) -> Endpoint?) -> Self
+pub fn DiscoveryConfig::new(refresh_interval_ms? : Int, debounce_ms? : Int, max_nodes? : Int, max_keyspaces? : Int, max_tokens_per_node? : Int, address_mapper? : (@protocol.InetEndpoint) -> Endpoint?) -> Self
 
 pub(all) struct Endpoint {
   host : String
@@ -259,6 +261,19 @@ pub(all) struct RetryPolicy {
 }
 pub fn RetryPolicy::new(max_attempts? : Int, delay_ms? : Int) -> Self
 
+pub(all) struct RoutingConfig {
+  local_dc : String
+  allow_remote : Bool
+  max_metadata_age_ms : Int
+}
+pub fn RoutingConfig::new(String, allow_remote? : Bool, max_metadata_age_ms? : Int) -> Self
+
+pub(all) struct RoutingHint {
+  keyspace : String
+  key : Bytes
+}
+pub fn RoutingHint::new(String, Bytes) -> Self
+
 pub struct Session {
   config : SessionConfig
   changed : @cond_var.Cond
@@ -279,8 +294,9 @@ pub fn Session::is_closed(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
 pub fn Session::nodes(Self) -> Array[NodeInfo]
 pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline) -> SessionPrepared
-pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
-pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> Reply
+pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> @protocol.ResultSet
+pub fn Session::query_plan(Self, hint? : RoutingHint) -> Array[Endpoint]
+pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Reply
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::topology(Self) -> TopologySnapshot?
 pub fn Session::waiting_count(Self) -> Int
@@ -292,9 +308,10 @@ pub(all) struct SessionConfig {
   backoff_max_ms : Int
   jitter : Double
   stable_reset_ms : Int
+  routing : RoutingConfig?
   discovery : DiscoveryConfig?
 }
-pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig) -> Self
+pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig) -> Self
 
 type SessionNode
 
@@ -304,6 +321,8 @@ pub struct SessionPrepared {
   keyspace : String?
   states : Map[String, SessionPreparedState]
   mut parameters : Array[@protocol.Column]
+  mut partition_key_indices : Array[Int]
+  mut routing_keyspace : String?
 }
 pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
 pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
@@ -365,6 +384,7 @@ pub(all) struct TopologySnapshot {
   cluster_name : String
   partitioner : String
   nodes : Array[TopologyNode]
+  keyspaces : Map[String, @routing.Replication]
 }
 
 type Transport

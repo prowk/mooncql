@@ -14,11 +14,29 @@ async fn wait_ready(session : @client.Session, expected : Int) -> Unit {
           expected {
       @async.sleep(10)
     }
-  })
+  }) catch {
+    error => {
+      let detail = match session.control_status() {
+        Some(
+          {
+            last_error: Some(
+              @client.Unexpected(message)
+              | @client.Configuration(message)
+            ),
+            ..
+          }
+        ) => message
+        Some({ last_error: Some(@client.Server(server)), .. }) => server.message
+        Some({ last_error: Some(error), .. }) => error.to_string()
+        _ => "no control failure"
+      }
+      fail("ready wait failed: \{detail}; original=\{error}")
+    }
+  }
 }
 
 ///|
-async fn main {
+async fn run_probe() -> Unit {
   let directory = @env.get_env_var("CQL_DISCOVERY_DIR").unwrap()
   let ports = []
   for
@@ -43,7 +61,7 @@ async fn main {
     ),
     contact_points=[@client.Endpoint::new(port=ports[0])],
     discovery=@client.DiscoveryConfig::new(
-      refresh_interval_ms=500,
+      refresh_interval_ms=30000,
       debounce_ms=50,
       address_mapper=native => {
         if native.address.length() != 4 {
@@ -59,6 +77,7 @@ async fn main {
         None
       },
     ),
+    routing=@client.RoutingConfig::new("dc1"),
   )
   @client.with_session(config~, session => {
     wait_ready(session, 3)
@@ -97,6 +116,7 @@ async fn main {
       }
     }
     assert_eq(seen.length(), 3)
+    verify_routing(session, directory)
     if @env.get_env_var("CQL_USERNAME") is Some(_) {
       ignore(
         session.query(
@@ -145,4 +165,16 @@ async fn main {
       "PASS discovered 3 nodes from 1 seed, matched identities/DC/rack/tokens, replaced control connection and joined shutdown",
     )
   })
+}
+
+///|
+async fn main {
+  run_probe() catch {
+    @client.Server(server) =>
+      fail("Cassandra \{server.code}: \{server.message}")
+    @client.Unexpected(message) | @client.Configuration(message) =>
+      fail(message)
+    @codec.CodecError(message) => fail("codec: \{message}")
+    error => raise error
+  }
 }

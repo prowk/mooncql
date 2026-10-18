@@ -10,6 +10,33 @@ from cluster_failover import DockerCluster, wait_until
 from native_runner import ROOT, build_native
 
 
+def verify_routes(folder):
+    from cassandra.auth import PlainTextAuthProvider
+    from cassandra.cluster import Cluster
+    from cassandra.connection import DefaultEndPoint
+    from cassandra.metadata import Murmur3Token
+    from cassandra.policies import WhiteListRoundRobinPolicy
+
+    ports = [int(port) for port in os.environ.get("CQL_CLUSTER_PORTS", "19052,19053,19054").split(",")]
+    auth = PlainTextAuthProvider(os.environ["CQL_USERNAME"], os.environ["CQL_PASSWORD"]) if os.environ.get("CQL_USERNAME") else None
+    cluster = Cluster([DefaultEndPoint("127.0.0.1", ports[0])], protocol_version=5, auth_provider=auth,
+                      load_balancing_policy=WhiteListRoundRobinPolicy(["127.0.0.1"]))
+    try:
+        cluster.connect()
+        cluster.refresh_schema_metadata()
+        records = json.loads((folder / "routing.json").read_text(encoding="utf-8"))
+        assert len(records) == 64
+        for record in records:
+            key = bytes.fromhex(record["key"])
+            assert Murmur3Token.from_key(key).value == record["token"]
+            expected = {host.host_id.hex for host in cluster.metadata.get_replicas(record["keyspace"], key)}
+            assert set(record["replicas"]) == expected, (record, expected)
+            assert record["coordinator"] in expected
+        print("PASS 64 actual replica sets and coordinators match independent Python driver", flush=True)
+    finally:
+        cluster.shutdown()
+
+
 def exercise(controller):
     binary = build_native("cmd/discovery")
     controller.wait_up(0)
@@ -33,6 +60,7 @@ def exercise(controller):
 
         try:
             marker("ready.json")
+            verify_routes(folder)
             initial = json.loads((folder / "ready.json").read_text(encoding="utf-8"))
             victim = initial["victim"]
             assert isinstance(victim, int) and 0 <= victim < 3

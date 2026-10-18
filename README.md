@@ -139,3 +139,5 @@ Apache-2.0，见 LICENSE。
 main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，使用有界事件队列，与普通请求响应独立分发。
 
 可选的 [控制连接与拓扑发现](docs/topology.md) 从种子节点读取 local／peers_v2，合并事件并定期刷新，支持 native 地址转换和断线后重新订阅。
+
+[DC 与 token-aware 路由](docs/routing.md) 支持显式本地 DC、可选远端回退、Murmur3 和两种常用复制策略。SessionPrepared 自动使用分区键元数据；普通查询可提供 RoutingHint。

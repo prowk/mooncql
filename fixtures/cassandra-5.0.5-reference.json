@@ -39,6 +39,26 @@
       "path": "src/java/org/apache/cassandra/db/SystemKeyspace.java",
       "url": "https://raw.githubusercontent.com/apache/cassandra/c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8/src/java/org/apache/cassandra/db/SystemKeyspace.java",
       "sha256": "32c78da09741f7c8f913f8609a867838cf32a62a22c330c7747094762d0c4440"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/dht/Murmur3Partitioner.java",
+      "url": "https://raw.githubusercontent.com/apache/cassandra/c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8/src/java/org/apache/cassandra/dht/Murmur3Partitioner.java",
+      "sha256": "ba0f679cca15cd72c8c6f51ef571da822db7afacfcf30a9b56db60d2842d8cbb"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/utils/MurmurHash.java",
+      "url": "https://raw.githubusercontent.com/apache/cassandra/c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8/src/java/org/apache/cassandra/utils/MurmurHash.java",
+      "sha256": "b300e4ef216fb7efb6898a2ed255d5ebd8ad524277080fcc6bd53d566a888769"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/locator/NetworkTopologyStrategy.java",
+      "url": "https://raw.githubusercontent.com/apache/cassandra/c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8/src/java/org/apache/cassandra/locator/NetworkTopologyStrategy.java",
+      "sha256": "ef3805fb57cf4471be6aa7439b16df287877ad93aff03b9cc650ff3f0d62540e"
+    },
+    {
+      "path": "src/java/org/apache/cassandra/locator/SimpleStrategy.java",
+      "url": "https://raw.githubusercontent.com/apache/cassandra/c8abc9f3e1bb46bc4d699c3a167e43df62b9bec8/src/java/org/apache/cassandra/locator/SimpleStrategy.java",
+      "sha256": "0b82b08a84eda338b39ea921512e9314a7f60720ba3d2e53322b93aa0cba9b6e"
     }
   ]
 }

@@ -24,7 +24,7 @@
 
 - [x] 实现控制连接、拓扑快照刷新和事件订阅恢复。验收：读取并核对 `system.local`、`system.peers_v2` 的节点标识、native 地址、数据中心和 token；控制连接断开后重新订阅并刷新快照；重复、乱序或遗漏事件最终收敛；支持广播地址到可连接地址的转换；事件突发不会触发无界刷新任务。
 
-- [ ] 增加数据中心感知与 token-aware 路由，明确支持的 partitioner 和复制策略。验收：单字段及组合分区键 routing key、Murmur3 token 与独立实现一致；副本选择与真实集群一致；优先使用本地数据中心的合适节点；缺少分区键、元数据过期或不支持的策略能安全回退；跨数据中心回退必须显式配置。
+- [x] 增加数据中心感知与 token-aware 路由，明确支持的 partitioner 和复制策略。验收：单字段及组合分区键 routing key、Murmur3 token 与独立实现一致；副本选择与真实集群一致；优先使用本地数据中心的合适节点；缺少分区键、元数据过期或不支持的策略能安全回退；跨数据中心回退必须显式配置。
 
 - [ ] 提供请求 tracing 开关和 custom payload 发送能力，并在高层查询、预处理、批处理与分页接口保留执行信息。验收：请求 flags 与附加字段编码通过独立字节验证；真实 tracing 请求返回可查询的 tracing ID；warnings、custom payload、协调节点与尝试次数不会被高层接口丢弃；默认 QueryHandler 忽略请求 custom payload 不被误判为驱动失败。
 

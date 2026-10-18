@@ -12,6 +12,8 @@ pub struct SessionPrepared {
   keyspace : String?
   states : Map[String, SessionPreparedState]
   mut parameters : Array[@protocol.Column]
+  mut partition_key_indices : Array[Int]
+  mut routing_keyspace : String?
 }
 
 ///|
@@ -38,6 +40,8 @@ pub async fn Session::prepare(
     keyspace,
     states: Map([]),
     parameters: [],
+    partition_key_indices: [],
+    routing_keyspace: None,
   }
   ignore(statement.statement_for(connection, deadline))
   statement
@@ -85,9 +89,29 @@ async fn SessionPrepared::statement_for(
     )
     state.prepared = Some(prepared)
     state.generation = connection.generation
-    self.parameters = prepared.parameters()
+    self.accept_routing_metadata(prepared)
     prepared
   })
+}
+
+///|
+fn SessionPrepared::accept_routing_metadata(
+  self : SessionPrepared,
+  prepared : Prepared,
+) -> Unit {
+  self.parameters = prepared.parameters()
+  self.partition_key_indices = prepared.metadata.partition_key_indices.copy()
+  self.routing_keyspace = match self.keyspace {
+    Some(keyspace) => Some(keyspace)
+    None =>
+      if self.partition_key_indices.get(0) is Some(index) &&
+        index >= 0 &&
+        index < self.parameters.length() {
+        Some(self.parameters[index].keyspace)
+      } else {
+        None
+      }
+  }
 }
 
 ///|
@@ -110,6 +134,12 @@ pub async fn SessionPrepared::execute(
   // 在选择连接前冻结参数，连接更换及重新准备都使用该快照。
   let values = @types.snapshot(values)
   let options = prepared_options(options, self.keyspace)
+  let hint = if self.routing_keyspace is Some(keyspace) &&
+    @routing.routing_key(values, self.partition_key_indices) is Some(key) {
+    Some(RoutingHint::new(keyspace, key))
+  } else {
+    None
+  }
   let charge = @protocol.execute(b"", b"", values, options~).body
     .length()
     .to_int64() +
@@ -119,9 +149,11 @@ pub async fn SessionPrepared::execute(
     self.session.active -= 1
     self.session.changed.broadcast()
   }
-  self.session.execute_retry(deadline, charge, idempotent, retry, connection => {
+  self.session.execute_retry(deadline, charge, idempotent, retry, hint, connection => {
     let prepared = self.statement_for(connection, deadline)
-    prepared.execute(values, options~, deadline~)
+    let result = prepared.execute(values, options~, deadline~)
+    self.accept_routing_metadata(prepared)
+    result
   })
 }
 

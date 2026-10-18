@@ -50,6 +50,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install -r scripts/requirements-reference.txt
+      - run: python scripts/routing_reference.py
       - run: docker compose up -d --wait --wait-timeout 360
       - name: Validate v5 queries and independent interoperability
         run: |
@@ -83,6 +84,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: docker compose -f compose.cluster.yaml up -d --wait --wait-timeout 360
+      - run: python -m pip install -r scripts/requirements-reference.txt
       - run: python scripts/discovery_recovery.py --docker-compose
       - run: python scripts/cluster_failover.py --docker-compose
       - if: always()
