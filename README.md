@@ -145,3 +145,5 @@ main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，�
 通过 [with_info 高层接口](docs/execution-info.md) 读取 tracing、warnings、custom payload、协调节点和尝试次数；可发送请求 tracing 与 payload，并保留重试和重新准备的前次响应信息。
 
 可选 [Metrics 与安全请求监听](docs/metrics.md) 汇总阶段耗时、实时额度、超时／取消、重连、缓存和压缩比例；默认关闭观测，监听器错误被隔离，事件不包含 CQL、绑定值或密码。
+
+main 分支新增 [Row 类型化读取与精确转换](docs/rows.md)：区分缺列、NULL 和类型不匹配，共享本页列名索引，保留 UUID、完整范围日期时间、decimal 和 varint 的精度与原始 Value。

@@ -256,7 +256,7 @@ fn Prepared::accept_result(
       result_metadata_id: id,
       parameters: sent.parameters,
       partition_key_indices: sent.partition_key_indices,
-      result_columns: page.columns,
+      result_columns: page.columns_snapshot(),
     }
   }
   result

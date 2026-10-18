@@ -98,7 +98,7 @@ pub async fn Pager::next_with_info(
       result.info,
     )
   }
-  self.columns = page.columns
+  self.columns = page.columns_snapshot()
   self.state = page.paging_state
   self.done = self.state is None
   Some({ value: page, info: result.info, })

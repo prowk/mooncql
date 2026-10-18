@@ -12,6 +12,7 @@ pub(all) struct Page {
   rows : Array[Array[@types.Value]]
   paging_state : Bytes?
   new_metadata_id : Bytes?
+  priv schema : ColumnIndex
 } derive(@debug.Debug)
 
 ///|
@@ -23,12 +24,13 @@ pub fn Page::get(
   if row < 0 || row >= self.rows.length() {
     raise @codec.CodecError("row index out of range")
   }
-  for i, spec in self.columns {
-    if spec.name == column {
-      return self.rows[row][i]
-    }
+  guard self.schema.index(column) is Some(index) else {
+    raise @codec.CodecError("unknown column: " + column)
   }
-  raise @codec.CodecError("unknown column: " + column)
+  guard self.rows[row].get(index) is Some(value) else {
+    raise @codec.CodecError("row width does not match metadata")
+  }
+  value
 }
 
 ///|
@@ -223,12 +225,14 @@ pub fn decode_result(
         }
         rows.push(row)
       }
-      Rows({
-        columns: meta.columns,
-        rows,
-        paging_state: meta.paging_state,
-        new_metadata_id: meta.new_metadata_id,
-      })
+      Rows(
+        Page::new(
+          meta.columns,
+          rows,
+          paging_state=meta.paging_state,
+          new_metadata_id=meta.new_metadata_id,
+        ),
+      )
     }
     3 => SetKeyspace(r.string())
     4 => Prepared(read_prepared(r))

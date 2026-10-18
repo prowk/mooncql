@@ -44,6 +44,13 @@ pub fn register(Array[EventKind]) -> Request raise @codec.CodecError
 pub fn startup(compression? : Bool, throw_on_overload? : Bool) -> Request raise @codec.CodecError
 
 // Errors
+pub(all) suberror RowError {
+  MissingColumn(String, String)
+  NullColumn(String, String)
+  TypeMismatch(String, String, String)
+  InvalidRow(String)
+} derive(@debug.Debug)
+pub fn RowError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum BatchStatement {
@@ -64,6 +71,8 @@ pub(all) struct Column {
   typ : @types.CqlType
 } derive(@debug.Debug)
 pub fn Column::to_repr(Self) -> @debug.Repr
+
+type ColumnIndex
 
 pub(all) enum Consistency {
   Any
@@ -169,8 +178,12 @@ pub(all) struct Page {
   rows : Array[Array[@types.Value]]
   paging_state : Bytes?
   new_metadata_id : Bytes?
+  // private fields
 } derive(@debug.Debug)
+pub fn Page::columns_snapshot(Self) -> Array[Column]
 pub fn Page::get(Self, Int, String) -> @types.Value raise @codec.CodecError
+pub fn Page::new(Array[Column], Array[Array[@types.Value]], paging_state? : Bytes?, new_metadata_id? : Bytes?) -> Self raise @codec.CodecError
+pub fn Page::row(Self, Int) -> Row raise RowError
 pub fn Page::to_repr(Self) -> @debug.Repr
 
 pub(all) struct PreparedStatement {
@@ -234,6 +247,36 @@ pub(all) enum ResultSet {
   SchemaChanged(SchemaChange)
 } derive(@debug.Debug)
 pub fn ResultSet::to_repr(Self) -> @debug.Repr
+
+pub struct Row {
+  schema : ColumnIndex
+  values : Array[@types.Value]
+} derive(@debug.Debug)
+pub fn Row::boolean(Self, String) -> Bool raise RowError
+pub fn Row::bytes(Self, String) -> Bytes raise RowError
+pub fn Row::columns_snapshot(Self) -> Array[Column]
+pub fn Row::date(Self, String) -> @types.CqlDate raise RowError
+pub fn Row::decimal(Self, String) -> @types.CqlDecimal raise RowError
+pub fn Row::double(Self, String) -> Double raise RowError
+pub fn Row::duration(Self, String) -> (Int, Int, Int64) raise RowError
+pub fn Row::float(Self, String) -> Float raise RowError
+pub fn Row::inet(Self, String) -> Bytes raise RowError
+pub fn Row::int(Self, String) -> Int raise RowError
+pub fn Row::int64(Self, String) -> Int64 raise RowError
+pub fn Row::is_null(Self, String) -> Bool raise RowError
+pub fn Row::list(Self, String) -> Array[@types.Value] raise RowError
+pub fn Row::map(Self, String) -> Array[(@types.Value, @types.Value)] raise RowError
+pub fn Row::set(Self, String) -> Array[@types.Value] raise RowError
+pub fn Row::text(Self, String) -> String raise RowError
+pub fn Row::time(Self, String) -> @types.CqlTime raise RowError
+pub fn Row::timestamp(Self, String) -> @types.CqlTimestamp raise RowError
+pub fn Row::to_repr(Self) -> @debug.Repr
+pub fn Row::tuple(Self, String) -> Array[@types.Value] raise RowError
+pub fn Row::udt(Self, String) -> Array[(String, @types.Value)] raise RowError
+pub fn Row::uuid(Self, String) -> @types.CqlUuid raise RowError
+pub fn Row::value(Self, String) -> @types.Value raise RowError
+pub fn Row::value_at(Self, Int) -> @types.Value raise RowError
+pub fn Row::varint(Self, String) -> @types.CqlVarInt raise RowError
 
 pub(all) struct SchemaChange {
   change : String

@@ -17,6 +17,20 @@ async fn main {
       fail("expected Python row")
     }
     assert_eq(page.rows.length(), 1)
+    let typed = page.row(0)
+    assert_eq(typed.text("message"), "Python 中文")
+    assert_eq(typed.int64("big"), 9007199254740993L)
+    assert_eq(
+      typed.uuid("uid").to_string(),
+      "00112233-4455-6677-8899-aabbccddeeff",
+    )
+    assert_eq(typed.date("day").to_string(), "1970-01-02")
+    assert_eq(typed.time("clock").to_string(), "00:00:00.123456789")
+    assert_eq(typed.decimal("amount").to_plain_string(), "123.45")
+    assert_eq(
+      typed.varint("huge").to_decimal_string(),
+      "1267650600228229401496703205379",
+    )
     assert_eq(page.get(0, "message"), @types.Value::Text("Python 中文"))
     assert_eq(page.get(0, "big"), @types.Value::BigInteger(9007199254740993L))
     assert_eq(page.get(0, "payload"), @types.Value::Bytes(b"\x00\xff"))
@@ -79,6 +93,42 @@ async fn main {
     }
     assert_eq(v5.get(0, "d"), @types.Value::Duration(-64, -128, -8192L))
     assert_eq(v5.get(0, "payload"), @types.Value::Bytes(payload))
+    guard connection.query(
+        "SELECT * FROM mooncql_test.interop_conversions WHERE id=1",
+      )
+      is Rows(exact) else {
+      fail("missing exact conversion row")
+    }
+    let row = exact.row(0)
+    assert_eq(row.date("d").days(), -2147483648)
+    assert_eq(row.time("t").nanos(), 86399999999999L)
+    assert_eq(row.timestamp("s").millis(), -9223372036854775808L)
+    assert_eq(
+      row.varint("n").to_decimal_string(),
+      "100000000000000000000000000000000000000000000000000000000000000000000000001234567",
+    )
+    assert_eq(
+      row.decimal("m").to_plain_string(),
+      "-123456789012345678901234567890.0012300",
+    )
+    let exact_insert = connection.prepare(
+      "INSERT INTO mooncql_test.interop_conversions (id,u,d,t,s,n,m) VALUES (?,?,?,?,?,?,?)",
+    )
+    ignore(
+      exact_insert.execute([
+        Integer(2),
+        @types.CqlUuid::from_string("00112233-4455-6677-8899-aabbccddeeff").to_value(),
+        @types.CqlDate::from_days(2147483647).to_value(),
+        @types.CqlTime::from_string("23:59:59.999999999").to_value(),
+        @types.CqlTimestamp::from_millis(9223372036854775807L).to_value(),
+        @types.CqlVarInt::from_decimal_string(
+          "-100000000000000000000000000000000000000000000000000000000000000000000000001234567",
+        ).to_value(),
+        @types.CqlDecimal::from_string(
+          "-123456789012345678901234567890.0012300",
+        ).to_value(),
+      ]),
+    )
     let insert = connection.prepare(
       "INSERT INTO mooncql_test.interop_v5 (id,d,payload) VALUES (?,?,?)",
     )

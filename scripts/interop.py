@@ -84,7 +84,19 @@ def main():
         moonbit = session.execute('SELECT d,payload FROM mooncql_test.v5_values WHERE id=1').one()
         assert moonbit.d == Duration(64, 128, 8192)
         assert moonbit.payload == payload
+        session.execute('CREATE TABLE IF NOT EXISTS mooncql_test.interop_conversions (id int PRIMARY KEY, u uuid, d date, t time, s timestamp, n varint, m decimal)')
+        exact = session.prepare('INSERT INTO mooncql_test.interop_conversions (id,u,d,t,s,n,m) VALUES (?,?,?,?,?,?,?)')
+        amount = decimal.Decimal('-123456789012345678901234567890.0012300')
+        session.execute(exact, (1, uuid.UUID('00112233-4455-6677-8899-aabbccddeeff'), Date(-2**31), Time(86399999999999), -2**63, 10**80+1234567, amount))
         subprocess.run(['moon', 'run', 'cmd/interop'], check=True)
+        # 将 timestamp 转为整数后核对，避免 Python datetime 自身的年份范围限制。
+        exact_row = session.execute('SELECT u,d,t,cast(s AS bigint) AS s_ms,n,m FROM mooncql_test.interop_conversions WHERE id=2').one()
+        assert exact_row.u == uuid.UUID('00112233-4455-6677-8899-aabbccddeeff')
+        assert exact_row.d == Date(2**31-1)
+        assert exact_row.t == Time(86399999999999)
+        assert exact_row.s_ms == 2**63-1
+        assert exact_row.n == -(10**80+1234567)
+        assert exact_row.m.as_tuple() == amount.as_tuple()
         v5_row = session.execute('SELECT d,payload FROM mooncql_test.interop_v5 WHERE id=2').one()
         assert v5_row.d == Duration(2147483647, 2147483647, 9223372036854775807)
         assert v5_row.payload == payload

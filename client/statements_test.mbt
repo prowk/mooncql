@@ -25,18 +25,23 @@ fn prepared_result(id : Bytes) -> Bytes raise @codec.CodecError {
 fn rows_result(
   values : Array[Int],
   state : Bytes?,
+  omit_metadata? : Bool = false,
 ) -> Bytes raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.i32(2)
-  w.i32(if state is Some(_) { 3 } else { 1 })
+  w.i32(
+    (if omit_metadata { 4 } else { 1 }) | (if state is Some(_) { 2 } else { 0 }),
+  )
   w.i32(1)
   if state is Some(_) {
     w.bytes(state)
   }
-  w.string("ks")
-  w.string("t")
-  w.string("id")
-  w.u16(9)
+  if !omit_metadata {
+    w.string("ks")
+    w.string("t")
+    w.string("id")
+    w.u16(9)
+  }
   w.i32(values.length())
   for value in values {
     @types.write_value(w, Integer(value))
@@ -129,7 +134,7 @@ async test "pager continues after an empty page and preserves bound values" {
         let r = @codec.Reader::new(request.body)
         assert_eq(r.long_string(), "SELECT id FROM ks.t WHERE id=?")
         assert_eq(r.u16(), 10)
-        assert_eq(r.i32(), if i == 0 { 5 } else { 13 })
+        assert_eq(r.i32(), if i == 0 { 7 } else { 15 })
         assert_eq(r.u16(), 1)
         assert_eq(r.bytes(), Some(b"\x00\x00\x00\x2a"))
         assert_eq(r.i32(), 2)
@@ -144,7 +149,7 @@ async test "pager continues after an empty page and preserves bound values" {
           if i == 0 {
             rows_result([], Some(b"next"))
           } else {
-            rows_result([42], None)
+            rows_result([42], None, omit_metadata=true)
           },
         )
       }
@@ -157,11 +162,13 @@ async test "pager continues after an empty page and preserves bound values" {
         let pager = connection.pages(
           "SELECT id FROM ks.t WHERE id=?",
           values=bindings,
-          options=@protocol.QueryOptions::new(page_size=2),
+          options=@protocol.QueryOptions::new(page_size=2, skip_metadata=true),
         )
         bindings[0] = Integer(99)
         guard pager.next() is Some(empty) else { fail("expected first page") }
         assert_eq(empty.rows.length(), 0)
+        // 调用方修改公开列数组不能污染下一页省略元数据时使用的缓存。
+        empty.columns.clear()
         guard pager.next() is Some(page) else { fail("expected second page") }
         assert_eq(page.get(0, "id"), @types.Value::Integer(42))
         assert_true(pager.next() is None)
