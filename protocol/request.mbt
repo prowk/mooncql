@@ -47,6 +47,7 @@ pub(all) struct QueryOptions {
   now_in_seconds : Int?
   value_names : Array[String]?
   skip_metadata : Bool
+  request_options : RequestOptions?
 } derive(@debug.Debug)
 
 ///|
@@ -63,6 +64,7 @@ pub fn QueryOptions::new(
   now_in_seconds? : Int,
   value_names? : Array[String],
   skip_metadata? : Bool = false,
+  request_options? : RequestOptions,
 ) -> QueryOptions {
   {
     consistency,
@@ -74,6 +76,7 @@ pub fn QueryOptions::new(
     now_in_seconds,
     value_names,
     skip_metadata,
+    request_options: request_options.map(options => options.snapshot()),
   }
 }
 
@@ -81,6 +84,7 @@ pub fn QueryOptions::new(
 pub(all) struct Request {
   opcode : Int
   body : Bytes
+  flags : Int
 } derive(@debug.Debug)
 
 ///|
@@ -88,7 +92,7 @@ pub extend Request with @debug.Debug::{to_repr}
 
 ///|
 pub fn options() -> Request {
-  { opcode: 5, body: b"", }
+  { opcode: 5, body: b"", flags: 0, }
 }
 
 ///|
@@ -116,7 +120,7 @@ pub fn startup(
     w.string("THROW_ON_OVERLOAD")
     w.string("1")
   }
-  { opcode: 1, body: w.to_bytes(), }
+  { opcode: 1, body: w.to_bytes(), flags: 0, }
 }
 
 ///|
@@ -143,7 +147,7 @@ pub fn password_auth(
   token.raw(pass)
   let w = @codec.Writer::new()
   w.bytes(Some(token.to_bytes()))
-  { opcode: 15, body: w.to_bytes(), }
+  { opcode: 15, body: w.to_bytes(), flags: 0, }
 }
 
 ///|
@@ -230,10 +234,17 @@ pub fn query(
   let w = @codec.Writer::new()
   w.long_string(cql)
   write_parameters(w, values, options)
-  { opcode: 7, body: w.to_bytes(), }
+  decorate(
+    { opcode: 7, body: w.to_bytes(), flags: 0, },
+    options.request_options,
+  )
 }
 
 ///|
 pub fn QueryOptions::snapshot(self : QueryOptions) -> QueryOptions {
-  { ..self, value_names: self.value_names.map(names => names.copy()), }
+  {
+    ..self,
+    value_names: self.value_names.map(names => names.copy()),
+    request_options: self.request_options.map(options => options.snapshot()),
+  }
 }

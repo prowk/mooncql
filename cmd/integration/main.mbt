@@ -183,6 +183,7 @@ async fn main {
     verify_conditional(connection)
     verify_events(connection)
     verify_topology(config)
+    verify_execution(connection)
     println(
       "PASS rows=\{count} simple_pages=\{page_count} prepared_rows=\{prepared_count} checksum=\{checksum} write_ms=\{write_ms}",
     )

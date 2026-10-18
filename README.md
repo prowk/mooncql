@@ -141,3 +141,5 @@ main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，�
 可选的 [控制连接与拓扑发现](docs/topology.md) 从种子节点读取 local／peers_v2，合并事件并定期刷新，支持 native 地址转换和断线后重新订阅。
 
 [DC 与 token-aware 路由](docs/routing.md) 支持显式本地 DC、可选远端回退、Murmur3 和两种常用复制策略。SessionPrepared 自动使用分区键元数据；普通查询可提供 RoutingHint。
+
+通过 [with_info 高层接口](docs/execution-info.md) 读取 tracing、warnings、custom payload、协调节点和尝试次数；可发送请求 tracing 与 payload，并保留重试和重新准备的前次响应信息。

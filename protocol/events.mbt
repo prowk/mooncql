@@ -110,7 +110,7 @@ pub fn register(events : Array[EventKind]) -> Request raise @codec.CodecError {
       },
     )
   }
-  { opcode: 11, body: w.to_bytes(), }
+  { opcode: 11, body: w.to_bytes(), flags: 0, }
 }
 
 ///|

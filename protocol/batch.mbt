@@ -53,5 +53,8 @@ pub fn batch(
   }
   // 空参数列表复用公共选项编码，批处理不允许出现低四位标志。
   write_parameters(w, [], options)
-  { opcode: 13, body: w.to_bytes(), }
+  decorate(
+    { opcode: 13, body: w.to_bytes(), flags: 0, },
+    options.request_options,
+  )
 }

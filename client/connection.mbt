@@ -132,6 +132,9 @@ pub(all) struct Reply {
   warnings : Array[String]
   tracing_id : Bytes?
   custom_payload : Map[String, Bytes?]
+  coordinator : Endpoint
+  attempt_count : Int
+  previous : Array[ExecutionInfo]
 }
 
 ///|
@@ -177,6 +180,9 @@ async fn Connection::handshake_request(
     warnings: envelope.warnings,
     tracing_id: envelope.tracing_id,
     custom_payload: envelope.custom_payload,
+    coordinator: Endpoint::new(host=self.config.host, port=self.config.port),
+    attempt_count: 1,
+    previous: [],
   }
 }
 

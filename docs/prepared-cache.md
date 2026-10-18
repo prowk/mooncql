@@ -15,3 +15,5 @@
 Prepared 与 SessionPrepared 自动在 EXECUTE 中继承准备时的 keyspace，并拒绝显式冲突的 keyspace；绑定值在等待前冻结。建议使用完整限定表名或明确的准备 keyspace，避免并发 USE 产生连接上下文竞态。
 
 回归验证 LRU 命中顺序、淘汰后原对象可执行、禁用缓存时的合并、不同语句独立准备、失败共享与后续重试、等待者取消、准备调用方取消及迟到结果，以及合并等待的截止时间和队列上限。
+
+请求 custom payload 也属于准备内容，相同 CQL／keyspace／payload 才共享缓存与并发准备；trace 标志不改变缓存键。prepare_with_info 在缓存命中时标记 cached=true、attempt_count=0，并保留最近实际 PREPARE 的响应信息。

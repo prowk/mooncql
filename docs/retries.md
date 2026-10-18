@@ -20,3 +20,5 @@ counter、自增、集合追加和条件写入不能据此获得至多一次或�
 启用重试后，失败返回 `RetryExhausted(Array[AttemptFailure])`。每条记录包含尝试序号、选中的 Endpoint（选择前或重试等待失败时为空）、原始 Error 和该次请求是否可能已发送。未达到次数上限的永久错误也用该结构保留已经发生的历史；关闭重试时仍返回原始错误。重试等待用尽总预算时会追加 endpoint 为空的 WaitingRetry／Operation 超时记录，保留此前可能已经发送的事实。收到服务端错误也按已发送处理；该字段不表示服务端已经提交写入。
 
 普通查询在首次异步等待前编码，预处理执行在选择节点前复制绑定值和必要选项；后续尝试不会读取调用方已修改的数组。测试覆盖跨节点重试与参数快照、节点／原因历史、次数上限、SIMPLE 与非 SIMPLE 写错误、总截止时间、迟到响应隔离、取消，以及默认 counter／LWT／集合追加／BATCH 在响应丢失后不重复发送。
+
+开启执行信息后，成功重试的前次响应保存在 info.previous；最终 RetryExhausted 的 AttemptFailure.execution_info 保存相应响应，error 保留原始错误原因。见[执行信息](execution-info.md)。

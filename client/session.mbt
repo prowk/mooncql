@@ -509,9 +509,18 @@ pub async fn Session::request(
     connection => {
       let reply = connection.request(request, deadline~)
       if enabled && retry.max_attempts > 1 && reply.response is Failure(error) {
-        raise Server(error)
+        raise ExecutionError(Server(error), reply.execution_info())
       }
       reply
+    },
+    complete=(reply, failures) => {
+      let previous = []
+      for failure in failures {
+        if failure.execution_info is Some(info) {
+          previous.push(info)
+        }
+      }
+      { ..reply, attempt_count: failures.length() + 1, previous, }
     },
   )
 }

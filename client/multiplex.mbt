@@ -156,6 +156,9 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
         warnings: envelope.warnings,
         tracing_id: envelope.tracing_id,
         custom_payload: envelope.custom_payload,
+        coordinator: Endpoint::new(host=self.config.host, port=self.config.port),
+        attempt_count: 1,
+        previous: [],
       })
       if !delivered {
         raise Unexpected("duplicate response")

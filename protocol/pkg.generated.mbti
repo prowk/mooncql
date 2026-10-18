@@ -33,7 +33,7 @@ pub fn options() -> Request
 
 pub fn password_auth(String, String) -> Request raise @codec.CodecError
 
-pub fn prepare(String, keyspace? : String) -> Request raise @codec.CodecError
+pub fn prepare(String, keyspace? : String, request_options? : RequestOptions) -> Request raise @codec.CodecError
 
 pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
@@ -192,16 +192,27 @@ pub(all) struct QueryOptions {
   now_in_seconds : Int?
   value_names : Array[String]?
   skip_metadata : Bool
+  request_options : RequestOptions?
 } derive(@debug.Debug)
-pub fn QueryOptions::new(consistency? : Consistency, page_size? : Int, paging_state? : Bytes, serial_consistency? : Consistency, timestamp? : Int64, keyspace? : String, now_in_seconds? : Int, value_names? : Array[String], skip_metadata? : Bool) -> Self
+pub fn QueryOptions::new(consistency? : Consistency, page_size? : Int, paging_state? : Bytes, serial_consistency? : Consistency, timestamp? : Int64, keyspace? : String, now_in_seconds? : Int, value_names? : Array[String], skip_metadata? : Bool, request_options? : RequestOptions) -> Self
 pub fn QueryOptions::snapshot(Self) -> Self
 pub fn QueryOptions::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Request {
   opcode : Int
   body : Bytes
+  flags : Int
 } derive(@debug.Debug)
 pub fn Request::to_repr(Self) -> @debug.Repr
+pub fn Request::with_options(Self, RequestOptions) -> Self raise @codec.CodecError
+
+pub(all) struct RequestOptions {
+  tracing : Bool
+  custom_payload : Map[String, Bytes?]
+} derive(@debug.Debug)
+pub fn RequestOptions::new(tracing? : Bool, custom_payload? : Map[String, Bytes?]) -> Self
+pub fn RequestOptions::snapshot(Self) -> Self
+pub fn RequestOptions::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Response {
   Ready

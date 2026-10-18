@@ -18,6 +18,7 @@ pub(all) struct AttemptFailure {
   endpoint : Endpoint?
   error : Error
   may_have_been_sent : Bool
+  execution_info : ExecutionInfo?
 }
 
 ///|
@@ -90,6 +91,7 @@ async fn[T] Session::execute_retry(
   policy : RetryPolicy,
   hint : RoutingHint?,
   action : async (Connection) -> T,
+  complete? : (T, Array[AttemptFailure]) -> T,
 ) -> T {
   if policy.max_attempts < 1 || policy.max_attempts > 64 || policy.delay_ms < 0 {
     raise Configuration("invalid retry policy")
@@ -111,15 +113,29 @@ async fn[T] Session::execute_retry(
       error => Err(error)
     }
     match outcome {
-      Ok(value) => return value
+      Ok(value) =>
+        return match complete {
+          Some(complete) => complete(value, failures)
+          None => value
+        }
       Err(error) => {
         if !enabled {
           raise error
         }
-        let sent = possibly_sent(error, endpoint)
+        let (cause, info) = match error {
+          ExecutionError(cause, info) => (cause, Some(info))
+          _ => (error, None)
+        }
+        let sent = possibly_sent(cause, endpoint)
         any_sent = any_sent || sent
-        failures.push({ attempt, endpoint, error, may_have_been_sent: sent, })
-        if attempt >= policy.max_attempts || !retryable(error) || self.closed {
+        failures.push({
+          attempt,
+          endpoint,
+          error: cause,
+          may_have_been_sent: sent,
+          execution_info: info,
+        })
+        if attempt >= policy.max_attempts || !retryable(cause) || self.closed {
           raise RetryExhausted(failures)
         }
       }
@@ -142,6 +158,7 @@ async fn[T] Session::execute_retry(
         endpoint: None,
         error,
         may_have_been_sent: any_sent,
+        execution_info: None,
       })
       raise RetryExhausted(failures)
     }

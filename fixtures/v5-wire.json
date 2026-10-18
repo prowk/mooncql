@@ -8,7 +8,8 @@
     "options_before_startup": "050000000500000000",
     "ready_before_switch": "850000000200000000",
     "options_after_startup": "090002a4c8c10500000005000000001086284d",
-    "ready_with_extension": "850000000200000003aabbcc"
+    "ready_with_extension": "850000000200000003aabbcc",
+    "tracing_custom_payload_query": "05060003070000001e0001000374616700000001780000000853454c4543542031000a00000000"
   },
   "crc32_seeded": {
     "": 1148681939,

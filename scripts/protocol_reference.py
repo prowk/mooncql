@@ -32,6 +32,8 @@ def raw_frame(payload, compressed=False):
 
 def vectors():
     envelope = bytes.fromhex("050000030700000003") + b"abc"
+    request_payload = struct.pack(">HH", 1, 3) + b"tag" + struct.pack(">i", 1) + b"x"
+    request_body = request_payload + struct.pack(">i", 8) + b"SELECT 1" + struct.pack(">Hi", 10, 0)
     return {
         "reference_commit": COMMIT,
         "generator": "python-stdlib zlib.crc32 and explicit little-endian packing",
@@ -43,6 +45,7 @@ def vectors():
             "ready_before_switch": "850000000200000000",
             "options_after_startup": raw_frame(bytes.fromhex("050000000500000000")).hex(),
             "ready_with_extension": "850000000200000003aabbcc",
+            "tracing_custom_payload_query": (bytes.fromhex("0506000307") + struct.pack(">i", len(request_body)) + request_body).hex(),
         },
         "crc32_seeded": {text: zlib.crc32(b"\xfa\x2d\x55\xca" + text.encode("ascii"))
                          for text in ("", "abc", "123456789")},

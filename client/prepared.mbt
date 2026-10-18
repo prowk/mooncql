@@ -6,6 +6,8 @@ pub struct Prepared {
   mut metadata : @protocol.PreparedStatement
   refresh_mutex : @async.Mutex
   mut generation : Int
+  request_options : @protocol.RequestOptions?
+  mut origin_info : ExecutionInfo
 }
 
 ///|
@@ -14,23 +16,34 @@ async fn Connection::prepare_metadata(
   cql : String,
   keyspace : String?,
   deadline : Deadline,
-) -> @protocol.PreparedStatement {
-  match self.run(@protocol.prepare(cql, keyspace?), deadline~) {
-    Prepared(metadata) => metadata
-    _ => raise Unexpected("expected PREPARED result")
+  request_options : @protocol.RequestOptions?,
+) -> Execution[@protocol.PreparedStatement] {
+  let execution = self.run_with_info(
+    @protocol.prepare(cql, keyspace?, request_options?),
+    deadline~,
+  )
+  match execution.value {
+    Prepared(value) => { value, info: execution.info, }
+    _ =>
+      raise ExecutionError(
+        Unexpected("expected PREPARED result"),
+        execution.info,
+      )
   }
 }
 
 ///|
-pub async fn Connection::prepare(
+async fn Connection::prepare_internal(
   self : Connection,
   cql : String,
   keyspace? : String,
   deadline? : Deadline,
+  request_options? : @protocol.RequestOptions,
 ) -> Prepared {
   let deadline = self.operation_deadline(deadline)
   let keyspace = if keyspace is Some(_) { keyspace } else { self.keyspace }
-  let cache_key = @protocol.prepare(cql, keyspace?).body
+  let request_options = request_options.map(options => options.snapshot())
+  let cache_key = @protocol.prepare(cql, keyspace?, request_options?).body
   if self.closed {
     raise Closed
   }
@@ -62,7 +75,9 @@ pub async fn Connection::prepare(
     if flight.failure is Some(error) {
       raise error
     }
-    let outcome = Ok(self.prepare_metadata(cql, keyspace, deadline)) catch {
+    let outcome = Ok(
+      self.prepare_metadata(cql, keyspace, deadline, request_options),
+    ) catch {
       error => Err(error)
     }
     let metadata = match outcome {
@@ -76,7 +91,9 @@ pub async fn Connection::prepare(
       connection: self,
       cql,
       keyspace,
-      metadata,
+      metadata: metadata.value,
+      request_options,
+      origin_info: metadata.info,
       refresh_mutex: @async.Mutex(),
       generation: 0,
     }
@@ -121,12 +138,12 @@ fn Prepared::validate_bindings(
 }
 
 ///|
-pub async fn Prepared::execute(
+pub async fn Prepared::execute_with_info(
   self : Prepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
-) -> @protocol.ResultSet {
+) -> Execution[@protocol.ResultSet] {
   let deadline = self.connection.operation_deadline(deadline)
   // 整次执行及可能的一次恢复共用同一份参数快照。
   let options = prepared_options(options, self.keyspace)
@@ -145,40 +162,69 @@ pub async fn Prepared::execute(
     deadline~,
   )
   match reply.response {
-    Result(result) => return self.accept_result(result, metadata)
+    Result(result) =>
+      return {
+        value: self.accept_result(result, metadata),
+        info: reply.execution_info(),
+      }
     Failure(error) => {
       guard error.detail is Unprepared(id) && id == metadata.id else {
-        raise Server(error)
+        raise ExecutionError(Server(error), reply.execution_info())
       }
     }
-    _ => raise Unexpected("expected RESULT response")
+    _ =>
+      raise ExecutionError(
+        Unexpected("expected RESULT response"),
+        reply.execution_info(),
+      )
   }
+  let previous = [reply.execution_info()]
   deadline.with_lock(self.refresh_mutex, () => {
     if self.generation == generation {
-      self.metadata = self.connection.prepare_metadata(
+      let prepared = self.connection.prepare_metadata(
         self.cql,
         self.keyspace,
         deadline,
+        self.request_options,
       )
+      self.metadata = prepared.value
+      self.origin_info = prepared.info
+      previous.push(copy_execution_info(prepared.info))
       self.generation += 1
     }
-  })
+  }) catch {
+    ExecutionError(error, info) => {
+      let prior = previous.copy()
+      for previous in info.previous {
+        prior.push(previous)
+      }
+      raise ExecutionError(error, { ..info, previous: prior, })
+    }
+    error => raise error_with_history(error, previous)
+  }
   // 仅 UNPREPARED 可以触发一次恢复，超时、断连及写错误不重放。
-  self.validate_bindings(values)
+  self.validate_bindings(values) catch {
+    error => raise error_with_history(error, previous)
+  }
   let metadata = self.metadata
-  self.accept_result(
-    self.connection.run(
-      @protocol.execute(
-        metadata.id,
-        metadata.result_metadata_id,
-        values,
-        options~,
-      ),
-      cached=metadata.result_columns,
-      deadline~,
+  let result = self.connection.run_with_info(
+    @protocol.execute(
+      metadata.id,
+      metadata.result_metadata_id,
+      values,
+      options~,
     ),
-    metadata,
-  )
+    cached=metadata.result_columns,
+    deadline~,
+  ) catch {
+    ExecutionError(error, info) =>
+      raise ExecutionError(error, { ..info, attempt_count: 2, previous, })
+    error => raise error_with_history(error, previous)
+  }
+  {
+    value: self.accept_result(result.value, metadata),
+    info: { ..result.info, attempt_count: 2, previous, },
+  }
 }
 
 ///|
@@ -201,4 +247,17 @@ fn Prepared::accept_result(
     }
   }
   result
+}
+
+///|
+pub async fn Prepared::execute(
+  self : Prepared,
+  values : Array[@types.Value],
+  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  deadline? : Deadline,
+) -> @protocol.ResultSet {
+  self.execute_with_info(values, options~, deadline?).value catch {
+    ExecutionError(error, _) => raise error
+    error => raise error
+  }
 }

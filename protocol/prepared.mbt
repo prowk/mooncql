@@ -14,6 +14,7 @@ pub extend PreparedStatement with @debug.Debug::{to_repr}
 pub fn prepare(
   cql : String,
   keyspace? : String,
+  request_options? : RequestOptions,
 ) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.long_string(cql)
@@ -21,7 +22,7 @@ pub fn prepare(
   if keyspace is Some(name) {
     w.string(name)
   }
-  { opcode: 9, body: w.to_bytes(), }
+  decorate({ opcode: 9, body: w.to_bytes(), flags: 0, }, request_options)
 }
 
 ///|
@@ -35,7 +36,10 @@ pub fn execute(
   w.short_bytes(id)
   w.short_bytes(result_metadata_id)
   write_parameters(w, values, options)
-  { opcode: 10, body: w.to_bytes(), }
+  decorate(
+    { opcode: 10, body: w.to_bytes(), flags: 0, },
+    options.request_options,
+  )
 }
 
 ///|

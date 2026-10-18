@@ -29,7 +29,12 @@ async fn Wire::send(
   request : @protocol.Request,
   on_write? : () -> Unit = () => (),
 ) -> Unit {
-  let bytes = @protocol.encode_envelope(stream, request.opcode, request.body)
+  let bytes = @protocol.encode_envelope(
+    stream,
+    request.opcode,
+    request.body,
+    flags=request.flags,
+  )
   if self.framed {
     // 调用方持有写锁，保证同一消息的各个分片连续发送。
     let mut offset = 0
