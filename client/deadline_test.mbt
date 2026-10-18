@@ -196,7 +196,7 @@ async test "UNPREPARED reprepare uses the original operation deadline" {
 }
 
 ///|
-async test "prepare lock and already expired deadline never send a request" {
+async test "same statement prepare lock and already expired deadline never send a request" {
   @async.with_timeout(3000, () => {
     @async.with_task_group(group => {
       let seen : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
@@ -224,7 +224,7 @@ async test "prepare lock and already expired deadline never send a request" {
               try {
                 ignore(
                   connection.prepare(
-                    "second",
+                    "first",
                     deadline=@client.Deadline::after(40),
                   ),
                 )

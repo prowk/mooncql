@@ -34,6 +34,7 @@ pub(all) struct Config {
   throw_on_overload : Bool
   compression : Bool
   tls : TlsConfig?
+  prepared_cache_capacity : Int
   max_abandoned : Int
   abandoned_timeout_ms : Int
 }
@@ -57,6 +58,7 @@ pub fn Config::new(
   throw_on_overload? : Bool = false,
   compression? : Bool = false,
   tls? : TlsConfig,
+  prepared_cache_capacity? : Int = 64,
   max_abandoned? : Int = 64,
   abandoned_timeout_ms? : Int = 30000,
 ) -> Config {
@@ -78,6 +80,7 @@ pub fn Config::new(
     throw_on_overload,
     compression,
     tls,
+    prepared_cache_capacity,
     max_abandoned,
     abandoned_timeout_ms,
   }
@@ -100,8 +103,9 @@ pub struct Connection {
   pending : Map[Int, Pending]
   admission : Admission
   mut next_stream : Int
-  prepared_cache : Map[Bytes, Prepared]
-  prepare_mutex : @async.Mutex
+  prepared_cache : PreparedCache
+  preparing : Map[Bytes, PrepareFlight]
+  mut preparing_bytes : Int64
   mut keyspace : String?
 }
 
@@ -266,8 +270,9 @@ async fn open_connection(config : Config) -> Connection {
     pending: Map([]),
     admission: Admission::new(config),
     next_stream: 0,
-    prepared_cache: Map([]),
-    prepare_mutex: @async.Mutex(),
+    prepared_cache: PreparedCache::new(config.prepared_cache_capacity),
+    preparing: Map([]),
+    preparing_bytes: 0L,
     keyspace: None,
   }
   let mut ready = false
@@ -348,6 +353,8 @@ fn Config::validate(self : Config) -> Unit raise DriverError {
     self.max_in_flight_bytes < 9 ||
     self.max_waiting < 0 ||
     self.max_waiting_bytes < 0 ||
+    self.prepared_cache_capacity < 0 ||
+    self.prepared_cache_capacity > 65536 ||
     self.max_abandoned < 0 ||
     self.max_abandoned > 32768 ||
     self.abandoned_timeout_ms <= 0 {

@@ -35,6 +35,8 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
   self.pending.clear()
   // 断开缓存到 Prepared 再到 Connection 的引用环，旧代次不积累缓存。
   self.prepared_cache.clear()
+  self.preparing.clear()
+  self.preparing_bytes = 0L
 }
 
 ///|

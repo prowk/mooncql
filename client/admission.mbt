@@ -64,6 +64,30 @@ fn Admission::fits(self : Admission, bytes : Int64) -> Bool {
 }
 
 ///|
+fn Admission::enter_wait(
+  self : Admission,
+  bytes : Int64,
+) -> Unit raise DriverError {
+  if self.closed {
+    raise Closed
+  }
+  if self.waiting >= self.config.max_waiting {
+    raise Overloaded(WaitingQueueFull)
+  }
+  if self.waiting_bytes + bytes > self.config.max_waiting_bytes.to_int64() {
+    raise Overloaded(WaitingBytesFull)
+  }
+  self.waiting += 1
+  self.waiting_bytes += bytes
+}
+
+///|
+fn Admission::leave_wait(self : Admission, bytes : Int64) -> Unit {
+  self.waiting -= 1
+  self.waiting_bytes -= bytes
+}
+
+///|
 fn Admission::register(
   self : Admission,
   bytes : Int64,

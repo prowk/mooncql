@@ -82,6 +82,8 @@ main 分支支持 TCP／TLS 共用传输、自定义 CA、名称校验和显式�
 
 main 分支提供作用域 Session，用有上限的退避和抖动自动恢复单节点连接；新请求可等待连接恢复，已失败的未知结果请求不重放，见 [Session 与恢复](docs/session.md)。
 
+main 分支的预处理缓存支持可配置 LRU 和按 CQL/keyspace 合并并发准备，淘汰不影响已返回对象，见[预处理缓存](docs/prepared-cache.md)。
+
 `skip_metadata=true` 适用于已有元数据的 Prepared／Pager；低层普通请求省略元数据时，需通过 `request(..., cached=columns)` 或 `run(..., cached=columns)` 提供匹配的列定义。
 
 ## 失败语义与边界

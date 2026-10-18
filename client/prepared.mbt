@@ -31,14 +31,47 @@ pub async fn Connection::prepare(
   let deadline = self.operation_deadline(deadline)
   let keyspace = if keyspace is Some(_) { keyspace } else { self.keyspace }
   let cache_key = @protocol.prepare(cql, keyspace?).body
-  deadline.with_lock(self.prepare_mutex, () => {
+  if self.closed {
+    raise Closed
+  }
+  if cache_key.length() > self.config.max_frame_bytes {
+    raise Configuration("request exceeds frame limit")
+  }
+  if self.prepared_cache.get(cache_key) is Some(statement) {
+    return statement
+  }
+  let flight = self.prepare_flight(cache_key)
+  let waiting = flight.users > 0
+  if waiting {
+    self.admission.enter_wait(cache_key.length().to_int64())
+  }
+  flight.users += 1
+  defer {
+    if waiting {
+      self.admission.leave_wait(cache_key.length().to_int64())
+    }
+    self.leave_prepare(cache_key, flight)
+  }
+  deadline.with_lock(flight.mutex, () => {
     if self.closed {
       raise Closed
     }
-    if self.prepared_cache.get(cache_key) is Some(statement) {
+    if flight.result is Some(statement) {
       return statement
     }
-    let metadata = self.prepare_metadata(cql, keyspace, deadline)
+    if flight.failure is Some(error) {
+      raise error
+    }
+    let outcome = Ok(self.prepare_metadata(cql, keyspace, deadline)) catch {
+      error => Err(error)
+    }
+    let metadata = match outcome {
+      Ok(metadata) => metadata
+      Err(error) => {
+        flight.failure = Some(error)
+        raise error
+      }
+    }
     let prepared = Prepared::{
       connection: self,
       cql,
@@ -47,9 +80,9 @@ pub async fn Connection::prepare(
       refresh_mutex: @async.Mutex(),
       generation: 0,
     }
-    // 限制缓存条数，未缓存的语句仍可通过返回对象正常执行。
-    if self.prepared_cache.length() < 64 {
-      self.prepared_cache[cache_key] = prepared
+    flight.result = Some(prepared)
+    if !self.closed {
+      self.prepared_cache.store(cache_key, prepared)
     }
     prepared
   })
