@@ -13,6 +13,14 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
     return
   }
   self.closed = true
+  if self.reader_active && self.config.metrics is Some(metrics) {
+    metrics.data.connections_closed += 1L
+    metrics.emit(
+      ConnectionClosed(
+        Endpoint::new(host=self.config.host, port=self.config.port),
+      ),
+    )
+  }
   self.failure = Some(error)
   self.closed_changed.broadcast()
   self.admission.close()
@@ -59,6 +67,7 @@ async fn Connection::exchange(
   cached : Array[@protocol.Column],
   context : TimeoutContext,
   reservation : Reservation,
+  observation : RequestObservation?,
 ) -> Reply {
   let queue_until = @async.now() + self.config.queue_timeout_ms.to_int64()
   timed(self.config.queue_timeout_ms, Queue, context, () => {
@@ -87,6 +96,9 @@ async fn Connection::exchange(
     self.mutex.acquire()
     lock_owned = true
   })
+  if observation is Some(observation) {
+    observation.executing = Some(@async.now())
+  }
   // 获取锁后立即注册释放；发送和等待响应共用执行计时。
   let reply = timed(self.config.timeout_ms, Execution, context, () => {
     {

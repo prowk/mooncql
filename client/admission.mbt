@@ -79,12 +79,18 @@ fn Admission::enter_wait(
   }
   self.waiting += 1
   self.waiting_bytes += bytes
+  if self.config.metrics is Some(metrics) {
+    metrics.gauges(0L, 0L, 1L, bytes)
+  }
 }
 
 ///|
 fn Admission::leave_wait(self : Admission, bytes : Int64) -> Unit {
   self.waiting -= 1
   self.waiting_bytes -= bytes
+  if self.config.metrics is Some(metrics) {
+    metrics.gauges(0L, 0L, -1L, -bytes)
+  }
 }
 
 ///|
@@ -116,10 +122,16 @@ fn Admission::register(
     }
     self.waiting += 1
     self.waiting_bytes += bytes
+    if self.config.metrics is Some(metrics) {
+      metrics.gauges(0L, 0L, 1L, bytes)
+    }
     return { bytes, released: false, admitted: false, owned_by_pending: false, }
   }
   self.in_flight += 1
   self.bytes += bytes
+  if self.config.metrics is Some(metrics) {
+    metrics.gauges(1L, bytes, 0L, 0L)
+  }
   { bytes, released: false, admitted: true, owned_by_pending: false, }
 }
 
@@ -137,6 +149,9 @@ async fn Admission::admit(self : Admission, reservation : Reservation) -> Unit {
     reservation.admitted = true
     self.in_flight += 1
     self.bytes += reservation.bytes
+    if self.config.metrics is Some(metrics) {
+      metrics.gauges(1L, reservation.bytes, -1L, -reservation.bytes)
+    }
   }
   if self.closed {
     raise Closed
@@ -150,9 +165,15 @@ fn Admission::release(self : Admission, reservation : Reservation) -> Unit {
     if reservation.admitted {
       self.in_flight -= 1
       self.bytes -= reservation.bytes
+      if self.config.metrics is Some(metrics) {
+        metrics.gauges(-1L, -reservation.bytes, 0L, 0L)
+      }
     } else {
       self.waiting -= 1
       self.waiting_bytes -= reservation.bytes
+      if self.config.metrics is Some(metrics) {
+        metrics.gauges(0L, 0L, -1L, -reservation.bytes)
+      }
     }
     self.changed.broadcast()
   }

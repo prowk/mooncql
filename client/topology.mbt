@@ -404,6 +404,11 @@ async fn[G] Session::maintain_control(
       })
       connection.register([TopologyChange, StatusChange, SchemaChange])
       control.generation += 1
+      if control.generation > 1 &&
+        self.config.connection.metrics is Some(metrics) {
+        metrics.data.control_reconnects += 1L
+        metrics.emit(Reconnected(endpoint, control.generation, true))
+      }
       while !self.closed {
         let snapshot = read_topology(
           connection,

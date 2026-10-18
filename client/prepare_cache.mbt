@@ -3,11 +3,19 @@ struct PreparedCache {
   capacity : Int
   entries : Map[Bytes, Prepared]
   order : Array[Bytes]
+  metrics : Metrics?
+  endpoint : Endpoint
 }
 
 ///|
-fn PreparedCache::new(capacity : Int) -> PreparedCache {
-  { capacity, entries: Map([]), order: [], }
+fn PreparedCache::new(config : Config) -> PreparedCache {
+  {
+    capacity: config.prepared_cache_capacity,
+    entries: Map([]),
+    order: [],
+    metrics: config.metrics,
+    endpoint: Endpoint::new(host=config.host, port=config.port),
+  }
 }
 
 ///|
@@ -24,6 +32,9 @@ fn PreparedCache::touch(self : PreparedCache, key : Bytes) -> Unit {
 ///|
 fn PreparedCache::get(self : PreparedCache, key : Bytes) -> Prepared? {
   let value = self.entries.get(key)
+  if self.metrics is Some(metrics) {
+    metrics.cache(self.endpoint, if value is Some(_) { Hit } else { Miss })
+  }
   if value is Some(_) {
     self.touch(key)
   }
@@ -41,6 +52,9 @@ fn PreparedCache::store(
   }
   if !self.entries.contains(key) && self.entries.length() >= self.capacity {
     self.entries.remove(self.order.remove(0))
+    if self.metrics is Some(metrics) {
+      metrics.cache(self.endpoint, Evicted)
+    }
   }
   self.entries[key] = value
   self.touch(key)
@@ -71,6 +85,12 @@ fn Connection::prepare_flight(
   key : Bytes,
 ) -> PrepareFlight raise DriverError {
   if self.preparing.get(key) is Some(flight) {
+    if self.config.metrics is Some(metrics) {
+      metrics.cache(
+        Endpoint::new(host=self.config.host, port=self.config.port),
+        Coalesced,
+      )
+    }
     return flight
   }
   let bytes = key.length().to_int64()

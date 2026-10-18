@@ -4,6 +4,7 @@ import {
   "prowk/mooncql/internal/secure",
   "moonbitlang/core/encoding/utf8",
   "prowk/mooncql/framing",
+  "prowk/mooncql/codec",
   "prowk/mooncql/protocol",
   "prowk/mooncql/routing",
   "prowk/mooncql/types",
@@ -13,7 +14,3 @@ import {
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
 }
-
-import {
-  "prowk/mooncql/codec",
-} for "test"

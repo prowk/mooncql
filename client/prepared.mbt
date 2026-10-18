@@ -65,44 +65,49 @@ async fn Connection::prepare_internal(
     }
     self.leave_prepare(cache_key, flight)
   }
-  deadline.with_lock(flight.mutex, () => {
-    if self.closed {
-      raise Closed
-    }
-    if flight.result is Some(statement) {
-      return statement
-    }
-    if flight.failure is Some(error) {
-      raise error
-    }
-    let outcome = Ok(
-      self.prepare_metadata(cql, keyspace, deadline, request_options),
-    ) catch {
-      error => Err(error)
-    }
-    let metadata = match outcome {
-      Ok(metadata) => metadata
-      Err(error) => {
-        flight.failure = Some(error)
+  deadline.with_lock(
+    flight.mutex,
+    () => {
+      if self.closed {
+        raise Closed
+      }
+      if flight.result is Some(statement) {
+        return statement
+      }
+      if flight.failure is Some(error) {
         raise error
       }
-    }
-    let prepared = Prepared::{
-      connection: self,
-      cql,
-      keyspace,
-      metadata: metadata.value,
-      request_options,
-      origin_info: metadata.info,
-      refresh_mutex: @async.Mutex(),
-      generation: 0,
-    }
-    flight.result = Some(prepared)
-    if !self.closed {
-      self.prepared_cache.store(cache_key, prepared)
-    }
-    prepared
-  })
+      let outcome = Ok(
+        self.prepare_metadata(cql, keyspace, deadline, request_options),
+      ) catch {
+        error => Err(error)
+      }
+      let metadata = match outcome {
+        Ok(metadata) => metadata
+        Err(error) => {
+          flight.failure = Some(error)
+          raise error
+        }
+      }
+      let prepared = Prepared::{
+        connection: self,
+        cql,
+        keyspace,
+        metadata: metadata.value,
+        request_options,
+        origin_info: metadata.info,
+        refresh_mutex: @async.Mutex(),
+        generation: 0,
+      }
+      flight.result = Some(prepared)
+      if !self.closed {
+        self.prepared_cache.store(cache_key, prepared)
+      }
+      prepared
+    },
+    metrics?=self.config.metrics,
+    bytes=cache_key.length().to_int64(),
+  )
 }
 
 ///|
@@ -151,13 +156,15 @@ pub async fn Prepared::execute_with_info(
   self.validate_bindings(values)
   let metadata = self.metadata
   let generation = self.generation
+  let request = @protocol.execute(
+    metadata.id,
+    metadata.result_metadata_id,
+    values,
+    options~,
+  )
+  let request_bytes = request.body.length().to_int64() + 9L
   let reply = self.connection.request(
-    @protocol.execute(
-      metadata.id,
-      metadata.result_metadata_id,
-      values,
-      options~,
-    ),
+    request,
     cached=metadata.result_columns,
     deadline~,
   )
@@ -179,20 +186,26 @@ pub async fn Prepared::execute_with_info(
       )
   }
   let previous = [reply.execution_info()]
-  deadline.with_lock(self.refresh_mutex, () => {
-    if self.generation == generation {
-      let prepared = self.connection.prepare_metadata(
-        self.cql,
-        self.keyspace,
-        deadline,
-        self.request_options,
-      )
-      self.metadata = prepared.value
-      self.origin_info = prepared.info
-      previous.push(copy_execution_info(prepared.info))
-      self.generation += 1
-    }
-  }) catch {
+  deadline.with_lock(
+    self.refresh_mutex,
+    () => {
+      if self.generation == generation {
+        let prepared = self.connection.prepare_metadata(
+          self.cql,
+          self.keyspace,
+          deadline,
+          self.request_options,
+        )
+        self.metadata = prepared.value
+        self.origin_info = prepared.info
+        previous.push(copy_execution_info(prepared.info))
+        self.generation += 1
+      }
+    },
+    metrics?=self.connection.config.metrics,
+    admission=self.connection.admission,
+    bytes=request_bytes,
+  ) catch {
     ExecutionError(error, info) => {
       let prior = previous.copy()
       for previous in info.previous {

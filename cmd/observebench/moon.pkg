@@ -1,0 +1,9 @@
+import {
+  "prowk/mooncql/client",
+  "prowk/mooncql/types",
+  "moonbitlang/async",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+pkgtype(kind: "executable")

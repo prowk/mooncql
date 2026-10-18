@@ -38,6 +38,7 @@ pub(all) struct Config {
   max_abandoned : Int
   abandoned_timeout_ms : Int
   event_capacity : Int
+  metrics : Metrics?
 }
 
 ///|
@@ -63,6 +64,7 @@ pub fn Config::new(
   max_abandoned? : Int = 64,
   abandoned_timeout_ms? : Int = 30000,
   event_capacity? : Int = 256,
+  metrics? : Metrics,
 ) -> Config {
   {
     host,
@@ -86,6 +88,7 @@ pub fn Config::new(
     max_abandoned,
     abandoned_timeout_ms,
     event_capacity,
+    metrics,
   }
 }
 
@@ -138,11 +141,13 @@ pub(all) struct Reply {
 }
 
 ///|
-pub async fn Connection::request(
+async fn Connection::request_internal(
   self : Connection,
   request : @protocol.Request,
-  cached? : Array[@protocol.Column] = [],
-  deadline? : Deadline,
+  cached : Array[@protocol.Column],
+  deadline : Deadline?,
+  context : TimeoutContext,
+  observation : RequestObservation?,
 ) -> Reply {
   if self.closed {
     raise Closed
@@ -151,7 +156,6 @@ pub async fn Connection::request(
     raise Configuration("request exceeds frame limit")
   }
   let deadline = self.operation_deadline(deadline)
-  let context = TimeoutContext::{ phase: WaitingSlot, sent: false, }
   // 第一次异步等待前登记预算，满载拒绝不会累积计时器和编码缓冲。
   let reservation = self.admission.register(
     request.body.length().to_int64() + 9L,
@@ -160,7 +164,7 @@ pub async fn Connection::request(
     self.admission.release(reservation)
   })
   timed(deadline.remaining_ms(), Operation, context, () => {
-    self.exchange(request, cached, context, reservation)
+    self.exchange(request, cached, context, reservation, observation)
   })
 }
 
@@ -219,7 +223,7 @@ pub async fn Connection::query(
 }
 
 ///|
-pub async fn[G] connect(
+async fn[G] connect_internal(
   group : @async.TaskGroup[G],
   config? : Config = Config::new(),
   deadline? : Deadline,
@@ -268,7 +272,12 @@ async fn open_connection(config : Config) -> Connection {
   let connection = Connection::{
     socket,
     config,
-    wire: Wire::new(socket, config.max_frame_bytes, config.compression),
+    wire: Wire::new(
+      socket,
+      config.max_frame_bytes,
+      config.compression,
+      config.metrics,
+    ),
     mutex: @async.Mutex(),
     closed: false,
     closed_changed: @async.CondVar::Cond(),
@@ -281,7 +290,7 @@ async fn open_connection(config : Config) -> Connection {
     pending: Map([]),
     admission: Admission::new(config),
     next_stream: 0,
-    prepared_cache: PreparedCache::new(config.prepared_cache_capacity),
+    prepared_cache: PreparedCache::new(config),
     preparing: Map([]),
     preparing_bytes: 0L,
     keyspace: None,

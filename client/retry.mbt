@@ -141,6 +141,11 @@ async fn[T] Session::execute_retry(
       }
     }
     // 重试等待本身也消耗原预算，不延长总截止时间。
+    let observation = match self.config.connection.metrics {
+      Some(metrics) => Some(WaitObservation::new(metrics, Retry, 0L))
+      None => None
+    }
+    defer (if observation is Some(observation) { observation.finish() })
     let pause = try {
       timed(
         deadline.remaining_ms(),
@@ -151,6 +156,13 @@ async fn[T] Session::execute_retry(
       None
     } catch {
       error => Some(error)
+    }
+    if observation is Some(observation) {
+      observation.outcome = match pause {
+        Some(error) => request_outcome(error)
+        None => Succeeded
+      }
+      observation.finish()
     }
     if pause is Some(error) {
       failures.push({

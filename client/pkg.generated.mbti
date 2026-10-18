@@ -54,6 +54,16 @@ pub(all) struct AttemptFailure {
   execution_info : ExecutionInfo?
 }
 
+pub(all) enum CacheEvent {
+  Hit
+  Miss
+  Coalesced
+  Evicted
+} derive(Eq, @debug.Debug)
+pub fn CacheEvent::equal(Self, Self) -> Bool
+pub fn CacheEvent::not_equal(Self, Self) -> Bool
+pub fn CacheEvent::to_repr(Self) -> @debug.Repr
+
 pub(all) enum ClientIdentity {
   Pem(String, String)
   WindowsStore(String)
@@ -87,8 +97,9 @@ pub(all) struct Config {
   max_abandoned : Int
   abandoned_timeout_ms : Int
   event_capacity : Int
+  metrics : Metrics?
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, metrics? : Metrics) -> Self
 
 pub struct Connection {
   socket : Transport
@@ -169,8 +180,9 @@ pub(all) struct Endpoint {
   host : String
   port : Int
   server_name : String?
-}
+} derive(@debug.Debug)
 pub fn Endpoint::new(host? : String, port? : Int, server_name? : String) -> Self
+pub fn Endpoint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Execution[T] {
   value : T
@@ -186,6 +198,86 @@ pub(all) struct ExecutionInfo {
   previous : Array[ExecutionInfo]
   cached : Bool
 }
+
+pub(all) enum MetricEvent {
+  RequestStarted(Endpoint, Int, Int64)
+  RequestFinished(RequestEvent)
+  ConnectionAttempt(Endpoint)
+  ConnectionEstablished(Endpoint)
+  ConnectionFailed(Endpoint, RequestOutcome)
+  ConnectionClosed(Endpoint)
+  Reconnected(Endpoint, Int, Bool)
+  Cache(Endpoint, CacheEvent)
+  WaitFinished(WaitScope, Int64, Int64, RequestOutcome)
+} derive(@debug.Debug)
+pub fn MetricEvent::to_repr(Self) -> @debug.Repr
+
+pub struct Metrics {
+  data : MetricsSnapshot
+  listener : ((MetricEvent) -> Unit raise)?
+}
+pub fn Metrics::new(listener? : (MetricEvent) -> Unit raise) -> Self
+pub fn Metrics::snapshot(Self) -> MetricsSnapshot
+
+pub(all) struct MetricsSnapshot {
+  mut requests_started : Int64
+  mut requests_succeeded : Int64
+  mut requests_failed : Int64
+  mut requests_cancelled : Int64
+  mut request_timeouts : Int64
+  mut queue_ms : Int64
+  mut execution_ms : Int64
+  mut in_flight : Int64
+  mut in_flight_bytes : Int64
+  mut waiting : Int64
+  mut waiting_bytes : Int64
+  mut peak_in_flight : Int64
+  mut peak_in_flight_bytes : Int64
+  mut peak_waiting : Int64
+  mut peak_waiting_bytes : Int64
+  mut connect_attempts : Int64
+  mut connections_established : Int64
+  mut connections_closed : Int64
+  mut connect_failures : Int64
+  mut connect_cancellations : Int64
+  mut connect_timeouts : Int64
+  mut reconnects : Int64
+  mut control_reconnects : Int64
+  mut cache_hits : Int64
+  mut cache_misses : Int64
+  mut cache_coalesced : Int64
+  mut cache_evictions : Int64
+  mut sent_frames : Int64
+  mut sent_raw_payload_bytes : Int64
+  mut sent_encoded_payload_bytes : Int64
+  mut sent_complete_frame_bytes : Int64
+  mut received_frames : Int64
+  mut received_raw_payload_bytes : Int64
+  mut received_encoded_payload_bytes : Int64
+  mut received_complete_frame_bytes : Int64
+  mut session_waits : Int64
+  mut session_wait_failures : Int64
+  mut session_wait_cancellations : Int64
+  mut session_wait_ms : Int64
+  mut session_wait_timeouts : Int64
+  mut prepare_waits : Int64
+  mut prepare_wait_ms : Int64
+  mut prepare_wait_failures : Int64
+  mut prepare_wait_cancellations : Int64
+  mut prepare_wait_timeouts : Int64
+  mut retry_waits : Int64
+  mut retry_wait_ms : Int64
+  mut retry_wait_failures : Int64
+  mut retry_wait_cancellations : Int64
+  mut retry_wait_timeouts : Int64
+  mut listener_errors : Int64
+} derive(ToJson, @debug.Debug)
+pub fn MetricsSnapshot::received_payload_ratio(Self) -> Double
+pub fn MetricsSnapshot::sent_payload_ratio(Self) -> Double
+pub fn MetricsSnapshot::to_json(Self) -> Json
+pub fn MetricsSnapshot::to_repr(Self) -> @debug.Repr
+pub fn MetricsSnapshot::total_cancellations(Self) -> Int64
+pub fn MetricsSnapshot::total_timeouts(Self) -> Int64
 
 pub(all) struct NodeInfo {
   endpoint : Endpoint
@@ -275,6 +367,33 @@ pub(all) struct Reply {
   previous : Array[ExecutionInfo]
 }
 pub fn Reply::execution_info(Self) -> ExecutionInfo
+
+pub(all) struct RequestEvent {
+  endpoint : Endpoint
+  opcode : Int
+  request_bytes : Int64
+  outcome : RequestOutcome
+  phase : TimeoutPhase
+  may_have_been_sent : Bool
+  queue_ms : Int64
+  execution_ms : Int64
+} derive(@debug.Debug)
+pub fn RequestEvent::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RequestOutcome {
+  Succeeded
+  ServerError(Int)
+  Timeout(TimeoutInfo)
+  Cancelled
+  LocalOverload(OverloadReason)
+  Disconnected
+  InvalidConfiguration
+  TlsError
+  ProtocolError
+  TransportError
+  OtherFailure
+} derive(@debug.Debug)
+pub fn RequestOutcome::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RequestStage {
   WaitingSlot
@@ -424,6 +543,15 @@ pub(all) struct TopologySnapshot {
 }
 
 type Transport
+
+pub(all) enum WaitScope {
+  Connection
+  Prepare
+  Retry
+} derive(Eq, @debug.Debug)
+pub fn WaitScope::equal(Self, Self) -> Bool
+pub fn WaitScope::not_equal(Self, Self) -> Bool
+pub fn WaitScope::to_repr(Self) -> @debug.Repr
 
 type Wire
 

@@ -52,12 +52,14 @@ async fn run_probe() -> Unit {
     .to_array()
   assert_eq(ports.length(), 3)
   assert_eq(hosts.length(), 3)
+  let metrics = @client.Metrics::new()
   let config = @client.SessionConfig::new(
     connection=@client.Config::new(
       username?=@env.get_env_var("CQL_USERNAME"),
       password?=@env.get_env_var("CQL_PASSWORD"),
       compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
       operation_timeout_ms=15000,
+      metrics~,
     ),
     contact_points=[@client.Endpoint::new(port=ports[0])],
     discovery=@client.DiscoveryConfig::new(
@@ -157,6 +159,13 @@ async fn run_probe() -> Unit {
     assert_true(session.nodes().all(node => node.status.state == Stopped))
     assert_eq(session.active_count(), 0)
     assert_eq(session.waiting_count(), 0)
+    let observed = metrics.snapshot()
+    assert_true(observed.control_reconnects >= 1L)
+    assert_eq(observed.in_flight, 0L)
+    assert_eq(observed.in_flight_bytes, 0L)
+    assert_eq(observed.waiting, 0L)
+    assert_eq(observed.waiting_bytes, 0L)
+    assert_eq(observed.connections_established, observed.connections_closed)
     @fs.write_file(
       "\{directory}/result.json",
       "{\"discovered\":3,\"control_generation\":\{generation},\"active\":0,\"waiting\":0}\n",

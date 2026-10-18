@@ -104,20 +104,74 @@ async fn[T] Deadline::with_lock(
   self : Deadline,
   mutex : @async.Mutex,
   body : async () -> T,
+  metrics? : Metrics,
+  admission? : Admission,
+  bytes? : Int64 = 0L,
 ) -> T {
-  // 计时器收尾也可能让出执行权，资源释放必须覆盖获取后至返回前的整个区间。
+  let observation = match metrics {
+    Some(metrics) => Some(WaitObservation::new(metrics, Prepare, bytes))
+    None => None
+  }
+  defer (if observation is Some(observation) { observation.finish() })
+  // 同步探测锁；仅真实等待者进入额度队列，持有标记覆盖计时器收尾。
   let mut acquired = false
-  defer (if acquired { mutex.release() })
-  timed(
-    self.remaining_ms(),
-    Operation,
-    { phase: WaitingPrepare, sent: false, },
-    () => {
-      mutex.acquire()
+  let mut waiting = false
+  defer {
+    if acquired {
+      mutex.release()
+    }
+    if waiting && admission is Some(admission) {
+      admission.leave_wait(bytes)
+    }
+  }
+  let outcome = try {
+    if self.remaining_ms() <= 0 {
+      raise TimedOut({
+        phase: WaitingPrepare,
+        scope: Operation,
+        may_have_been_sent: false,
+      })
+    }
+    if mutex.try_acquire() {
       acquired = true
-    },
-  )
-  body()
+    } else {
+      if admission is Some(admission) {
+        admission.enter_wait(bytes)
+        waiting = true
+      }
+      timed(
+        self.remaining_ms(),
+        Operation,
+        { phase: WaitingPrepare, sent: false, },
+        () => {
+          mutex.acquire()
+          acquired = true
+        },
+      )
+    }
+    Ok(())
+  } catch {
+    error => Err(error)
+  }
+  match outcome {
+    Err(error) => {
+      if observation is Some(observation) {
+        observation.outcome = request_outcome(error)
+      }
+      raise error
+    }
+    Ok(_) => {
+      if waiting && admission is Some(admission) {
+        admission.leave_wait(bytes)
+        waiting = false
+      }
+      if observation is Some(observation) {
+        observation.outcome = Succeeded
+        observation.finish()
+      }
+      body()
+    }
+  }
 }
 
 ///|

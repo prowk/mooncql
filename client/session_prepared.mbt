@@ -47,7 +47,11 @@ pub async fn Session::prepare_with_info(
     partition_key_indices: [],
     routing_keyspace: None,
   }
-  let prepared = statement.statement_for(connection, deadline)
+  let prepared = statement.statement_for(
+    connection,
+    deadline,
+    request.body.length().to_int64() + 9L,
+  )
   { value: statement, info: prepared.info, }
 }
 
@@ -56,6 +60,7 @@ async fn SessionPrepared::statement_for(
   self : SessionPrepared,
   connection : Connection,
   deadline : Deadline,
+  charge : Int64,
 ) -> Execution[Prepared] {
   let node = "\{connection.config.host}:\{connection.config.port}"
   let state = match self.states.get(node) {
@@ -80,31 +85,37 @@ async fn SessionPrepared::statement_for(
       state
     }
   }
-  deadline.with_lock(state.mutex, () => {
-    if state.prepared is Some(prepared) &&
-      state.generation == connection.generation &&
-      physical_equal(prepared.connection, connection) {
-      return {
-        value: prepared,
-        info: {
-          ..copy_execution_info(prepared.origin_info),
-          cached: true,
-          attempt_count: 0,
-        },
+  deadline.with_lock(
+    state.mutex,
+    () => {
+      if state.prepared is Some(prepared) &&
+        state.generation == connection.generation &&
+        physical_equal(prepared.connection, connection) {
+        return {
+          value: prepared,
+          info: {
+            ..copy_execution_info(prepared.origin_info),
+            cached: true,
+            attempt_count: 0,
+          },
+        }
       }
-    }
-    let execution = connection.prepare_with_info(
-      self.cql,
-      keyspace?=self.keyspace,
-      deadline~,
-      request_options?=self.request_options,
-    )
-    let prepared = execution.value
-    state.prepared = Some(prepared)
-    state.generation = connection.generation
-    self.accept_routing_metadata(prepared)
-    execution
-  })
+      let execution = connection.prepare_with_info(
+        self.cql,
+        keyspace?=self.keyspace,
+        deadline~,
+        request_options?=self.request_options,
+      )
+      let prepared = execution.value
+      state.prepared = Some(prepared)
+      state.generation = connection.generation
+      self.accept_routing_metadata(prepared)
+      execution
+    },
+    metrics?=connection.config.metrics,
+    admission=connection.admission,
+    bytes=charge,
+  )
 }
 
 ///|
@@ -169,7 +180,7 @@ pub async fn SessionPrepared::execute_with_info(
     retry,
     hint,
     connection => {
-      let preparation = self.statement_for(connection, deadline)
+      let preparation = self.statement_for(connection, deadline, charge)
       let prepared = preparation.value
       let result = prepared.execute_with_info(values, options~, deadline~) catch {
         ExecutionError(error, info) => {

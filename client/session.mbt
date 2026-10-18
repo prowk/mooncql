@@ -61,7 +61,10 @@ pub(all) struct Endpoint {
   host : String
   port : Int
   server_name : String?
-}
+} derive(@debug.Debug)
+
+///|
+pub extend Endpoint with @debug.Debug::{to_repr}
 
 ///|
 pub fn Endpoint::new(
@@ -368,6 +371,11 @@ async fn[G] Session::maintain(
       {
         node.current = Some(connection)
         node.generation += 1
+        if node.generation > 1 &&
+          self.config.connection.metrics is Some(metrics) {
+          metrics.data.reconnects += 1L
+          metrics.emit(Reconnected(node.endpoint, node.generation, false))
+        }
         self.generation += 1
         connection.generation = node.generation
         node.state = Ready
@@ -440,6 +448,38 @@ async fn Session::select(
   if self.choose(hint, attempted) is Some(connection) {
     return connection
   }
+  let observation = match self.config.connection.metrics {
+    Some(metrics) => Some(WaitObservation::new(metrics, Connection, bytes))
+    None => None
+  }
+  defer (if observation is Some(observation) { observation.finish() })
+  let outcome = Ok(self.wait_connection(deadline, bytes, hint, attempted)) catch {
+    error => Err(error)
+  }
+  match outcome {
+    Ok(connection) => {
+      if observation is Some(observation) {
+        observation.outcome = Succeeded
+      }
+      connection
+    }
+    Err(error) => {
+      if observation is Some(observation) {
+        observation.outcome = request_outcome(error)
+      }
+      raise error
+    }
+  }
+}
+
+///|
+async fn Session::wait_connection(
+  self : Session,
+  deadline : Deadline,
+  bytes : Int64,
+  hint : RoutingHint?,
+  attempted : Array[String],
+) -> Connection {
   if self.waiting >= self.config.connection.max_waiting {
     raise Overloaded(WaitingQueueFull)
   }
@@ -449,9 +489,15 @@ async fn Session::select(
   }
   self.waiting += 1
   self.waiting_bytes += bytes
+  if self.config.connection.metrics is Some(metrics) {
+    metrics.gauges(0L, 0L, 1L, bytes)
+  }
   defer {
     self.waiting -= 1
     self.waiting_bytes -= bytes
+    if self.config.connection.metrics is Some(metrics) {
+      metrics.gauges(0L, 0L, -1L, -bytes)
+    }
     self.changed.broadcast()
   }
   timed(

@@ -7,10 +7,16 @@ struct Wire {
   decoder : @protocol.EnvelopeDecoder
   mut messages : Array[@protocol.MessageEnvelope]
   mut position : Int
+  metrics : Metrics?
 }
 
 ///|
-fn Wire::new(socket : Transport, max_body : Int, compressed : Bool) -> Wire {
+fn Wire::new(
+  socket : Transport,
+  max_body : Int,
+  compressed : Bool,
+  metrics : Metrics?,
+) -> Wire {
   {
     socket,
     max_body,
@@ -19,6 +25,7 @@ fn Wire::new(socket : Transport, max_body : Int, compressed : Bool) -> Wire {
     decoder: @protocol.EnvelopeDecoder::new(max_body~),
     messages: [],
     position: 0,
+    metrics,
   }
 }
 
@@ -48,6 +55,14 @@ async fn Wire::send(
       )
       on_write()
       self.socket.write(frame)
+      if self.metrics is Some(metrics) {
+        metrics.data.sent_frames += 1L
+        metrics.data.sent_raw_payload_bytes += length.to_int64()
+        metrics.data.sent_encoded_payload_bytes += (frame.length() -
+        (if self.compressed { 8 } else { 6 }) -
+        4).to_int64()
+        metrics.data.sent_complete_frame_bytes += frame.length().to_int64()
+      }
       offset += length
     }
   } else {
@@ -78,6 +93,16 @@ async fn Wire::receive(self : Wire) -> @protocol.MessageEnvelope {
         header,
         self.socket.read_exactly(header.payload_length + 4),
       )
+      if self.metrics is Some(metrics) {
+        metrics.data.received_frames += 1L
+        metrics.data.received_raw_payload_bytes += frame.payload
+          .length()
+          .to_int64()
+        metrics.data.received_encoded_payload_bytes += header.payload_length.to_int64()
+        metrics.data.received_complete_frame_bytes += (header.payload_length +
+        (if self.compressed { 8 } else { 6 }) +
+        4).to_int64()
+      }
       self.messages = self.decoder.feed(frame)
       self.position = 0
     }
