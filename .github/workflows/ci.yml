@@ -64,3 +64,27 @@ jobs:
         run: docker compose logs --tail=80
       - if: always()
         run: docker compose down --volumes
+  cluster:
+    needs: unit
+    runs-on: ubuntu-latest
+    env:
+      CQL_AUTHENTICATOR: PasswordAuthenticator
+      CQL_USERNAME: cassandra
+      CQL_PASSWORD: cassandra
+      CQL_COMPRESSION: lz4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1.22
+        with:
+          version: '0.10.14+7d59c7ec9'
+          core-version: '0.10.14+7d59c7ec9'
+      - run: moon update
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: docker compose -f compose.cluster.yaml up -d --wait --wait-timeout 360
+      - run: python scripts/cluster_failover.py --docker-compose
+      - if: always()
+        run: docker compose -f compose.cluster.yaml logs --tail=80
+      - if: always()
+        run: docker compose -f compose.cluster.yaml down --volumes

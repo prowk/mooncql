@@ -1,0 +1,57 @@
+name: mooncql-cluster-test
+
+x-node: &node
+  image: cassandra:5.0.5
+  entrypoint: ["/bin/bash", "-ec"]
+  command:
+    - |
+      python3 /opt/mooncql/configure_cluster.py
+      exec /usr/local/bin/docker-entrypoint.sh cassandra -f
+  volumes:
+    - ./scripts/configure_cluster.py:/opt/mooncql/configure_cluster.py:ro
+  healthcheck:
+    test:
+      - CMD-SHELL
+      - >-
+        if [ "$$CQL_AUTHENTICATOR" = PasswordAuthenticator ]; then
+        cqlsh --protocol-version=5 -u cassandra -p cassandra -e 'SELECT release_version FROM system.local';
+        else cqlsh --protocol-version=5 -e 'SELECT release_version FROM system.local'; fi
+    interval: 5s
+    timeout: 10s
+    retries: 60
+    start_period: 30s
+
+x-environment: &environment
+  MAX_HEAP_SIZE: 512M
+  HEAP_NEWSIZE: 100M
+  JVM_EXTRA_OPTS: -XX:ActiveProcessorCount=2
+  CASSANDRA_CLUSTER_NAME: mooncql-cluster-fixture
+  CASSANDRA_SEEDS: cassandra1
+  CASSANDRA_DC: dc1
+  CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+  CASSANDRA_NUM_TOKENS: 8
+  CQL_AUTHENTICATOR: ${CQL_AUTHENTICATOR:-AllowAllAuthenticator}
+
+services:
+  cassandra1:
+    <<: *node
+    environment:
+      <<: *environment
+      CASSANDRA_RACK: rack1
+    ports: ["127.0.0.1:19052:9042"]
+  cassandra2:
+    <<: *node
+    environment:
+      <<: *environment
+      CASSANDRA_RACK: rack2
+    ports: ["127.0.0.1:19053:9042"]
+    depends_on:
+      cassandra1: {condition: service_healthy}
+  cassandra3:
+    <<: *node
+    environment:
+      <<: *environment
+      CASSANDRA_RACK: rack3
+    ports: ["127.0.0.1:19054:9042"]
+    depends_on:
+      cassandra2: {condition: service_healthy}

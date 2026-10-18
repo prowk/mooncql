@@ -13,8 +13,25 @@ pub extend NodeState with Eq::{equal, not_equal}
 pub extend NodeState with @debug.Debug::{to_repr}
 
 ///|
+pub(all) struct Endpoint {
+  host : String
+  port : Int
+  server_name : String?
+}
+
+///|
+pub fn Endpoint::new(
+  host? : String = "127.0.0.1",
+  port? : Int = 9042,
+  server_name? : String,
+) -> Endpoint {
+  { host, port, server_name, }
+}
+
+///|
 pub(all) struct SessionConfig {
   connection : Config
+  contact_points : Array[Endpoint]
   backoff_initial_ms : Int
   backoff_max_ms : Int
   jitter : Double
@@ -24,12 +41,20 @@ pub(all) struct SessionConfig {
 ///|
 pub fn SessionConfig::new(
   connection? : Config = Config::new(),
+  contact_points? : Array[Endpoint] = [],
   backoff_initial_ms? : Int = 25,
   backoff_max_ms? : Int = 2000,
   jitter? : Double = 0.2,
   stable_reset_ms? : Int = 1000,
 ) -> SessionConfig {
-  { connection, backoff_initial_ms, backoff_max_ms, jitter, stable_reset_ms, }
+  {
+    connection,
+    contact_points: contact_points.copy(),
+    backoff_initial_ms,
+    backoff_max_ms,
+    jitter,
+    stable_reset_ms,
+  }
 }
 
 ///|
@@ -40,15 +65,32 @@ pub(all) struct NodeStatus {
 }
 
 ///|
-pub struct Session {
-  config : SessionConfig
-  changed : @async.CondVar
+pub(all) struct NodeInfo {
+  endpoint : Endpoint
+  status : NodeStatus
+  last_error : Error?
+}
+
+///|
+struct SessionNode {
+  endpoint : Endpoint
+  config : Config
   mut current : Connection?
   mut worker : @async.Task[Unit]?
-  mut closed : Bool
   mut state : NodeState
   mut generation : Int
   mut attempts : Int
+  mut last_error : Error?
+}
+
+///|
+pub struct Session {
+  config : SessionConfig
+  changed : @async.CondVar
+  nodes : Array[SessionNode]
+  mut closed : Bool
+  mut generation : Int
+  mut next_node : Int
   mut last_error : Error?
   mut active : Int
   mut waiting : Int
@@ -67,25 +109,72 @@ pub async fn[T] with_session(
     !(config.jitter >= 0.0 && config.jitter <= 1.0) {
     raise Configuration("invalid session backoff configuration")
   }
+  let endpoints = if config.contact_points.is_empty() {
+    [Endpoint::new(host=config.connection.host, port=config.connection.port)]
+  } else {
+    config.contact_points.copy()
+  }
+  let seen : Map[String, Bool] = Map([])
+  let nodes = endpoints.map(endpoint => {
+    let key = "\{endpoint.host}:\{endpoint.port}"
+    if seen.contains(key) {
+      raise Configuration("duplicate contact point")
+    }
+    seen[key] = true
+    let tls = match config.connection.tls {
+      Some(tls) =>
+        Some({
+          ..tls,
+          server_name: if endpoint.server_name is Some(_) {
+            endpoint.server_name
+          } else {
+            tls.server_name
+          },
+        })
+      None => {
+        if endpoint.server_name is Some(_) {
+          raise Configuration("endpoint server name requires TLS")
+        }
+        None
+      }
+    }
+    let connection = {
+      ..config.connection,
+      host: endpoint.host,
+      port: endpoint.port,
+      tls,
+    }
+    connection.validate()
+    SessionNode::{
+      endpoint,
+      config: connection,
+      current: None,
+      worker: None,
+      state: Connecting,
+      generation: 0,
+      attempts: 0,
+      last_error: None,
+    }
+  })
   @async.with_task_group(group => {
     let session = Session::{
       config,
       changed: @async.CondVar::Cond(),
-      current: None,
-      worker: None,
+      nodes,
       closed: false,
-      state: Connecting,
       generation: 0,
-      attempts: 0,
+      next_node: 0,
       last_error: None,
       active: 0,
       waiting: 0,
       waiting_bytes: 0L,
     }
     defer session.stop()
-    session.worker = Some(
-      group.spawn(() => session.maintain(group), no_wait=true),
-    )
+    for node in nodes {
+      node.worker = Some(
+        group.spawn(() => session.maintain(node, group), no_wait=true),
+      )
+    }
     body(session)
   })
 }
@@ -94,11 +183,13 @@ pub async fn[T] with_session(
 fn Session::stop(self : Session) -> Unit {
   if !self.closed {
     self.closed = true
-    if self.current is Some(connection) {
-      connection.close()
-    }
-    if self.worker is Some(task) {
-      task.cancel()
+    for node in self.nodes {
+      if node.current is Some(connection) {
+        connection.close()
+      }
+      if node.worker is Some(task) {
+        task.cancel()
+      }
     }
     self.changed.broadcast()
   }
@@ -107,10 +198,13 @@ fn Session::stop(self : Session) -> Unit {
 ///|
 pub async fn Session::close(self : Session) -> Unit {
   self.stop()
-  if self.worker is Some(task) {
-    ignore(task.wait()) catch {
-      _ => ()
+  for node in self.nodes {
+    if node.worker is Some(task) {
+      ignore(task.wait()) catch {
+        _ => ()
+      }
     }
+    node.worker = None
   }
   while self.active > 0 {
     self.changed.wait()
@@ -124,7 +218,32 @@ pub fn Session::is_closed(self : Session) -> Bool {
 
 ///|
 pub fn Session::status(self : Session) -> NodeStatus {
-  { state: self.state, generation: self.generation, attempts: self.attempts, }
+  let mut state = if self.closed { NodeState::Stopped } else { Backoff }
+  let mut attempts = 0
+  for node in self.nodes {
+    attempts += node.attempts
+    if !self.closed {
+      if node.current is Some(connection) && !connection.is_closed() {
+        state = Ready
+      } else if state != Ready && node.state == Connecting {
+        state = Connecting
+      }
+    }
+  }
+  { state, generation: self.generation, attempts, }
+}
+
+///|
+pub fn Session::nodes(self : Session) -> Array[NodeInfo] {
+  self.nodes.map(node => {
+    endpoint: node.endpoint,
+    status: {
+      state: node.state,
+      generation: node.generation,
+      attempts: node.attempts,
+    },
+    last_error: node.last_error,
+  })
 }
 
 ///|
@@ -145,20 +264,22 @@ pub fn Session::active_count(self : Session) -> Int {
 ///|
 async fn[G] Session::maintain(
   self : Session,
+  node : SessionNode,
   group : @async.TaskGroup[G],
 ) -> Unit {
   defer {
-    self.state = Stopped
+    node.state = Stopped
     self.changed.broadcast()
   }
   let random = @random.Rand::new()
   let mut backoff = self.config.backoff_initial_ms
   while !self.closed {
-    self.state = Connecting
-    self.attempts += 1
+    node.state = Connecting
+    node.attempts += 1
     self.changed.broadcast()
-    let connection = Some(connect(group, config=self.config.connection)) catch {
+    let connection = Some(connect(group, config=node.config)) catch {
       error => {
+        node.last_error = Some(error)
         self.last_error = Some(error)
         None
       }
@@ -166,19 +287,22 @@ async fn[G] Session::maintain(
     if connection is Some(connection) {
       let since = @async.now()
       {
-        self.current = Some(connection)
+        node.current = Some(connection)
+        node.generation += 1
         self.generation += 1
-        connection.generation = self.generation
-        self.state = Ready
+        connection.generation = node.generation
+        node.state = Ready
+        node.last_error = None
         self.last_error = None
         self.changed.broadcast()
-        // 即使维护任务被取消，也等待该连接的读任务与回收任务结束。
+        // 一个节点的收尾仅处理自己的连接，其他节点继续服务。
         defer @async.protect_from_cancel(() => {
           connection.shutdown()
-          self.current = None
+          node.current = None
           self.changed.broadcast()
         })
         connection.wait_closed()
+        node.last_error = connection.failure
         self.last_error = connection.failure
       }
       if @async.now() - since >= self.config.stable_reset_ms.to_int64() {
@@ -188,7 +312,7 @@ async fn[G] Session::maintain(
     if self.closed {
       return
     }
-    self.state = Backoff
+    node.state = Backoff
     self.changed.broadcast()
     let candidate = backoff.to_double() *
       (1.0 - self.config.jitter + 2.0 * self.config.jitter * random.double())
@@ -209,6 +333,21 @@ async fn[G] Session::maintain(
 }
 
 ///|
+fn Session::choose(self : Session) -> Connection? {
+  if self.nodes.is_empty() {
+    return None
+  }
+  for offset in 0..<self.nodes.length() {
+    let index = (self.next_node + offset) % self.nodes.length()
+    if self.nodes[index].current is Some(connection) && !connection.is_closed() {
+      self.next_node = (index + 1) % self.nodes.length()
+      return Some(connection)
+    }
+  }
+  None
+}
+
+///|
 async fn Session::select(
   self : Session,
   deadline : Deadline,
@@ -217,7 +356,7 @@ async fn Session::select(
   if self.closed {
     raise Closed
   }
-  if self.current is Some(connection) && !connection.is_closed() {
+  if self.choose() is Some(connection) {
     return connection
   }
   if self.waiting >= self.config.connection.max_waiting {
@@ -240,7 +379,7 @@ async fn Session::select(
     { phase: WaitingConnection, sent: false, },
     () => {
       while !self.closed {
-        if self.current is Some(connection) && !connection.is_closed() {
+        if self.choose() is Some(connection) {
           return connection
         }
         self.changed.wait()

@@ -385,4 +385,6 @@ pub async fn Connection::shutdown(self : Connection) -> Unit {
       _ => ()
     }
   }
+  self.reader_task = None
+  self.reaper_task = None
 }

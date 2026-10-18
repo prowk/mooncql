@@ -1,6 +1,6 @@
 # mooncql
 
-用 MoonBit 原生实现的 **Cassandra Native Protocol v5 异步驱动**。协议编解码、CRC 和 LZ4 块压缩均由 MoonBit 实现，原生 TCP 使用官方 `moonbitlang/async`。当前连接一个明确配置的 Cassandra 协调节点，服务端需要支持正式 v5 协议。
+用 MoonBit 原生实现的 **Cassandra Native Protocol v5 异步驱动**。协议编解码、CRC 和 LZ4 块压缩均由 MoonBit 实现，原生 TCP 使用官方 `moonbitlang/async`。发布版 0.1.0 连接单个明确配置的协调节点，main 分支另提供显式多节点 Session。服务端需要支持正式 v5 协议。
 
 ## 能力
 
@@ -80,7 +80,7 @@ main 分支另提供等待数量、等待字节、在途数量和在途字节上
 
 main 分支支持 TCP／TLS 共用传输、自定义 CA、名称校验和显式客户端证书，已通过 Windows／Linux 及认证／压缩矩阵，见 [TLS 连接](docs/tls.md)。
 
-main 分支提供作用域 Session，用有上限的退避和抖动自动恢复单节点连接；新请求可等待连接恢复，已失败的未知结果请求不重放，见 [Session 与恢复](docs/session.md)。
+main 分支提供作用域 Session，每节点独立连接并以有上限的退避和抖动恢复，健康节点间轮询调度；已失败的未知结果请求不重放。支持同一 SessionPrepared 对象跨节点及连接更换，见 [Session 与恢复](docs/session.md)。
 
 main 分支的预处理缓存支持可配置 LRU 和按 CQL/keyspace 合并并发准备，淘汰不影响已返回对象，见[预处理缓存](docs/prepared-cache.md)。
 

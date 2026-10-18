@@ -116,6 +116,19 @@ pub struct Deadline {
 pub fn Deadline::after(Int) -> Self raise DriverError
 pub fn Deadline::remaining_ms(Self) -> Int
 
+pub(all) struct Endpoint {
+  host : String
+  port : Int
+  server_name : String?
+}
+pub fn Endpoint::new(host? : String, port? : Int, server_name? : String) -> Self
+
+pub(all) struct NodeInfo {
+  endpoint : Endpoint
+  status : NodeStatus
+  last_error : Error?
+}
+
 pub(all) enum NodeState {
   Connecting
   Ready
@@ -205,12 +218,10 @@ pub fn RequestStage::to_repr(Self) -> @debug.Repr
 pub struct Session {
   config : SessionConfig
   changed : @cond_var.Cond
-  mut current : Connection?
-  mut worker : @async.Task[Unit]?
+  nodes : Array[SessionNode]
   mut closed : Bool
-  mut state : NodeState
   mut generation : Int
-  mut attempts : Int
+  mut next_node : Int
   mut last_error : Error?
   mut active : Int
   mut waiting : Int
@@ -220,6 +231,7 @@ pub fn Session::active_count(Self) -> Int
 pub async fn Session::close(Self) -> Unit
 pub fn Session::is_closed(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
+pub fn Session::nodes(Self) -> Array[NodeInfo]
 pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline) -> SessionPrepared
 pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
 pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline) -> Reply
@@ -228,12 +240,15 @@ pub fn Session::waiting_count(Self) -> Int
 
 pub(all) struct SessionConfig {
   connection : Config
+  contact_points : Array[Endpoint]
   backoff_initial_ms : Int
   backoff_max_ms : Int
   jitter : Double
   stable_reset_ms : Int
 }
-pub fn SessionConfig::new(connection? : Config, backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int) -> Self
+pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int) -> Self
+
+type SessionNode
 
 pub struct SessionPrepared {
   session : Session
