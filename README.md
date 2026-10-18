@@ -78,7 +78,7 @@ main 分支支持连接、排队、执行超时和逻辑操作总截止时间，
 
 main 分支另提供等待数量、等待字节、在途数量和在途字节上限，支持满载时等待或拒绝，以及服务端 `THROW_ON_OVERLOAD`，详见[背压与过载](docs/backpressure.md)。
 
-main 分支正在验证 TCP／TLS 共用传输、自定义 CA、名称校验和显式客户端证书，接口及验收方法见 [TLS 连接](docs/tls.md)。
+main 分支支持 TCP／TLS 共用传输、自定义 CA、名称校验和显式客户端证书，已通过 Windows／Linux 及认证／压缩矩阵，见 [TLS 连接](docs/tls.md)。
 
 main 分支提供作用域 Session，用有上限的退避和抖动自动恢复单节点连接；新请求可等待连接恢复，已失败的未知结果请求不重放，见 [Session 与恢复](docs/session.md)。
 

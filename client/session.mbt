@@ -168,6 +168,7 @@ async fn[G] Session::maintain(
       {
         self.current = Some(connection)
         self.generation += 1
+        connection.generation = self.generation
         self.state = Ready
         self.last_error = None
         self.changed.broadcast()

@@ -8,7 +8,7 @@
 
 - [x] 增加有界等待队列和在途字节预算，并提供 `THROW_ON_OVERLOAD` 启动选项。验收：达到数量或字节上限时按配置等待或明确拒绝；成功、异常、取消均归还额度；编码缓冲不因排队请求数无限增长；模拟过载测试覆盖服务端背压与 OVERLOADED 响应，不自动重放结果未知的写入。参考：[StartupMessage.java](https://github.com/apache/cassandra/blob/cassandra-5.0/src/java/org/apache/cassandra/transport/messages/StartupMessage.java)。
 
-- [ ] 抽象 TCP／TLS 共用的传输接口，使用成熟 TLS 实现接入证书验证。验收：支持自定义 CA、主机名验证和可选客户端证书；有效证书连接成功，错误主机名、过期证书及不可信证书连接失败；TLS 下认证、LZ4、大消息和取消测试通过。
+- [x] 抽象 TCP／TLS 共用的传输接口，使用成熟 TLS 实现接入证书验证。验收：支持自定义 CA、主机名验证和可选客户端证书；有效证书连接成功，错误主机名、过期证书及不可信证书连接失败；TLS 下认证、LZ4、大消息和取消测试通过。
 
 - [x] 增加作用域管理的 Session，先实现单节点连接维护与自动恢复。验收：节点重启后业务无需重建 Session 即可提交新请求；采用有上限的退避与随机抖动；关闭 Session 后所有连接、恢复任务和等待请求结束；恢复连接不隐式重放断线前的请求。
 

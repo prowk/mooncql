@@ -20,6 +20,40 @@ async fn main {
     assert_true(
       session.query("SELECT release_version FROM system.local") is Rows(_),
     )
+    let prepared = session.prepare(
+      "SELECT release_version FROM local",
+      keyspace="system",
+    )
+    let options = @protocol.QueryOptions::new(skip_metadata=true)
+    assert_true(prepared.execute([], options~) is Rows(_))
+    let probes : Array[(@client.SessionPrepared, Int)] = []
+    for
+      (keyspace, expected) in [
+        ("mooncql_recovery_a", 101),
+        ("mooncql_recovery_b", 202),
+      ] {
+      ignore(
+        session.query(
+          "CREATE KEYSPACE IF NOT EXISTS \{keyspace} WITH replication = {'class':'SimpleStrategy','replication_factor':1}",
+        ),
+      )
+      ignore(
+        session.query(
+          "CREATE TABLE IF NOT EXISTS \{keyspace}.probe (id int PRIMARY KEY, value int)",
+        ),
+      )
+      ignore(
+        session.query(
+          "INSERT INTO \{keyspace}.probe (id,value) VALUES (1,\{expected})",
+        ),
+      )
+      let statement = session.prepare(
+        "SELECT value FROM probe WHERE id=?",
+        keyspace~,
+      )
+      verify_probe(statement, expected, options)
+      probes.push((statement, expected))
+    }
     let initial = session.status().generation
     @fs.write_file("\{directory}/ready", b"ready\n")
     @async.with_timeout(120000, () => {
@@ -34,6 +68,10 @@ async fn main {
     assert_true(
       session.query("SELECT release_version FROM system.local") is Rows(_),
     )
+    assert_true(prepared.execute([], options~) is Rows(_))
+    for (statement, expected) in probes {
+      verify_probe(statement, expected, options)
+    }
     assert_true(session.status().generation > initial)
     let generation = session.status().generation
     let attempts = session.status().attempts
@@ -43,8 +81,20 @@ async fn main {
     assert_eq(session.status().state, Stopped)
     @fs.write_file(
       "\{directory}/result.json",
-      "{\"generation\":\{generation},\"attempts\":\{attempts},\"active\":0,\"waiting\":0}\n",
+      "{\"generation\":\{generation},\"attempts\":\{attempts},\"prepared_reused\":true,\"active\":0,\"waiting\":0}\n",
     )
     println("PASS Session recovered after server restart; all tasks drained")
   })
+}
+
+///|
+async fn verify_probe(
+  statement : @client.SessionPrepared,
+  expected : Int,
+  options : @protocol.QueryOptions,
+) -> Unit {
+  guard statement.execute([Integer(1)], options~) is Rows(page) else {
+    fail("missing prepared probe row")
+  }
+  assert_eq(page.get(0, "value"), @types.Value::Integer(expected))
 }

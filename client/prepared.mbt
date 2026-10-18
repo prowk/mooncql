@@ -61,6 +61,20 @@ pub fn Prepared::parameters(self : Prepared) -> Array[@protocol.Column] {
 }
 
 ///|
+fn prepared_options(
+  options : @protocol.QueryOptions,
+  keyspace : String?,
+) -> @protocol.QueryOptions raise DriverError {
+  if options.value_names is Some(_) {
+    raise Configuration("prepared statements use positional bindings")
+  }
+  if options.keyspace is Some(_) && options.keyspace != keyspace {
+    raise Configuration("execute keyspace differs from prepared keyspace")
+  }
+  { ..options.snapshot(), keyspace, }
+}
+
+///|
 fn Prepared::validate_bindings(
   self : Prepared,
   values : Array[@types.Value],
@@ -81,11 +95,8 @@ pub async fn Prepared::execute(
   deadline? : Deadline,
 ) -> @protocol.ResultSet {
   let deadline = self.connection.operation_deadline(deadline)
-  if options.value_names is Some(_) {
-    raise Configuration("prepared statements use positional bindings")
-  }
   // 整次执行及可能的一次恢复共用同一份参数快照。
-  let options = options.snapshot()
+  let options = prepared_options(options, self.keyspace)
   let values = @types.snapshot(values)
   self.validate_bindings(values)
   let metadata = self.metadata

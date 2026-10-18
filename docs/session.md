@@ -21,7 +21,9 @@
 
 `await session.close()` 的 MoonBit 写法是 `session.close()`：该异步方法会停止重连、关闭连接、唤醒等待请求，并等待维护任务及活动调用结束。退出 `with_session` 的作用域也会取消并等待所有后台任务。Session 不能在作用域结束后继续使用。
 
-当前只提供 Session 的 request／query 接口。Connection 级 Prepared／Pager 仍属于其原连接；Session 级预处理对象和可恢复分页由后续事项实现。推荐显式 keyspace 或完整限定表名，不依赖跨连接保留 USE 状态。
+Session 提供 request／query／prepare 接口。`session.prepare(cql, keyspace=...)` 返回 SessionPrepared，保存原始 CQL 与 keyspace；执行时按节点地址与连接代次查找准备状态，连接替换后原对象仍可使用。绑定值和选项在等待连接前冻结，重新 PREPARE 与匹配 ID 的一次 UNPREPARED 恢复共用原截止时间。每个节点的结果元数据由该连接自己的 Prepared 管理。
+
+Connection 级 Prepared／Pager 仍属于其原连接；可恢复分页尚未实现。推荐显式 keyspace 或完整限定表名，不依赖跨连接保留 USE 状态。当前 Session 仍为单节点；多节点间的预处理状态隔离验收会随多节点调度一起完成。
 
 模拟回归覆盖收到写入后断连且不重放、恢复后新请求、停在 OPTIONS 时关闭 Session、队列上限、不可用节点的总截止时间、退避限速和作用域退出后的资源回收。
 

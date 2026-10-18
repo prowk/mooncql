@@ -42,6 +42,7 @@ def main():
             assert process.wait(timeout=150) == 0, (folder / "stderr.log").read_text(encoding="utf-8")
             result = json.loads((folder / "result.json").read_text(encoding="utf-8"))
             assert result["generation"] >= 2 and result["active"] == result["waiting"] == 0
+            assert result["prepared_reused"] is True
             print("PASS real Cassandra restart with unchanged Session and drained tasks")
         finally:
             if process.poll() is None:
