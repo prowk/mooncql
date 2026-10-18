@@ -79,7 +79,7 @@ pub(all) enum Response {
   Supported(Map[String, Array[String]])
   Result(ResultSet)
   Failure(ServerError)
-  Event(Bytes)
+  Event(ServerEvent)
 } derive(@debug.Debug)
 
 ///|
@@ -301,7 +301,7 @@ pub fn decode_response(
       Supported(result)
     }
     8 => Result(decode_result(body, cached~))
-    12 => Event(body)
+    12 => Event(decode_event(body))
     14 => AuthChallenge(r.bytes())
     16 => AuthSuccess(r.bytes())
     _ => raise @codec.CodecError("unexpected response opcode")

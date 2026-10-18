@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import pathlib
+import struct
 import zlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -48,6 +49,30 @@ def vectors():
     }
 
 
+def event_vectors():
+    # 使用独立的标准库编码，未调用驱动的 Writer 或事件解码器。
+    def string(text):
+        data = text.encode("utf-8")
+        return struct.pack(">H", len(data)) + data
+
+    cases = {}
+    addresses = {"ipv4": bytes([127, 0, 0, 2]), "ipv6": bytes.fromhex("20010db8000000000000000000000001")}
+    for category, changes in {"TOPOLOGY_CHANGE": ["NEW_NODE", "REMOVED_NODE", "MOVED_NODE"], "STATUS_CHANGE": ["UP", "DOWN"]}.items():
+        for change in changes:
+            for label, address in addresses.items():
+                body = string(category) + string(change) + bytes([len(address)]) + address + struct.pack(">i", 19042)
+                cases[f"{category}_{change}_{label}"] = body.hex()
+    for change in ("CREATED", "UPDATED", "DROPPED"):
+        for target in ("KEYSPACE", "TABLE", "TYPE", "FUNCTION", "AGGREGATE"):
+            body = string("SCHEMA_CHANGE") + string(change) + string(target) + string("ks")
+            if target != "KEYSPACE":
+                body += string("object")
+            if target in ("FUNCTION", "AGGREGATE"):
+                body += struct.pack(">H", 2) + string("int") + string("frozen<list<text>>")
+            cases[f"SCHEMA_CHANGE_{change}_{target}"] = body.hex()
+    return {"reference_commit": COMMIT, "cases": cases}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--write", action="store_true")
@@ -58,6 +83,10 @@ def main():
     if args.write:
         target.write_text(json.dumps(expected, indent=2) + "\n", encoding="utf-8", newline="\n")
     assert json.loads(target.read_text(encoding="utf-8")) == expected
+    event_target = ROOT / "fixtures/v5-events.json"
+    if args.write:
+        event_target.write_text(json.dumps(event_vectors(), indent=2) + "\n", encoding="utf-8", newline="\n")
+    assert json.loads(event_target.read_text(encoding="utf-8")) == event_vectors()
     manifest = json.loads((ROOT / "fixtures/cassandra-5.0.5-reference.json").read_text(encoding="utf-8"))
     assert manifest["commit"] == COMMIT and manifest["tag"] == "cassandra-5.0.5"
     if args.sources:

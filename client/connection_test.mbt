@@ -164,7 +164,9 @@ async test "multiplex correlates reversed responses across fragmented and coales
           response=true,
         ),
       )
-      w.raw(@protocol.encode_envelope(-1, 12, b"ignored event", response=true))
+      w.raw(
+        @protocol.encode_envelope(-1, 12, status_event(true), response=true),
+      )
       w.raw(
         @protocol.encode_envelope(
           first.header.stream,

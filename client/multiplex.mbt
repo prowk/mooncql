@@ -16,6 +16,7 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
   self.failure = Some(error)
   self.closed_changed.broadcast()
   self.admission.close()
+  self.events.close(error~)
   // Windows 上先取消挂起的读取，等读取任务收尾后再关闭句柄。
   if self.reader_active {
     if self.reader_task is Some(task) {
@@ -121,9 +122,20 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
   try {
     while !self.closed {
       let frame = self.wire.receive()
-      // 未注册事件订阅，独立的服务端事件不占用请求编号。
-      if frame.header.stream == -1 {
+      if frame.header.opcode == 12 {
+        if frame.header.stream != -1 {
+          raise Unexpected("EVENT must use stream -1")
+        }
+        let payload = @protocol.decode_payload(frame)
+        let event = @protocol.decode_event(payload.message)
+        // 接收任务不等待慢消费者；丢失计数提示控制连接刷新完整快照。
+        if !self.events.try_put(event) {
+          self.dropped_events += 1L
+        }
         continue
+      }
+      if frame.header.stream < 0 {
+        raise Unexpected("only EVENT may use a negative stream")
       }
       guard self.pending.get(frame.header.stream) is Some(pending) else {
         raise Unexpected("response for unknown stream")

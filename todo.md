@@ -20,7 +20,7 @@
 
 - [x] 为 Session 增加显式多节点配置、每节点连接管理、健康状态和请求调度。验收：三节点环境关闭任一节点后，在满足副本和一致性要求时新请求可通过健康节点完成；节点恢复后重新参与调度；所有节点不可用时在截止时间内明确失败；单节点故障不关闭其他节点连接。
 
-- [ ] 实现 REGISTER 与结构化 TOPOLOGY_CHANGE、STATUS_CHANGE、SCHEMA_CHANGE 事件解码。验收：覆盖节点新增／移除／移动、UP／DOWN，以及 keyspace、table、type、function、aggregate 的 schema 事件；正确读取 IPv4／IPv6 和端口；仅合法 EVENT 使用服务端事件分发路径，事件与普通响应交错不会影响 stream 关联。参考：[Event.java](https://github.com/apache/cassandra/blob/cassandra-5.0/src/java/org/apache/cassandra/transport/Event.java)。
+- [x] 实现 REGISTER 与结构化 TOPOLOGY_CHANGE、STATUS_CHANGE、SCHEMA_CHANGE 事件解码。验收：覆盖节点新增／移除／移动、UP／DOWN，以及 keyspace、table、type、function、aggregate 的 schema 事件；正确读取 IPv4／IPv6 和端口；仅合法 EVENT 使用服务端事件分发路径，事件与普通响应交错不会影响 stream 关联。参考：[Event.java](https://github.com/apache/cassandra/blob/cassandra-5.0/src/java/org/apache/cassandra/transport/Event.java)。
 
 - [ ] 实现控制连接、拓扑快照刷新和事件订阅恢复。验收：读取并核对 `system.local`、`system.peers_v2` 的节点标识、native 地址、数据中心和 token；控制连接断开后重新订阅并刷新快照；重复、乱序或遗漏事件最终收敛；支持广播地址到可连接地址的转换；事件突发不会触发无界刷新任务。
 

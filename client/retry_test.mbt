@@ -74,7 +74,7 @@ fn write_timeout(kind : String) -> Bytes raise {
   w.i32(2)
   w.string(kind)
   if kind == "CAS" {
-    w.i32(3)
+    w.u16(3)
   }
   w.to_bytes()
 }

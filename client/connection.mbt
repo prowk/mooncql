@@ -37,6 +37,7 @@ pub(all) struct Config {
   prepared_cache_capacity : Int
   max_abandoned : Int
   abandoned_timeout_ms : Int
+  event_capacity : Int
 }
 
 ///|
@@ -61,6 +62,7 @@ pub fn Config::new(
   prepared_cache_capacity? : Int = 64,
   max_abandoned? : Int = 64,
   abandoned_timeout_ms? : Int = 30000,
+  event_capacity? : Int = 256,
 ) -> Config {
   {
     host,
@@ -83,6 +85,7 @@ pub fn Config::new(
     prepared_cache_capacity,
     max_abandoned,
     abandoned_timeout_ms,
+    event_capacity,
   }
 }
 
@@ -107,6 +110,8 @@ pub struct Connection {
   preparing : Map[Bytes, PrepareFlight]
   mut preparing_bytes : Int64
   mut keyspace : String?
+  events : @async.Queue[@protocol.ServerEvent]
+  mut dropped_events : Int64
 }
 
 ///|
@@ -274,6 +279,8 @@ async fn open_connection(config : Config) -> Connection {
     preparing: Map([]),
     preparing_bytes: 0L,
     keyspace: None,
+    events: @async.Queue(kind=Blocking(config.event_capacity)),
+    dropped_events: 0L,
   }
   let mut ready = false
   defer (if !ready { connection.close() })
@@ -357,6 +364,8 @@ fn Config::validate(self : Config) -> Unit raise DriverError {
     self.prepared_cache_capacity > 65536 ||
     self.max_abandoned < 0 ||
     self.max_abandoned > 32768 ||
+    self.event_capacity < 1 ||
+    self.event_capacity > 65536 ||
     self.abandoned_timeout_ms <= 0 {
     raise Configuration("invalid timeout, frame limit or port")
   }

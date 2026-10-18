@@ -32,3 +32,5 @@ python scripts/protocol_reference.py --sources .tools/cassandra-5.0.5-reference
 `FrameDecoderLZ4.java` 的 `unpackFrame` 以解压长度零识别原始载荷。
 `ExecuteMessage.java` 对 LWT 总是返回本次结果元数据，不设置 METADATA_CHANGED；普通预处理结果才按结果元数据 ID 判断变化与省略。
 这些语义以清单中的固定源码及真实 Cassandra 5.0.5 测试为准。
+
+REGISTER／EVENT 的 25 组独立字节样例见 [v5-events.json](../fixtures/v5-events.json)。固定 Event.java 中的 MOVED_NODE 也在回归范围内；其余覆盖全部拓扑／状态变化、五种 schema 目标和 IPv4／IPv6。`cmd/integration` 在真实 Cassandra 5.0.5 上订阅并核对表创建、修改与删除事件。

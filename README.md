@@ -135,3 +135,5 @@ Apache Cassandra 采用 Apache-2.0；本项目参考其公开 v5 规范、帧布
 运行时依赖 MoonBit async 0.22.3（Apache-2.0），用于 TCP 与异步任务。[Apache Cassandra Python Driver](https://github.com/apache/cassandra-python-driver) 3.30.0（Apache-2.0）和 [python-lz4](https://github.com/python-lz4/python-lz4) 4.4.5（BSD-3-Clause）仅用于独立互操作、压缩块和 duration 字节样例验证，不作为驱动运行时依赖。
 
 Apache-2.0，见 LICENSE。
+
+main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，使用有界事件队列，与普通请求响应独立分发。

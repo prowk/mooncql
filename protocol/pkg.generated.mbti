@@ -15,6 +15,8 @@ pub fn decode_envelope_header(Bytes, max_body? : Int) -> EnvelopeHeader raise @c
 
 pub fn decode_error(Bytes) -> ServerError raise @codec.CodecError
 
+pub fn decode_event(Bytes) -> ServerEvent raise @codec.CodecError
+
 pub fn decode_message_envelope(Bytes, max_body? : Int) -> MessageEnvelope raise @codec.CodecError
 
 pub fn decode_payload(MessageEnvelope) -> MessagePayload raise @codec.CodecError
@@ -36,6 +38,8 @@ pub fn prepare(String, keyspace? : String) -> Request raise @codec.CodecError
 pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
 pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError
+
+pub fn register(Array[EventKind]) -> Request raise @codec.CodecError
 
 pub fn startup(compression? : Bool, throw_on_overload? : Bool) -> Request raise @codec.CodecError
 
@@ -114,11 +118,28 @@ pub(all) enum ErrorDetail {
 } derive(@debug.Debug)
 pub fn ErrorDetail::to_repr(Self) -> @debug.Repr
 
+pub(all) enum EventKind {
+  TopologyChange
+  StatusChange
+  SchemaChange
+} derive(Eq, @debug.Debug)
+pub fn EventKind::equal(Self, Self) -> Bool
+pub fn EventKind::not_equal(Self, Self) -> Bool
+pub fn EventKind::to_repr(Self) -> @debug.Repr
+
 pub(all) struct FailureReason {
   endpoint : Bytes
   code : Int
 } derive(@debug.Debug)
 pub fn FailureReason::to_repr(Self) -> @debug.Repr
+
+pub(all) struct InetEndpoint {
+  address : Bytes
+  port : Int
+} derive(Eq, @debug.Debug)
+pub fn InetEndpoint::equal(Self, Self) -> Bool
+pub fn InetEndpoint::not_equal(Self, Self) -> Bool
+pub fn InetEndpoint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct MessageEnvelope {
   header : EnvelopeHeader
@@ -190,7 +211,7 @@ pub(all) enum Response {
   Supported(Map[String, Array[String]])
   Result(ResultSet)
   Failure(ServerError)
-  Event(Bytes)
+  Event(ServerEvent)
 } derive(@debug.Debug)
 pub fn Response::to_repr(Self) -> @debug.Repr
 
@@ -212,12 +233,58 @@ pub(all) struct SchemaChange {
 } derive(@debug.Debug)
 pub fn SchemaChange::to_repr(Self) -> @debug.Repr
 
+pub(all) enum SchemaChangeKind {
+  Created
+  Updated
+  Dropped
+} derive(Eq, @debug.Debug)
+pub fn SchemaChangeKind::equal(Self, Self) -> Bool
+pub fn SchemaChangeKind::not_equal(Self, Self) -> Bool
+pub fn SchemaChangeKind::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SchemaTarget {
+  Keyspace(String)
+  Table(String, String)
+  Type(String, String)
+  Function(String, String, Array[String])
+  Aggregate(String, String, Array[String])
+} derive(Eq, @debug.Debug)
+pub fn SchemaTarget::equal(Self, Self) -> Bool
+pub fn SchemaTarget::not_equal(Self, Self) -> Bool
+pub fn SchemaTarget::to_repr(Self) -> @debug.Repr
+
 pub(all) struct ServerError {
   code : Int
   message : String
   detail : ErrorDetail
 } derive(@debug.Debug)
 pub fn ServerError::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ServerEvent {
+  Topology(TopologyChangeKind, InetEndpoint)
+  Status(StatusChangeKind, InetEndpoint)
+  Schema(SchemaChangeKind, SchemaTarget)
+} derive(Eq, @debug.Debug)
+pub fn ServerEvent::equal(Self, Self) -> Bool
+pub fn ServerEvent::not_equal(Self, Self) -> Bool
+pub fn ServerEvent::to_repr(Self) -> @debug.Repr
+
+pub(all) enum StatusChangeKind {
+  Up
+  Down
+} derive(Eq, @debug.Debug)
+pub fn StatusChangeKind::equal(Self, Self) -> Bool
+pub fn StatusChangeKind::not_equal(Self, Self) -> Bool
+pub fn StatusChangeKind::to_repr(Self) -> @debug.Repr
+
+pub(all) enum TopologyChangeKind {
+  NewNode
+  RemovedNode
+  MovedNode
+} derive(Eq, @debug.Debug)
+pub fn TopologyChangeKind::equal(Self, Self) -> Bool
+pub fn TopologyChangeKind::not_equal(Self, Self) -> Bool
+pub fn TopologyChangeKind::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 
