@@ -4,6 +4,8 @@
 
 示例使用独立三节点 Cassandra 5.0.5 集群，在 dc1 配置 RF=3，以 QUORUM 读写。同时演示持续事件写入、类型化读取、精确 bigint、分页游标、Session 自动恢复、显式幂等读取、LWT、同分区 unlogged BATCH、缓存淘汰、schema 事件及控制连接。写入覆盖固定分区和 ID，测试数据规模保持有界。
 
+CQL_HOST 指定客户端连接地址，默认为 127.0.0.1；它同时用于种子和发现后的地址映射。CQL_CLUSTER_PORTS 指定三个对外端口，默认 19052／19053／19054。Docker 控制器读取各容器的广播地址并映射到这些客户端端点。使用专用 WSL 实例时，也可连接同机 WSL NAT 地址，避开 localhost 转发在服务重启后未更新的问题；无需修改驱动的拓扑地址或共享防火墙设置。
+
 在 PowerShell 中启动专用环境：
 
 ```powershell

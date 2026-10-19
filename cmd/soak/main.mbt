@@ -199,6 +199,7 @@ async fn run() -> Unit {
   assert_eq(ports.length(), 3)
   assert_eq(hosts.length(), 3)
   let metrics = @client.Metrics::new()
+  let client_host = @env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1")
   let config = @client.SessionConfig::new(
     connection=@client.Config::new(
       username?=@env.get_env_var("CQL_USERNAME"),
@@ -211,7 +212,7 @@ async fn run() -> Unit {
       max_waiting=64,
       metrics~,
     ),
-    contact_points=[@client.Endpoint::new(port=ports[0])],
+    contact_points=[@client.Endpoint::new(host=client_host, port=ports[0])],
     discovery=@client.DiscoveryConfig::new(
       refresh_interval_ms=5000,
       max_nodes=3,
@@ -223,7 +224,9 @@ async fn run() -> Unit {
         for index in 0..<3 {
           if ip == hosts[index] &&
             (native.port == 9042 || native.port == ports[index]) {
-            return Some(@client.Endpoint::new(port=ports[index]))
+            return Some(
+              @client.Endpoint::new(host=client_host, port=ports[index]),
+            )
           }
         }
         None
