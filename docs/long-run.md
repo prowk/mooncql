@@ -1,6 +1,6 @@
 # 连续事件写入、分页与节点故障示例
 
-本文对应尚未发布的 main 0.2.0-dev。入口为 cmd/soak/main.mbt，控制器为 scripts/long_run.py。入口已完成 native 构建和资源快照单元测试；实际故障冒烟及连续六小时验收尚未完成，本页不作通过声明。
+本文对应尚未发布的 main 0.2.0-dev。入口为 cmd/soak/main.mbt，控制器为 scripts/long_run.py。入口已完成 native 构建和资源快照单元测试；实际故障冒烟尚待运行。本轮执行短时混合负载和周期故障验证，连续六小时及长期内存趋势验证作为 TODO 末尾的后续暂缓项，不计入本轮验收，也不作通过声明。
 
 示例使用独立三节点 Cassandra 5.0.5 集群，在 dc1 配置 RF=3，以 QUORUM 读写。同时演示持续事件写入、类型化读取、精确 bigint、分页游标、Session 自动恢复、显式幂等读取、LWT、同分区 unlogged BATCH、缓存淘汰、schema 事件及控制连接。写入覆盖固定分区和 ID，测试数据规模保持有界。
 
@@ -22,7 +22,7 @@ python scripts/long_run.py --docker-compose --smoke --seconds 360 --fault-interv
 
 控制器依次停止一个节点，确认 DOWN，等待指定时间后重新启动，确认三节点恢复 UP。初始数据准备后会修复专用集群 system_auth 的 RF=3 副本。运行中保留同一个 Session 和预处理对象；允许明确的传输失败、读写超时和暂时不可用，数据或协议校验失败会终止测试。脚本恢复自己停止的节点。
 
-不带 --smoke 的默认运行请求实际连续六小时：
+以下为后续长期验证入口，本轮不执行。不带 --smoke 的默认运行请求实际连续六小时：
 
 ```powershell
 python scripts/long_run.py --docker-compose
