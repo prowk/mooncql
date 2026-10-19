@@ -171,8 +171,19 @@ async fn sample(
     .map(status => status.generation)
     .unwrap_or(0)
   let json = "{\"elapsed_ms\":\{elapsed},\"successful\":\{counters.successful},\"failed\":\{counters.failed},\"operations\":\{counters.operations.to_json().stringify()},\"errors\":\{counters.errors.to_json().stringify()},\"memory_bytes\":\{memory},\"private_bytes\":\{private_memory},\"cache_peak\":\{counters.cache_peak},\"control_generation\":\{control_generation},\"resources\":\{resources.to_json().stringify()},\"metrics\":\{metrics.snapshot().to_json().stringify()},\"latency_bounds_ms\":\{latency_bounds.to_json().stringify()},\"latency_counts\":\{counters.latency.to_json().stringify()},\"max_latency_ms\":\{counters.max_latency_ms}}"
+  persist_sample(directory, json)
+}
+
+///|
+async fn persist_sample(directory : String, json : String) -> Unit {
   @fs.write_file("\{directory}/progress.json", json)
-  @fs.write_file("\{directory}/samples.jsonl", json + "\n", append=true)
+  // 追加模式仍需显式关闭默认截断，否则只会留下最后一次采样。
+  @fs.write_file(
+    "\{directory}/samples.jsonl",
+    json + "\n",
+    create_mode=OpenOrCreate,
+    append=true,
+  )
 }
 
 ///|
