@@ -9,7 +9,7 @@ test "startup declares CQL language version and not binary protocol version" {
   assert_eq(r.string(), "DRIVER_NAME")
   assert_eq(r.string(), "mooncql")
   assert_eq(r.string(), "DRIVER_VERSION")
-  assert_eq(r.string(), "0.1.0")
+  assert_eq(r.string(), "0.2.0-dev")
   r.finish()
 }
 

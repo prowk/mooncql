@@ -111,7 +111,7 @@ pub fn startup(
   w.string("DRIVER_NAME")
   w.string("mooncql")
   w.string("DRIVER_VERSION")
-  w.string("0.1.0")
+  w.string("0.2.0-dev")
   if compression {
     w.string("COMPRESSION")
     w.string("lz4")

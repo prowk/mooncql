@@ -19,11 +19,13 @@
 
 `status()` 返回整体可用状态、累计建立连接次数和累计连接尝试次数。`nodes()` 返回每个 Endpoint 的 Connecting／Ready／Backoff／Stopped、独立连接代次及最近错误。`last_error()` 可读取最近的连接错误，驱动不会自动记录凭据或绑定值。`waiting_count()` 与 `active_count()` 可用于验收。
 
+`resources()` 返回本次只读快照：逻辑活动调用、pending、废弃请求、在途数量／字节、等待数量／字节、各已建立连接的预处理缓存大小，以及驱动持有的后台 Task 句柄数。统计包括业务连接和控制连接；cache_sizes 是新建数组，修改返回数组不会改变内部缓存。后台句柄数用于观察驱动任务的生命周期，不是系统线程数。调用 close 并退出作用域后，结合活动调用、pending、额度归零及任务组已等待结束确认回收。
+
 `await session.close()` 的 MoonBit 写法是 `session.close()`：该异步方法会停止重连、关闭连接、唤醒等待请求，并等待维护任务及活动调用结束。退出 `with_session` 的作用域也会取消并等待所有后台任务。Session 不能在作用域结束后继续使用。
 
 Session 提供 request／query／prepare 接口。`session.prepare(cql, keyspace=...)` 返回 SessionPrepared，保存原始 CQL 与 keyspace；执行时按节点地址与连接代次查找准备状态，连接替换后原对象仍可使用。绑定值和选项在等待连接前冻结，重新 PREPARE 与匹配 ID 的一次 UNPREPARED 恢复共用原截止时间。每个节点的结果元数据由该连接自己的 Prepared 管理。
 
-Connection 级 Prepared／Pager 仍属于其原连接；可恢复分页尚未实现。推荐显式 keyspace 或完整限定表名，不依赖跨连接保留 USE 状态。模拟回归使用两个节点返回不同结果列和元数据 ID，并在其中一个节点改变元数据，核对另一个节点的 ID 和列定义始终不受影响。
+Connection 级 Prepared／Pager 仍属于其原连接，但可导出[分页游标](paging.md)后在其他连接恢复。Session 和 SessionPrepared 的 Pager 可继续使用替换后的连接。推荐显式 keyspace 或完整限定表名，不依赖跨连接保留 USE 状态。模拟回归使用两个节点返回不同结果列和元数据 ID，并在其中一个节点改变元数据，核对另一个节点的 ID 和列定义始终不受影响。
 
 多节点可通过 `SessionConfig::new(contact_points=[Endpoint::new(host=..., port=...), ...])` 配置。认证、TLS、压缩及额度继承 connection 配置，Endpoint 的 server_name 可覆盖该节点的 TLS 校验名称。每个节点独立恢复；轮询只选择已有健康连接的节点，单节点故障不会关闭其他节点连接。所有节点不可用时进入有界等待，受同一操作截止时间限制。每连接的在途预算分别计算，Session 无健康连接时的等待预算沿用 connection 配置。
 

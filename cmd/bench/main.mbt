@@ -93,7 +93,7 @@ fn lz4_operation(blocks : Array[Bytes]) -> Unit raise {
 }
 
 ///|
-async fn main {
+async fn benchmark() -> Unit {
   let mode = @env.get_env_var("BENCH_MODE").unwrap_or("codec")
   let entropy = @env.get_env_var("BENCH_ENTROPY").unwrap_or("repeat")
   let size = integer_env("BENCH_SIZE", "64")
@@ -135,13 +135,13 @@ async fn main {
     for _ in 0..<8 {
       operation()
     }
-    let samples = []
+    let samples = Array::make(count, 0L)
     let cpu = cpu_ns()
     let start = now_ns()
-    for _ in 0..<count {
+    for index in 0..<count {
       let before = now_ns()
       operation()
-      samples.push(now_ns() - before)
+      samples[index] = now_ns() - before
     }
     let elapsed = now_ns() - start
     print_result(
@@ -287,4 +287,14 @@ async fn main {
       version,
     )
   })
+}
+
+///|
+async fn main {
+  benchmark() catch {
+    @client.Server(server) => fail("server \{server.code}: \{server.message}")
+    @client.Configuration(message) | @client.Unexpected(message) =>
+      fail(message)
+    error => raise error
+  }
 }

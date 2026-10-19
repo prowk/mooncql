@@ -1,0 +1,30 @@
+name: mooncql-benchmark
+
+services:
+  cassandra:
+    image: cassandra:5.0.5
+    environment:
+      MAX_HEAP_SIZE: 2G
+      HEAP_NEWSIZE: 256M
+      CASSANDRA_CLUSTER_NAME: mooncql-benchmark-fixture
+      CQL_AUTHENTICATOR: ${CQL_AUTHENTICATOR:-PasswordAuthenticator}
+      JVM_EXTRA_OPTS: -Xlog:disable -Xlog:gc,safepoint:file=/var/log/cassandra/gc-bench.log:time,uptime,level:filecount=4,filesize=10485760
+    volumes:
+      - ./scripts/configure_benchmark.py:/opt/mooncql/configure_benchmark.py:ro
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        python3 /opt/mooncql/configure_benchmark.py
+        exec /usr/local/bin/docker-entrypoint.sh cassandra -f
+    ports: ["127.0.0.1:19042:9042"]
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          if [ "$$CQL_AUTHENTICATOR" = PasswordAuthenticator ]; then
+          cqlsh --protocol-version=5 -u cassandra -p cassandra -e 'SELECT release_version FROM system.local';
+          else cqlsh --protocol-version=5 -e 'SELECT release_version FROM system.local'; fi
+      interval: 5s
+      timeout: 10s
+      retries: 60
+      start_period: 30s

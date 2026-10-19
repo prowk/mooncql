@@ -462,6 +462,7 @@ pub async fn Session::query(Self, String, values? : Array[@types.Value], options
 pub fn Session::query_plan(Self, hint? : RoutingHint) -> Array[Endpoint]
 pub async fn Session::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Execution[@protocol.ResultSet]
 pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Reply
+pub fn Session::resources(Self) -> SessionResources
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::topology(Self) -> TopologySnapshot?
 pub fn Session::waiting_count(Self) -> Int
@@ -497,6 +498,20 @@ pub fn SessionPrepared::pages(Self, Array[@types.Value], options? : @protocol.Qu
 pub fn SessionPrepared::parameters(Self) -> Array[@protocol.Column]
 
 type SessionPreparedState
+
+pub(all) struct SessionResources {
+  active : Int
+  pending : Int
+  abandoned : Int
+  in_flight : Int
+  in_flight_bytes : Int64
+  waiting : Int
+  waiting_bytes : Int64
+  cache_sizes : Array[Int]
+  background_task_handles : Int
+} derive(ToJson, @debug.Debug)
+pub fn SessionResources::to_json(Self) -> Json
+pub fn SessionResources::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TimeoutInfo {
   phase : TimeoutPhase

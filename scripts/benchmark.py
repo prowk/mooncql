@@ -85,7 +85,7 @@ def matrix(smoke):
     for size in [64, 400000]:
         for entropy in ['repeat', 'random']:
             result.append(dict(mode='lz4', size=size, entropy=entropy, compressed=True,
-                               concurrency=1, page_size=0, count=100000 if size == 64 else 256))
+                               concurrency=1, page_size=0, count=1000000 if size == 64 else 256))
             for compressed in [False, True]:
                 result.append(dict(mode='codec', size=size, entropy=entropy, compressed=compressed,
                                    concurrency=1, page_size=0, count=100000 if size == 64 else 256))

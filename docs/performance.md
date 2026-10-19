@@ -2,9 +2,10 @@
 
 main 分支的 `scripts/benchmark.py` 比较 Git 基线与当前工作区，复制同一份 cmd/bench 到隔离的基线目录后，以相同工具链构建 release native。默认基线为 c37bf22。此入口独立于早前的观测开销测试；目前已完成入口校准，完整矩阵和优化结论仍需以实际运行报告为准。
 
-启动专用 Cassandra 5.0.5，设置 CQL_HOST／CQL_PORT 和所需认证变量，再运行：
+可用 compose.benchmark.yaml 启动专用 Cassandra 5.0.5：2 GiB 堆、256 MiB young 配置、30 秒读写期限和 60 秒通用期限。该项目使用独立名称 mooncql-benchmark，默认密码认证并映射到本机 19042。设置 CQL_PORT=19042、CQL_USERNAME=cassandra、CQL_PASSWORD=cassandra 后运行：
 
 ```sh
+docker compose -f compose.benchmark.yaml up -d --wait --wait-timeout 360
 python scripts/benchmark.py --baseline-ref c37bf22 --trials 3 --server-description "填写服务端系统、JRE、堆大小和网络环境"
 ```
 
@@ -19,3 +20,5 @@ python scripts/benchmark.py --baseline-ref c37bf22 --trials 3 --server-descripti
 固定种子 2026101821 打乱场景／轮次，并为每一对基线与当前随机运行次序。报告记录工具链、平台、服务端说明、源提交、工作区是否修改、编译输入摘要、移除源码路径后的生成 C 摘要及脚本摘要。保留完整原始数据，不能只选择有利场景。代码优化必须超出同代码校准中的波动，并通过相同负载和正确性检查；无可测收益的修改不合入。
 
 初始 [A/A 校准原始数据](benchmarks/calibration-aa-2026-10-18.json) 对应尚未进行库优化的两份构建。移除源码路径后生成 C 相同，但部分小消息 LZ4 和数据库样本仍有明显差异，原因尚未单独定位。这些差异不能作为优化收益；完整测试应扩大样本，按场景报告，不宣称对所有环境成立。
+
+首轮完整矩阵使用 512 MiB 堆和默认 5 秒读取期限，在并发 128、400000 字节随机载荷、页大小 8 时停止。重现得到服务端 ReadTimeout（0x1200），服务端日志记录约 5 秒读超时及多次 Full GC；该轮没有通过完整验收。基准配置随后调整为上述专用实例参数，两版本都在同一新环境重新测量，不能把环境调整算作库优化收益。

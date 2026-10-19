@@ -1,36 +1,31 @@
 # mooncql
 
-用 MoonBit 原生实现的 **Cassandra Native Protocol v5 异步驱动**。协议编解码、CRC 和 LZ4 块压缩均由 MoonBit 实现，原生 TCP 使用官方 `moonbitlang/async`。发布版 0.1.0 连接单个明确配置的协调节点，main 分支另提供显式多节点 Session。服务端需要支持正式 v5 协议。
+MoonBit 原生实现的 **Cassandra Native Protocol v5 异步驱动**，面向 native 后端。协议编解码、CRC、LZ4 块压缩、分页和请求调度由 MoonBit 实现，TCP 使用 moonbitlang/async；TLS 使用成熟的 OpenSSL／Windows Schannel 实现。
 
-## 能力
+首版锁定正式 v5 协议（0x05／0x85）。已实测 Cassandra 5.0.5；其他 Cassandra 版本和 ScyllaDB 尚未实测。
 
-- v5 外层帧与消息 envelope 分层；CRC24 帧头校验、带 Cassandra 固定前缀的 CRC32 载荷校验。
-- 普通帧、LZ4 压缩帧、协商压缩后的原始载荷、大消息分片重组、单帧多消息与 TCP 拆包。
-- OPTIONS／STARTUP 握手、无认证及 PasswordAuthenticator；在 READY／AUTHENTICATE 后切换帧格式。
-- 参数化 QUERY、命名绑定、PREPARE／EXECUTE，以及 logged／unlogged／counter BATCH。
-- 按请求指定 keyspace、32 位查询标志、`now_in_seconds`、一致性级别、串行一致性和默认时间戳。
-- 每连接最多缓存 64 条预处理语句，缓存区分 keyspace；传递结果元数据 ID，并处理元数据变化通知。
-- stream id 多路复用、有界在途请求、写入串行化及作用域内的连接生命周期。
-- 普通查询和预处理查询的惰性分页；空页仍按 paging state 继续，绑定值与命名列表保持快照。
-- 中文文本、blob、布尔、整数、浮点、UUID、timeuuid、inet、日期、时间与 duration。
-- bigint／timestamp 使用 Int64；decimal 与 varint 保留精确的有符号字节表示。
-- list／set／map、tuple、UDT，预处理绑定校验与嵌套上限。
-- 服务端结构化错误，包括读写失败原因映射和 CAS 争用信息；保留 warnings、tracing id、custom payload。
+## 版本与使用方式
 
-已发布的 0.1.0 不提供 TLS、自动重连、多节点连接池、拓扑发现或智能路由。main 分支新增功能与发布版本的区别见下文。已实测 Cassandra 5.0.5；其他 Cassandra 版本及 ScyllaDB 尚未实测。
+| 版本 | 状态 | 范围 |
+| --- | --- | --- |
+| [0.1.0](https://github.com/prowk/mooncql/releases/tag/v0.1.0) | 已发布到 GitHub 与 [Mooncakes](https://mooncakes.io/docs/prowk/mooncql) | 单协调节点、QUERY／PREPARE／EXECUTE／BATCH、v5 帧、LZ4、认证、基础分页与类型 |
+| main 0.2.0-dev | 尚未发布 | 本文新增的 Session、TLS、发现与路由、重试、观测、Row 和游标接口 |
+
+安装已发布版本：`moon add prowk/mooncql@0.1.0`。该包不包含 main 的新增 API，使用时参照 [v0.1.0 文档](https://github.com/prowk/mooncql/blob/v0.1.0/README.md)。体验下列功能需使用 main 源码；模块元数据与 STARTUP 上报版本均为 0.2.0-dev，既有发布保持 0.1.0。
+
+工具链为 moonc 0.10.14+7d59c7ec9、moon 0.1.20260920、moonbitlang/async 0.22.3，默认目标为 native。
 
 ## 快速运行
 
-工具链：`moonc 0.10.14+7d59c7ec9`、`moon 0.1.20260920`、`moonbitlang/async 0.22.3`。默认后端为 native。安装依赖：`moon add prowk/mooncql@0.1.0`。
-
-Docker 测试环境限定为 v5，默认无认证：
+在源码目录安装依赖并启动专用单节点 Cassandra：
 
 ```sh
-docker compose up -d --wait
+moon update
+docker compose up -d --wait --wait-timeout 360
 moon run cmd/main
 ```
 
-默认连接 `127.0.0.1:9042`。示例和集成入口支持 `CQL_HOST`、`CQL_PORT`、`CQL_USERNAME`、`CQL_PASSWORD`；设置 `CQL_COMPRESSION=lz4` 开启 LZ4。PowerShell 示例：
+默认连接 127.0.0.1:9042。示例和验收入口接受 CQL_HOST、CQL_PORT、CQL_USERNAME、CQL_PASSWORD；设置 CQL_COMPRESSION=lz4 开启压缩。PowerShell 示例：
 
 ```powershell
 $env:CQL_PORT = '9042'
@@ -38,29 +33,36 @@ $env:CQL_COMPRESSION = 'lz4'
 moon run cmd/main
 ```
 
-需要 Docker 密码认证时，在启动前设置 `CQL_AUTHENTICATOR=PasswordAuthenticator`；使用专用测试实例的默认账户 `cassandra`／`cassandra` 设置 `CQL_USERNAME` 和 `CQL_PASSWORD`，再运行示例。已有实例应先 `docker compose down` 再启动，配置才会生效。
+单节点 Compose 默认无认证。需要密码认证时，启动前设置 CQL_AUTHENTICATOR=PasswordAuthenticator，并为客户端设置专用测试账户 cassandra／cassandra；更改已有实例的启动配置需重新启动服务。该环境用于本项目测试，结束后可运行 `docker compose down`。
 
 ## 库用法
 
-导入 `moonbitlang/async`、`prowk/mooncql/client`、`prowk/mooncql/protocol` 和 `prowk/mooncql/types`：
+导入 client、protocol 和 types 包，使用作用域管理连接与后台任务。下面展示 main 的 Session、预处理和类型化分页；app.events 应由应用先建好，表包含 device 分区键、id 和 message 列。
 
 ```moonbit
 async fn main {
-  @client.with_connection(
-    config=@client.Config::new(compression=true),
-    connection => {
-      let statement = connection.prepare(
+  @client.with_session(
+    config=@client.SessionConfig::new(
+      connection=@client.Config::new(compression=true),
+    ),
+    session => {
+      let statement = session.prepare(
         "SELECT id, message FROM events WHERE device=?",
         keyspace="app",
       )
       let pages = statement.pages(
         [Integer(42)],
-        options=@protocol.QueryOptions::new(page_size=100, skip_metadata=true),
+        options=@protocol.QueryOptions::new(
+          page_size=100,
+          skip_metadata=true,
+        ),
       )
       while pages.next() is Some(page) {
-        for i = 0; i < page.rows.length(); i = i + 1 {
-          // 按应用需要匹配 Text、Null 等值类型。
-          ignore(page.get(i, "message"))
+        for index in 0..<page.rows.length() {
+          let row = page.row(index)
+          let id = row.int("id")
+          let message = if row.is_null("message") { "" } else { row.text("message") }
+          println("\{id}: \{message}")
         }
       }
     },
@@ -68,37 +70,44 @@ async fn main {
 }
 ```
 
-普通查询可通过 `QueryOptions::new(keyspace="app")` 指定 keyspace。命名绑定使用 `values=[...]` 与 `value_names=[...]`，二者顺序对应；预处理语句使用位置绑定。批处理由 `connection.batch([Query(cql, values), statement.bind_batch(values)], kind=Unlogged, options=...)` 构造，默认类型为 Logged。
+普通查询可使用 QueryOptions::new(keyspace="app")；命名绑定的 values 与 value_names 次序对应。预处理使用位置绑定。共享连接推荐显式 keyspace 或完整限定表名，避免并发 USE 改变上下文。
 
-`Duration(months, days, nanoseconds)` 的前两项为 Int，最后一项为 Int64，所有非零分量须同号。decimal 表示为 `Decimal(scale, signed_big_endian_bytes)`，varint 同样保留二进制有符号整数；set／map 使用数组表示，不保证元素顺序。
+Connection 级 Prepared／Pager 属于其原连接；SessionPrepared 和 Session Pager 可使用恢复后的连接。游标可导出并在匹配上下文的其他连接恢复。低层 connect(group, config~) 需要调用方任务组，with_connection／with_session 会管理关闭和任务回收。
 
-推荐使用 `with_connection` 管理关闭和收发任务；`with_serial_connection` 将在途额度固定为 1，并使用相同的收发逻辑。main 分支的 `connect(group, config~)` 要求传入调用方任务组，退出该组会回收后台任务；该签名变更尚未发布到 0.1.0。Prepared／Pager 在所属连接存活期间有效。共享连接推荐使用完整限定表名或显式 keyspace，避免并发 `USE` 改变连接级上下文。
+## 能力与说明
 
-main 分支支持连接、排队、执行超时和逻辑操作总截止时间，`TimedOut` 会保留阶段与可能发送状态，详见[超时与取消](docs/timeouts.md)。
+| 能力 | 行为与文档 |
+| --- | --- |
+| 正式 v5 传输 | envelope 与外层帧分层、CRC24／带固定种子的 CRC32、TCP 拆包、乱序响应、大消息分片和 LZ4 原始载荷；[固定协议回归依据](docs/protocol-v5-regression.md) |
+| CQL 请求 | 参数化 QUERY、PREPARE／EXECUTE、[BATCH 及其边界](docs/batches.md)、请求级 keyspace、32 位标志、now_in_seconds、一致性和时间戳 |
+| 条件写入 | 保留 [applied] 与返回列，SERIAL／LOCAL_SERIAL；[LWT](docs/conditional-writes.md) |
+| 生命周期和失败阶段 | 连接／排队／执行超时、总 Deadline、未发送与完整发送后的取消；[超时与取消](docs/timeouts.md) |
+| 额度和过载 | 在途数量／字节、等待数量／字节、等待或拒绝、THROW_ON_OVERLOAD；[背压](docs/backpressure.md) |
+| 安全连接 | 自定义 CA、主机名验证、可选客户端证书；[TLS](docs/tls.md) |
+| Session 与准备缓存 | 独立节点恢复、跨代次预处理、配置化 LRU 与并发准备合并；[Session](docs/session.md)、[缓存](docs/prepared-cache.md) |
+| 重试 | 显式幂等声明、次数与截止时间预算、各次失败信息；[重试](docs/retries.md) |
+| 服务端事件 | REGISTER、结构化拓扑／状态／schema 事件、有界队列；[事件](docs/events.md) |
+| 发现与路由 | 控制连接、local／peers_v2、地址转换、订阅恢复；本地 DC、Murmur3、副本优先与回退；[拓扑](docs/topology.md)、[路由](docs/routing.md) |
+| 执行信息 | tracing、custom payload、warnings、协调节点、尝试与准备历史；[with_info](docs/execution-info.md) |
+| 观测与资源 | 排队／执行时间、数量／字节、超时／取消、重连、缓存和压缩比例；异常监听器隔离；[Metrics](docs/metrics.md)、[资源快照](docs/session.md) |
+| 行与值 | 区分缺列、NULL、类型不符，共享列名索引；精确 UUID／日期时间／decimal／varint；[Row](docs/rows.md) |
+| 可恢复分页 | 绑定 CQL、keyspace、参数及必要选项，失败不推进，空页续读与单次 next；[游标](docs/paging.md) |
 
-main 分支另提供等待数量、等待字节、在途数量和在途字节上限，支持满载时等待或拒绝，以及服务端 `THROW_ON_OVERLOAD`，详见[背压与过载](docs/backpressure.md)。
-
-main 分支支持 TCP／TLS 共用传输、自定义 CA、名称校验和显式客户端证书，已通过 Windows／Linux 及认证／压缩矩阵，见 [TLS 连接](docs/tls.md)。
-
-main 分支提供作用域 Session，每节点独立连接并以有上限的退避和抖动恢复，健康节点间轮询调度；默认不重放已失败请求，显式幂等声明可启用[有界重试](docs/retries.md)。支持同一 SessionPrepared 对象跨节点及连接更换，见 [Session 与恢复](docs/session.md)。
-
-main 分支的预处理缓存支持可配置 LRU 和按 CQL/keyspace 合并并发准备，淘汰不影响已返回对象，见[预处理缓存](docs/prepared-cache.md)。
-
-`skip_metadata=true` 适用于已有元数据的 Prepared／Pager；低层普通请求省略元数据时，需通过 `request(..., cached=columns)` 或 `run(..., cached=columns)` 提供匹配的列定义。
+支持文本、blob、布尔、整数、浮点、UUID／timeuuid、inet、date／time／timestamp、duration，以及 list／set／map、tuple、UDT。bigint／timestamp 使用 Int64；decimal 和 varint 保留任意精度有符号字节及精确文本转换。Value.Empty 与 Null 不同；底层 Value 始终可访问。
 
 ## 失败语义与边界
 
-main 分支中，等待名额或写锁时取消只移除该请求；完整发送后取消或超时会保留 stream 和在途额度，并吸收迟到响应。`max_abandoned`（默认 64）与 `abandoned_timeout_ms`（默认 30000）限制废弃请求，超限关闭连接，设数量为 0 可立即关闭。部分发送、EOF、损坏帧或非法长度仍关闭整条连接，使其他在途请求明确失败。连接失效后由应用重新调用 `with_connection`；普通写请求不会自动重放，取消也不表示数据库未执行该请求。已发布的 0.1.0 仍采用取消或超时即关闭的规则。
+普通写入、LWT、counter、集合追加和 BATCH 默认不自动重放。只有适合的错误和显式幂等策略才启用有界重试。匹配语句 ID 的 UNPREPARED 可重新准备并恢复一次；BATCH 不自动重放。取消或超时不代表服务端撤销执行。
 
-只有服务端返回匹配语句 ID 的 UNPREPARED 时，Prepared.execute 才重新 PREPARE 并重试一次。BATCH 不自动重放；其中的预处理语句失效时，由调用方处理服务端错误。其他服务端错误通过 `@client.Server(error)` 返回，正常业务错误不会关闭连接。低层 `request` 返回 Reply，可读取 warnings 等附加信息。
+main 中，未发送时取消只移除本请求；完整发送后保留 stream 和额度，吸收迟到响应。max_abandoned（默认 64）和 abandoned_timeout_ms（默认 30000）限制废弃请求，超限关闭连接。部分发送、EOF 或损坏协议状态会使该连接上的在途请求明确失败；Session 随后恢复连接。已发布 0.1.0 采用取消或超时即关闭的旧规则。
 
-外层帧的载荷上限为 131071 字节；更大的消息拆分为连续分片。默认消息正文上限为 16 MiB，由 `Config.max_frame_bytes` 控制，适用于收发及重组；最大在途请求数默认为 128。类型和值递归最多 32 层，每个 Pager 仅允许一个活动的 `next` 调用。
+外层帧载荷上限为 131071 字节，更大的消息分片。默认消息正文上限 16 MiB，由 Config.max_frame_bytes 控制；默认每连接最多 128 个在途请求。类型和值递归上限为 32，每页 ROWS 最多解码一百万个 Value 节点，含容器及补齐的 NULL。预处理缓存默认 64 条，容量可配置。跨 DC 回退需显式开启；缺少路由信息时安全回退。
 
-## 验证
+每个 Pager 只允许一个活动 next；分页不保证跨页快照。游标关联检查用于防止误用，序列化字节可能包含查询和绑定值，应按业务数据保护。BATCH 用于合适的同分区写入或其明确原子性需求，跨分区大批次不应当作常规吞吐优化。
 
-主线新增的条件写入 API 见[条件写入说明](docs/conditional-writes.md)，尚未包含在 Mooncakes 0.1.0 中。固定 Cassandra 5.0.5 提交的协议回归依据见[协议清单](docs/protocol-v5-regression.md)。
+## 验证与运行示例
 
-单元和本地 TCP 模拟测试无需 Cassandra：
+无需数据库的单元与本地 TCP 模拟测试：
 
 ```sh
 moon check --target native --deny-warn
@@ -107,9 +116,9 @@ moon info
 moon fmt --check
 ```
 
-覆盖固定协议字节、CRC 损坏和截断、LZ4 长度及偏移边界、消息头各位置分割、反序响应、挂起读取取消、背压、认证切帧、并发元数据缓存、预处理失效恢复及分页。duration 固定字节由独立 Python 驱动生成。
+[确定性差分与状态测试](docs/differential-tests.md) 使用固定种子，独立核对嵌套类型与 LZ4 双向互操作，组合随机拆包、响应乱序、取消和半帧 EOF。精确转换样例由 Python int、calendar 和 uuid 独立生成。
 
-真实数据库集成入口会创建或清空专用的 `mooncql_test` 表，包括 events、v5_values、v5_counters 和 v5_metadata：
+真实单节点集成会创建或清空 mooncql_test 中的专用数据：
 
 ```sh
 moon run cmd/integration
@@ -117,11 +126,18 @@ python -m pip install -r scripts/requirements-reference.txt
 python scripts/interop.py
 ```
 
-默认并发写入 10,000 条事件，逐页核对全部字段、更新和删除；`CQL_ROWS` 可设为 1–100000。专项验收包括 400000 字节双向传输、duration、三种批处理、命名绑定、请求级 keyspace、TTL 时间覆盖、schema 变化及结果元数据 ID 通知。服务端客户端视图用于核对 MoonBit 实际使用协议 5。
+默认写入并逐页校验 10000 条事件，CQL_ROWS 可设置为 1–100000。覆盖 400000 字节双向传输、LWT、批处理、命名绑定、keyspace、TTL、schema 变化、tracing 和元数据更新。独立 Python 驱动固定使用正式 v5。
 
-参考驱动固定使用正式 v5；先独立核对全部 MoonBit 数据，再写入不同 CQL 类型，由 MoonBit 核对和回写，最后由 Python 确认。设置 `CQL_ASSERT_V5_ONLY=1` 额外确认服务器拒绝旧协议。CI 在 Linux／Windows 上运行单元测试，并对无认证／密码认证、普通帧／LZ4 四种组合运行上述数据库与互操作验收。
+| 示例入口 | 用途 |
+| --- | --- |
+| cmd/main | 单节点事件写入与分页 |
+| scripts/session_recovery.py --docker-compose | 保留 Session／预处理／Pager，重启后继续，并与独立驱动核对游标 |
+| scripts/discovery_recovery.py --docker-compose | 单种子发现三节点、核对副本与协调节点、控制连接恢复 |
+| scripts/cluster_failover.py --docker-compose | 逐节点故障、RF=3／QUORUM、恢复代次及全部不可用期限 |
+| [cmd/soak 与 long_run.py](docs/long-run.md) | 持续混合读写、分页、主动故障、延迟与失败原因、资源及内存趋势 |
+| [scripts/benchmark.py](docs/performance.md) | 纯 LZ4／编解码和真实数据库的吞吐、P50／P95／P99、CPU、峰值内存 |
 
-结束 Docker 环境：`docker compose down`。测试数据、临时运行时和本地日志不纳入版本控制。
+CI 在 Windows／Linux 运行单元与 TLS 用例，数据库矩阵覆盖无认证／密码认证和普通帧／LZ4 四种组合，并提供三节点验收。长期运行与完整性能矩阵仍以实际报告为准；目前六小时运行尚未完成，性能矩阵曾在小堆实例出现服务端读取超时，正在按专用基准配置重新验收。
 
 ## 参考与许可
 
@@ -130,26 +146,6 @@ python scripts/interop.py
 - [LZ4 block format](https://github.com/lz4/lz4/blob/dev/doc/lz4_Block_format.md)
 - [MoonBit async](https://github.com/moonbitlang/async)
 
-Apache Cassandra 采用 Apache-2.0；本项目参考其公开 v5 规范、帧布局、CRC 参数和服务端握手行为。LZ4 仅作为块格式参考，压缩和解压由 MoonBit 实现，未链接或打包上游 C 实现；上游 `lib` 目录采用 BSD-2-Clause，其余文件的许可见上游说明。
+协议与 CRC 实现参考公开 Cassandra 规范及源码，LZ4 由 MoonBit 实现，未链接上游 C 压缩库。TCP 与 TLS 适配使用 async 0.22.3 及其 Apache-2.0 TLS 实现，保留来源与许可。Cassandra Python Driver 3.30.0 和 python-lz4 4.4.5 仅用于独立测试，不是运行时依赖。
 
-运行时依赖 MoonBit async 0.22.3（Apache-2.0），用于 TCP 与异步任务。[Apache Cassandra Python Driver](https://github.com/apache/cassandra-python-driver) 3.30.0（Apache-2.0）和 [python-lz4](https://github.com/python-lz4/python-lz4) 4.4.5（BSD-3-Clause）仅用于独立互操作、压缩块和 duration 字节样例验证，不作为驱动运行时依赖。
-
-Apache-2.0，见 LICENSE。
-
-main 分支还提供 [REGISTER 与结构化服务端事件](docs/events.md)，使用有界事件队列，与普通请求响应独立分发。
-
-可选的 [控制连接与拓扑发现](docs/topology.md) 从种子节点读取 local／peers_v2，合并事件并定期刷新，支持 native 地址转换和断线后重新订阅。
-
-[DC 与 token-aware 路由](docs/routing.md) 支持显式本地 DC、可选远端回退、Murmur3 和两种常用复制策略。SessionPrepared 自动使用分区键元数据；普通查询可提供 RoutingHint。
-
-通过 [with_info 高层接口](docs/execution-info.md) 读取 tracing、warnings、custom payload、协调节点和尝试次数；可发送请求 tracing 与 payload，并保留重试和重新准备的前次响应信息。
-
-可选 [Metrics 与安全请求监听](docs/metrics.md) 汇总阶段耗时、实时额度、超时／取消、重连、缓存和压缩比例；默认关闭观测，监听器错误被隔离，事件不包含 CQL、绑定值或密码。
-
-main 分支新增 [Row 类型化读取与精确转换](docs/rows.md)：区分缺列、NULL 和类型不匹配，共享本页列名索引，保留 UUID、完整范围日期时间、decimal 和 varint 的精度与原始 Value。
-
-[可恢复分页游标](docs/paging.md) 关联查询上下文并拒绝不匹配恢复，失败不推进；Session 的普通和预处理 Pager 可跨连接恢复。分页不保证跨页快照一致性。
-
-[固定种子差分与协议状态测试](docs/differential-tests.md) 以独立 Cassandra 驱动和 LZ4 实现双向核对，覆盖嵌套类型、随机拆包、响应乱序、取消和断线组合。
-
-[性能基准入口](docs/performance.md) 分别测量纯编解码和真实数据库场景，记录延迟分位数、CPU 与峰值内存；完整矩阵及优化结论以实际报告为准。
+Apache-2.0，见 LICENSE。测试数据、临时运行时、日志和非工程申报材料不纳入公共源码。
