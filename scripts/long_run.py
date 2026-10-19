@@ -1,5 +1,6 @@
 """专用三节点集群上的连续混合读写、周期故障及资源回收验收。"""
 import argparse
+from contextlib import contextmanager
 import datetime
 import hashlib
 import json
@@ -14,6 +15,28 @@ import uuid
 
 from cluster_failover import DockerCluster
 from native_runner import ROOT
+
+
+@contextmanager
+def keep_awake():
+    # 只在控制器作用域内请求系统保持运行，不请求显示器常亮或修改电源计划。
+    setter = None
+    previous = None
+    if os.name == 'nt':
+        import ctypes
+        from ctypes import wintypes
+        setter = ctypes.WinDLL('kernel32', use_last_error=True).SetThreadExecutionState
+        setter.argtypes = [wintypes.DWORD]
+        setter.restype = wintypes.DWORD
+        previous = setter(0x80000001)
+        if not previous:
+            raise OSError(ctypes.get_last_error(), 'cannot request continuous system execution')
+    try:
+        yield
+    finally:
+        if setter is not None:
+            if not setter(previous | 0x80000000):
+                raise OSError('cannot restore thread execution state')
 
 
 def runtime_digest():
@@ -102,6 +125,11 @@ def analyze(folder, duration_seconds, smoke, faults):
 
 
 def exercise(controller, duration_seconds=21600, fault_interval=300, down_seconds=15, smoke=False):
+    with keep_awake():
+        return _exercise(controller, duration_seconds, fault_interval, down_seconds, smoke)
+
+
+def _exercise(controller, duration_seconds, fault_interval, down_seconds, smoke):
     assert duration_seconds >= (120 if smoke else 21600)
     assert 30 <= fault_interval <= 1800 and 1 <= down_seconds <= 60
     assert duration_seconds > fault_interval + 90, 'duration must leave time for a fault and the recovery tail'
@@ -124,6 +152,7 @@ def exercise(controller, duration_seconds=21600, fault_interval=300, down_second
                 'moon_version': subprocess.check_output(['moon', 'version'], cwd=ROOT, encoding='utf-8').strip(),
                 'moonc_version': subprocess.check_output(['moonc', '-v'], cwd=ROOT, encoding='utf-8').strip(),
                 'controller': type(controller).__name__,
+                'idle_sleep_prevention': 'windows-thread-request' if os.name == 'nt' else 'none',
                 'authentication': 'password' if os.environ.get('CQL_USERNAME') else 'none',
                 'compression': os.environ.get('CQL_COMPRESSION', 'none'),
                 'git_dirty': bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, encoding='utf-8').strip()),

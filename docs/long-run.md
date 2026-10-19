@@ -30,6 +30,8 @@ python scripts/long_run.py --docker-compose
 
 正式运行要求至少 21600 秒，默认每 300 秒执行一次故障，节点保持 DOWN 至少 15 秒。短运行标记为 smoke，不计作六小时通过。控制器检查运行源文件与控制脚本摘要，运行中变更会使验收失败；长时间无进度、明显心跳间隔或系统休眠也不能作为连续负载通过。
 
+Windows 控制器在运行作用域内通过 [SetThreadExecutionState](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setthreadexecutionstate) 请求防止空闲睡眠，结束或异常退出时恢复该线程的原状态。它不要求显示器常亮，不修改电源计划，也不能阻止用户主动睡眠；主动睡眠导致的心跳中断仍会使验收失败。
+
 结果目录为 .artifacts/long-run-*，latest-long-run-dir.txt 指向最近一次运行：
 
 | 文件 | 内容 |
