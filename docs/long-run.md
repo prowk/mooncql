@@ -20,7 +20,7 @@ docker compose -f compose.cluster.yaml up -d --wait --wait-timeout 360
 python scripts/long_run.py --docker-compose --smoke --seconds 360 --fault-interval 60 --down-seconds 5
 ```
 
-控制器依次停止一个节点，确认 DOWN，等待指定时间后重新启动，确认三节点恢复 UP。初始数据准备后会修复专用集群 system_auth 的 RF=3 副本。运行中保留同一个 Session 和预处理对象；允许明确的传输失败、读写超时和暂时不可用，数据或协议校验失败会终止测试。脚本恢复自己停止的节点。
+控制器依次停止一个节点，确认 DOWN，等待指定时间后重新启动，确认三节点恢复 UP。初始数据准备后会修复专用集群 system_auth 的 RF=3 副本。运行中保留同一个 Session 和预处理对象；统计明确的传输失败、读写超时、暂时不可用，以及废弃请求达到数量或存活上限所触发的连接回收。连接回收仍作为失败计数，不被当成请求成功，也不自动重放写入。数据或协议校验失败会终止测试。脚本恢复自己停止的节点。
 
 以下为后续长期验证入口，本轮不执行。不带 --smoke 的默认运行请求实际连续六小时：
 
