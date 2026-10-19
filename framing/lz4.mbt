@@ -19,13 +19,24 @@ fn hash4(bytes : Bytes, offset : Int) -> Int {
 
 ///|
 pub fn lz4_compress(bytes : Bytes) -> Bytes {
-  let table = Array::make(65536, -1)
   let w = @codec.Writer::new()
+  if bytes.length() < 12 {
+    w.u8(bytes.length() << 4)
+    w.raw(bytes)
+    return w.to_bytes()
+  }
+  // 短块按输入规模分配二次幂哈希表，避免每次初始化 65536 个槽。
+  // 哈希碰撞只影响压缩率；匹配偏移和内容仍逐项校验。
+  let mut table_size = 256
+  while table_size < bytes.length() && table_size < 65536 {
+    table_size *= 2
+  }
+  let table = Array::make(table_size, -1)
   let mut anchor = 0
   let mut position = 0
   // 最后一次匹配距结尾至少十二字节，结尾保留至少五个字面量。
   while position <= bytes.length() - 12 {
-    let hash = hash4(bytes, position)
+    let hash = hash4(bytes, position) & (table_size - 1)
     let previous = table[hash]
     table[hash] = position
     if previous < 0 ||
