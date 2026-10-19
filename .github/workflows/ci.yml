@@ -18,6 +18,7 @@ jobs:
       - run: moon update
       - run: python scripts/protocol_reference.py
       - run: python scripts/conversion_reference.py --check
+      - run: python -m unittest discover -s scripts/tests
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
       - uses: actions/setup-python@v5

@@ -8,6 +8,7 @@ import math
 import os
 from pathlib import Path
 import platform
+import re
 import statistics
 import subprocess
 import time
@@ -61,14 +62,23 @@ def read_json(path):
         return None
 
 
+def integer(value):
+    # Int64 的 ToJson 使用十进制字符串，验收时精确转换，禁止经过浮点中转。
+    if type(value) is int:
+        return value
+    if isinstance(value, str) and re.fullmatch(r'-?(?:0|[1-9][0-9]*)', value):
+        return int(value)
+    raise AssertionError('expected an exact integer metric')
+
+
 def trend(samples, field, warmup_ms):
     # 五分钟分桶，按完成请求数拟合，降低瞬时工作集抖动的影响。
     buckets = {}
     for row in samples:
-        if row['elapsed_ms'] >= warmup_ms:
-            buckets.setdefault(row['elapsed_ms'] // 300000, []).append(row)
-    points = [(statistics.median(row['successful'] + row['failed'] for row in rows),
-               statistics.median(row[field] for row in rows)) for rows in buckets.values()]
+        if integer(row['elapsed_ms']) >= warmup_ms:
+            buckets.setdefault(integer(row['elapsed_ms']) // 300000, []).append(row)
+    points = [(statistics.median(integer(row['successful']) + integer(row['failed']) for row in rows),
+               statistics.median(integer(row[field]) for row in rows)) for rows in buckets.values()]
     if len(points) < 4:
         return {'enough_samples': False}
     xs, ys = zip(*points)
@@ -94,25 +104,25 @@ def analyze(folder, duration_seconds, smoke, faults):
     assert result is not None
     samples = [json.loads(line) for line in (folder / 'samples.jsonl').read_text(encoding='utf-8').splitlines()]
     assert len(samples) >= 2
-    assert result['load_elapsed_ms'] >= duration_seconds * 1000
+    assert integer(result['load_elapsed_ms']) >= duration_seconds * 1000
     assert result['background_joined'] is True
     assert result['active'] == result['waiting'] == result['pending'] == 0
-    assert result['final_metrics']['in_flight'] == result['final_metrics']['waiting'] == 0
-    assert result['final_metrics']['in_flight_bytes'] == result['final_metrics']['waiting_bytes'] == 0
-    assert result['final_metrics']['connections_established'] == result['final_metrics']['connections_closed']
+    for name in ['in_flight', 'waiting', 'in_flight_bytes', 'waiting_bytes']:
+        assert integer(result['final_metrics'][name]) == 0, name
+    assert integer(result['final_metrics']['connections_established']) == integer(result['final_metrics']['connections_closed'])
     assert result['cache_peak'] <= result['cache_capacity']
     for name in ['read', 'write', 'page', 'lwt', 'batch', 'cache', 'schema']:
-        assert result['operations'][name] > 0, name
+        assert integer(result['operations'][name]) > 0, name
     assert len(faults) >= 1, 'no node fault cycle was completed'
     for previous, current in zip(samples, samples[1:]):
-        assert 0 <= current['elapsed_ms'] - previous['elapsed_ms'] <= 120000, 'load heartbeat gap or system suspend'
+        assert 0 <= integer(current['elapsed_ms']) - integer(previous['elapsed_ms']) <= 120000, 'load heartbeat gap or system suspend'
     windows = {}
     for row in samples:
-        windows.setdefault(row['elapsed_ms'] // 300000, []).append(row)
+        windows.setdefault(integer(row['elapsed_ms']) // 300000, []).append(row)
     for rows in windows.values():
         if len(rows) >= 3:
-            assert rows[-1]['operations']['read'] > rows[0]['operations']['read']
-            assert rows[-1]['operations']['write'] > rows[0]['operations']['write']
+            assert integer(rows[-1]['operations']['read']) > integer(rows[0]['operations']['read'])
+            assert integer(rows[-1]['operations']['write']) > integer(rows[0]['operations']['write'])
     warmup = min(1200000, duration_seconds * 250)
     memory = {field: trend(samples, field, warmup) for field in ['memory_bytes', 'private_bytes']}
     if not smoke:
