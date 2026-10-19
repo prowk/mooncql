@@ -7,7 +7,7 @@ import {
 }
 
 // Values
-pub fn decode_value(CqlType, Bytes?) -> Value raise @codec.CodecError
+pub fn decode_value(CqlType, Bytes?, budget? : DecodeBudget) -> Value raise @codec.CodecError
 
 pub fn encode_scalar(Value) -> Bytes raise @codec.CodecError
 
@@ -130,6 +130,12 @@ pub fn CqlVarInt::to_bytes(Self) -> Bytes
 pub fn CqlVarInt::to_decimal_string(Self, max_digits? : Int) -> String raise ConversionError
 pub fn CqlVarInt::to_repr(Self) -> @debug.Repr
 pub fn CqlVarInt::to_value(Self) -> Value
+
+pub struct DecodeBudget {
+  // private fields
+}
+pub fn DecodeBudget::new(max_nodes? : Int) -> Self raise @codec.CodecError
+pub fn DecodeBudget::remaining_nodes(Self) -> Int
 
 pub(all) enum Value {
   Null

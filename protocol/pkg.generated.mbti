@@ -23,7 +23,7 @@ pub fn decode_payload(MessageEnvelope) -> MessagePayload raise @codec.CodecError
 
 pub fn decode_response(Int, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError
 
-pub fn decode_result(Bytes, cached? : Array[Column]) -> ResultSet raise @codec.CodecError
+pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int) -> ResultSet raise @codec.CodecError
 
 pub fn encode_envelope(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
 

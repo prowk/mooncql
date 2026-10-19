@@ -66,12 +66,13 @@ fn read_non_null(
   r : @codec.Reader,
   typ : CqlType,
   depth : Int,
+  budget : DecodeBudget,
 ) -> Value raise @codec.CodecError {
   let bytes = r.bytes()
   if bytes is None {
     raise @codec.CodecError("null collection element")
   }
-  decode_value_at(typ, bytes, depth)
+  decode_value_at(typ, bytes, depth, budget)
 }
 
 ///|
@@ -91,13 +92,15 @@ fn decode_composite(
   typ : CqlType,
   r : @codec.Reader,
   depth : Int,
+  budget : DecodeBudget,
 ) -> Value raise @codec.CodecError {
   match typ {
     List(element) | Set(element) => {
       let count = checked_count(r, 4)
+      budget.require(count)
       let items = []
       for i = 0; i < count; i = i + 1 {
-        items.push(read_non_null(r, element, depth + 1))
+        items.push(read_non_null(r, element, depth + 1, budget))
       }
       if typ is List(_) {
         ListValue(items)
@@ -107,37 +110,42 @@ fn decode_composite(
     }
     Map(key_type, value_type) => {
       let count = checked_count(r, 8)
+      budget.require(count * 2)
       let items = []
       for i = 0; i < count; i = i + 1 {
-        let key = read_non_null(r, key_type, depth + 1)
-        let value = read_non_null(r, value_type, depth + 1)
+        let key = read_non_null(r, key_type, depth + 1, budget)
+        let value = read_non_null(r, value_type, depth + 1, budget)
         items.push((key, value))
       }
       MapValue(items)
     }
     Tuple(fields) => {
+      budget.require(fields.length())
       let items = []
       for field in fields {
         items.push(
           if r.remaining() == 0 {
+            budget.take()
             Null
           } else {
-            decode_value_at(field, r.bytes(), depth + 1)
+            decode_value_at(field, r.bytes(), depth + 1, budget)
           },
         )
       }
       TupleValue(items)
     }
     Udt(_, _, fields) => {
+      budget.require(fields.length())
       let items = []
       for (name, field) in fields {
         items.push(
           (
             name,
             if r.remaining() == 0 {
+              budget.take()
               Null
             } else {
-              decode_value_at(field, r.bytes(), depth + 1)
+              decode_value_at(field, r.bytes(), depth + 1, budget)
             },
           ),
         )

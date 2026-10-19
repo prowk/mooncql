@@ -155,8 +155,13 @@ pub fn write_value(
 pub fn decode_value(
   typ : CqlType,
   bytes : Bytes?,
+  budget? : DecodeBudget,
 ) -> Value raise @codec.CodecError {
-  decode_value_at(typ, bytes, 0)
+  let budget = match budget {
+    Some(value) => value
+    None => DecodeBudget::new()
+  }
+  decode_value_at(typ, bytes, 0, budget)
 }
 
 ///|
@@ -164,10 +169,12 @@ fn decode_value_at(
   typ : CqlType,
   bytes : Bytes?,
   depth : Int,
+  budget : DecodeBudget,
 ) -> Value raise @codec.CodecError {
   if depth >= 32 {
     raise @codec.CodecError("value nesting exceeds limit")
   }
+  budget.take()
   guard bytes is Some(data) else { return Null }
   if data.is_empty() {
     match typ {
@@ -257,7 +264,7 @@ fn decode_value_at(
     }
     Duration => read_duration(r)
     List(_) | Set(_) | Map(_, _) | Tuple(_) | Udt(_, _, _) =>
-      decode_composite(typ, r, depth)
+      decode_composite(typ, r, depth, budget)
     Custom(_) => raise @codec.CodecError("custom CQL types are unsupported")
   }
   r.finish()

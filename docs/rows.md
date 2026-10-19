@@ -24,6 +24,8 @@ text 接受 ascii／varchar；int 精确扩宽 tinyint／smallint／int，int64 
 
 v5 的旧数据可能包含零长度的非字符串标量，底层表示为 `Value.Empty`，与 Null 不同。is_null 对 Empty 返回 false，类型化标量 getter 抛出 TypeMismatch，可通过 value 保留或显式处理。空 text 和 blob 仍分别是 Text("") 与 Bytes(b"")；省略尾部字段的 UDT／tuple 补为 Null。布尔解码接受任意非零字节为 true，编码统一使用 1。
 
+解码一页 ROWS 最多生成 1000000 个 Value 节点：容器本身、元素、map 的键和值、显式 NULL，以及 UDT／tuple 补齐的尾部 NULL 都计入同一个预算。超限抛出 CodecError；查询大量嵌套值时应减小 page_size。该限制独立于帧字节数，避免很短的响应通过重复展开宽 UDT 占用大量内存。低层 `protocol.decode_result(..., max_value_nodes=...)` 可将上限调低到 1–1000000；单独调用 `types.decode_value` 默认也使用一百万节点预算，可传入同一个 `DecodeBudget::new(max_nodes=...)` 跨值累计。解码失败不会退还已消耗的预算；处理下一条独立消息时新建预算。
+
 `Page::new(columns, rows, paging_state?, new_metadata_id?)` 创建独立元数据快照，检查行宽、类型深度和快照规模。公开 columns 用于展示；Row 和 Page.get 使用创建时的私有快照。修改公开 columns、嵌套类型数组或 columns_snapshot() 的结果不会污染 Row 和 Prepared 缓存。需要重命名时用 Page::new 创建新页。rows 及其 Value 数组仍可修改，读取时检查缺失位置和类型；修改不会重新验证所有值。已有 Page 结构字面量应迁移到构造函数。
 
 精确值类型位于 types 包，均提供 to_value() 以用于绑定：

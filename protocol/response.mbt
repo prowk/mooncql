@@ -204,11 +204,13 @@ fn read_schema_change(
 pub fn decode_result(
   body : Bytes,
   cached? : Array[Column] = [],
+  max_value_nodes? : Int = 1000000,
 ) -> ResultSet raise @codec.CodecError {
   let r = @codec.Reader::new(body)
   match r.i32() {
     1 => Void
     2 => {
+      let budget = @types.DecodeBudget::new(max_nodes=max_value_nodes)
       let meta = read_metadata(r, cached~)
       let count = r.i32()
       let width = meta.columns.length()
@@ -217,11 +219,14 @@ pub fn decode_result(
         (count > 0 && (width == 0 || count > r.remaining() / 4 / width)) {
         raise @codec.CodecError("invalid row count")
       }
+      if count > 0 && count > budget.remaining_nodes() / width {
+        raise @codec.CodecError("decoded value node limit exceeded")
+      }
       let rows = []
       for i = 0; i < count; i = i + 1 {
         let row = []
         for col in meta.columns {
-          row.push(@types.decode_value(col.typ, r.bytes()))
+          row.push(@types.decode_value(col.typ, r.bytes(), budget~))
         }
         rows.push(row)
       }
