@@ -56,7 +56,8 @@ async fn Session::retry_pause(self : Session, milliseconds : Int) -> Unit {
 ///|
 fn retryable(error : Error) -> Bool {
   match error {
-    Closed | @io.ReaderClosed | @os_error.OSError(_, ..) => true
+    Closed | HeartbeatFailed | @io.ReaderClosed | @os_error.OSError(_, ..) =>
+      true
     TimedOut(info) => info.scope == Execution || info.scope == Queue
     Overloaded(InFlightLimit | ByteLimit | WaitingQueueFull | WaitingBytesFull) =>
       true

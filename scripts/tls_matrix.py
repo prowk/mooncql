@@ -28,7 +28,7 @@ def certificates(folder):
     folder.mkdir(parents=True, exist_ok=True)
     now = datetime.datetime.now(datetime.timezone.utc)
 
-    def issue(name, parent=None, client=False, expired=False):
+    def issue(name, parent=None, client=False, expired=False, intermediate=False):
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "mooncql-test-" + name)])
         issuer_key, issuer_cert = parent if parent else (key, None)
@@ -37,8 +37,8 @@ def certificates(folder):
                    .public_key(key.public_key()).serial_number(x509.random_serial_number())
                    .not_valid_before(now - datetime.timedelta(days=30 if expired else 1))
                    .not_valid_after(now + datetime.timedelta(days=-1 if expired else 30))
-                   .add_extension(x509.BasicConstraints(ca=parent is None, path_length=None), critical=True))
-        if parent:
+                   .add_extension(x509.BasicConstraints(ca=parent is None or intermediate, path_length=None), critical=True))
+        if parent and not intermediate:
             builder = builder.add_extension(x509.ExtendedKeyUsage([
                 ExtendedKeyUsageOID.CLIENT_AUTH if client else ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
             if not client:
@@ -55,6 +55,12 @@ def certificates(folder):
     foreign = issue("foreign-ca")
     issue("server", ca)
     issue("expired-server", ca, expired=True)
+    issuer = issue("intermediate", ca, intermediate=True)
+    issue("missing-intermediate-server", issuer)
+    issue("chained-server", issuer)
+    # 服务端发送完整中间证书链，客户端仍只信任根 CA。
+    with (folder / "chained-server.pem").open("ab") as chain:
+        chain.write((folder / "intermediate.pem").read_bytes())
     for name, parent in (("client", ca), ("foreign-client", foreign)):
         key, cert = issue(name, parent, client=True)
         (folder / f"{name}.pfx").write_bytes(pkcs12.serialize_key_and_certificates(
@@ -253,6 +259,9 @@ async def matrix(args):
         ("wrong-host", "server", "wrong.invalid", "ca", None, False, True),
         ("untrusted-ca", "server", "localhost", "foreign-ca", None, False, True),
         ("expired", "expired-server", "localhost", "ca", None, False, True),
+        ("missing-intermediate", "missing-intermediate-server", "localhost", "ca", None, False, True),
+        ("intermediate-chain", "chained-server", "localhost", "ca", None, False, False),
+        ("untrusted-chain", "chained-server", "localhost", "foreign-ca", None, False, True),
         ("mutual", "server", "localhost", "ca", "client", True, False),
         ("missing-client", "server", "localhost", "ca", None, True, True),
         ("untrusted-client", "server", "localhost", "ca", "foreign-client", True, True),

@@ -33,6 +33,7 @@ pub(all) suberror DriverError {
   Overloaded(OverloadReason)
   AbandonedLimitExceeded
   AbandonedRequestExpired
+  HeartbeatFailed
 } derive(@debug.Debug)
 pub fn DriverError::to_repr(Self) -> @debug.Repr
 
@@ -98,9 +99,11 @@ pub(all) struct Config {
   max_abandoned : Int
   abandoned_timeout_ms : Int
   event_capacity : Int
+  heartbeat_interval_ms : Int
+  heartbeat_timeout_ms : Int
   metrics : Metrics?
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, metrics? : Metrics) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
 
 pub struct Connection {
   socket : Transport
@@ -114,6 +117,8 @@ pub struct Connection {
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
+  mut health_task : @async.Task[Unit]?
+  mut last_received : Int64
   mut abandoned : Int
   pending : Map[Int, Pending]
   admission : Admission

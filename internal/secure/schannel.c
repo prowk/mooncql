@@ -713,7 +713,7 @@ int32_t prowk_mooncql_secure_schannel_verify_peer_certificate(
     chain_engine,
     cert,
     NULL,
-    NULL,
+    cert->hCertStore,
     &chain_para,
     0,
     NULL,

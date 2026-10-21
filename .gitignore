@@ -14,3 +14,20 @@ __pycache__/
 *比赛*
 *hackathon*
 *competition*
+
+# 本地说明、计划、设计草稿和验收原始产物不进入源码仓库。
+AGENTS.md
+todo.md
+TODO.md
+DESIGN*.md
+design-draft*.md
+PLAN*.md
+.agents/
+.codex/
+notes/
+plans/
+design/
+/docs/benchmarks/
+*.log
+*.tmp
+*.bak

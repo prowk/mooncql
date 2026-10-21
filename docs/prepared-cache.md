@@ -1,6 +1,8 @@
 # 预处理缓存与并发准备
 
-本文描述 main 分支；新增缓存策略尚未发布到 0.1.0。
+[文档目录](README.md) · [入门教程](getting-started.md)
+
+本文适用于 0.2.0。
 
 `Config::new(prepared_cache_capacity=64)` 设置每个连接的 LRU 容量，允许 0 至 65536，默认 64。0 禁用常驻缓存，但同时等待同一语句准备的调用仍合并为一个 PREPARE。缓存键包含完整 CQL 与准备时的 keyspace。命中会刷新最近使用顺序；超过容量淘汰最久未使用的条目。
 
@@ -16,4 +18,4 @@ Prepared 与 SessionPrepared 自动在 EXECUTE 中继承准备时的 keyspace，
 
 回归验证 LRU 命中顺序、淘汰后原对象可执行、禁用缓存时的合并、不同语句独立准备、失败共享与后续重试、等待者取消、准备调用方取消及迟到结果，以及合并等待的截止时间和队列上限。
 
-请求 custom payload 也属于准备内容，相同 CQL／keyspace／payload 才共享缓存与并发准备；trace 标志不改变缓存键。prepare_with_info 在缓存命中时标记 cached=true、attempt_count=0，并保留最近实际 PREPARE 的响应信息。
+请求 custom payload 也属于准备内容，相同 CQL / keyspace / payload 才共享缓存与并发准备；trace 标志不改变缓存键。prepare_with_info 在缓存命中时标记 cached=true、attempt_count=0，并保留最近实际 PREPARE 的响应信息。

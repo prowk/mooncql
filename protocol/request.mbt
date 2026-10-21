@@ -111,7 +111,7 @@ pub fn startup(
   w.string("DRIVER_NAME")
   w.string("mooncql")
   w.string("DRIVER_VERSION")
-  w.string("0.2.0-dev")
+  w.string("0.2.0")
   if compression {
     w.string("COMPRESSION")
     w.string("lz4")
@@ -162,8 +162,9 @@ fn write_parameters(
   if options.serial_consistency is Some(c) && c != Serial && c != LocalSerial {
     raise @codec.CodecError("invalid serial consistency")
   }
-  if options.timestamp is Some(ts) && ts < 0L {
-    raise @codec.CodecError("negative default timestamp")
+  // 与 Cassandra 5.0.5 的 QueryOptions 解码保持一致，仅保留最小 Int64。
+  if options.timestamp == Some(-9223372036854775808L) {
+    raise @codec.CodecError("reserved minimum default timestamp")
   }
   if options.value_names is Some(names) &&
     (names.length() != values.length() || values.is_empty()) {

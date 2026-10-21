@@ -1,0 +1,23 @@
+# 运行时发布包只包含库、接口、许可和使用文档。
+.*
+_build/
+target/
+AGENTS.md
+todo.md
+TODO.md
+DESIGN*.md
+design-draft*.md
+PLAN*.md
+notes/
+plans/
+design/
+cmd/
+scripts/
+fixtures/
+docs/benchmarks/
+compose*.yaml
+**/*_test.mbt
+**/*_wbtest.mbt
+*.log
+*.tmp
+*.bak

@@ -1,5 +1,7 @@
 # BATCH 的使用边界
 
+[文档目录](README.md) · [入门教程](getting-started.md)
+
 main 提供 `Connection.batch(statements, kind?, options?, deadline?)`。每条语句使用 `BatchStatement.Query(cql, values)`，或由当前连接的 `Prepared.bind_batch(values)` 创建；预处理语句 ID 属于准备它的物理连接，不能跨连接或恢复代次复用。可运行例子在 `cmd/integration/v5.mbt`，执行 `moon run cmd/integration` 会同时校验普通语句、预处理绑定、unlogged 和 counter 批处理。
 
 | kind | 适用场景与服务端语义 |

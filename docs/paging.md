@@ -1,6 +1,8 @@
 # 分页游标与恢复
 
-本文描述 main 分支，尚未包含在 0.1.0 发布版。Connection、Prepared、Session 和 SessionPrepared 都提供 pages；next 返回一页，next_with_info 另外保留本页执行信息。Session 的 Pager 可以继续使用自动恢复后的连接。
+[文档目录](README.md) · [入门教程](getting-started.md)
+
+本文适用于 0.2.0。Connection、Prepared、Session 和 SessionPrepared 都提供 pages；next 返回一页，next_with_info 另外保留本页执行信息。Session 的 Pager 可以继续使用自动恢复后的连接。
 
 ```moonbit
 let options = @protocol.QueryOptions::new(page_size=100)
@@ -36,4 +38,4 @@ next 成功返回时驱动已经推进到下一页，不知道本页业务处理
 
 测试包含更换 Connection、完成游标、空页、上下文变化、取消与迟到响应、并发限制，以及失败不推进。真实重启验收在专用 Cassandra 5.0.5 上保留普通和预处理 Pager，重启后继续各 84 行，并从持久化游标重新创建两个 Pager；独立 Python 驱动再使用两个原始续读状态核对同样结果。
 
-复现实际重启测试：先启动本仓库专用 Compose 服务，按认证设置 CQL_USERNAME／CQL_PASSWORD 和 CQL_COMPRESSION，再安装 scripts/requirements-reference.txt，运行 `python scripts/session_recovery.py --docker-compose`。该脚本会停止并重启这个 Compose 服务，创建或清空 mooncql_recovery_a／mooncql_recovery_b 下的测试表。普通及预处理查询的入口均在 cmd/recovery/main.mbt。
+复现实际重启测试：先启动本仓库专用 Compose 服务，按认证设置 CQL_USERNAME / CQL_PASSWORD 和 CQL_COMPRESSION，再安装 scripts/requirements-reference.txt，运行 `python scripts/session_recovery.py --docker-compose`。该脚本会停止并重启这个 Compose 服务，创建或清空 mooncql_recovery_a / mooncql_recovery_b 下的测试表。普通及预处理查询的入口均在 cmd/recovery/main.mbt。

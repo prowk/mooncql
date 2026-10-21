@@ -11,6 +11,8 @@ import {
 // Values
 pub fn batch(Array[BatchStatement], kind? : BatchType, options? : QueryOptions) -> Request raise @codec.CodecError
 
+pub fn columns_snapshot(Array[Column]) -> Array[Column]
+
 pub fn decode_envelope_header(Bytes, max_body? : Int) -> EnvelopeHeader raise @codec.CodecError
 
 pub fn decode_error(Bytes) -> ServerError raise @codec.CodecError

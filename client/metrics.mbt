@@ -342,7 +342,7 @@ fn request_outcome(error : Error) -> RequestOutcome {
     Server(error) => ServerError(error.code)
     TimedOut(info) => Timeout(info)
     Overloaded(reason) => LocalOverload(reason)
-    Closed | @io.ReaderClosed => Disconnected
+    Closed | HeartbeatFailed | @io.ReaderClosed => Disconnected
     Configuration(_) => InvalidConfiguration
     TlsFailure(_) => TlsError
     Unexpected(_) | @codec.CodecError(_) => ProtocolError

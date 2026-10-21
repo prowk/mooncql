@@ -58,6 +58,9 @@ pub fn Session::resources(self : Session) -> SessionResources {
     if connection.reaper_task is Some(_) {
       handles += 1
     }
+    if connection.health_task is Some(_) {
+      handles += 1
+    }
   }
   {
     active: self.active,

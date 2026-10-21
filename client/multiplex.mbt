@@ -36,6 +36,9 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
   if self.reaper_task is Some(task) {
     task.cancel()
   }
+  if self.health_task is Some(task) {
+    task.cancel()
+  }
   for pending in self.pending.values() {
     pending.reply.close(error~)
     self.release_resources(pending)
@@ -134,6 +137,7 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
   try {
     while !self.closed {
       let frame = self.wire.receive()
+      self.last_received = @async.now()
       if frame.header.opcode == 12 {
         if frame.header.stream != -1 {
           raise Unexpected("EVENT must use stream -1")

@@ -9,7 +9,7 @@ test "startup declares CQL language version and not binary protocol version" {
   assert_eq(r.string(), "DRIVER_NAME")
   assert_eq(r.string(), "mooncql")
   assert_eq(r.string(), "DRIVER_VERSION")
-  assert_eq(r.string(), "0.2.0-dev")
+  assert_eq(r.string(), "0.2.0")
   r.finish()
 }
 
@@ -97,4 +97,33 @@ test "SERIAL and LOCAL_SERIAL are valid read consistency levels" {
     assert_eq(r.i32(), 0)
     r.finish()
   }
+}
+
+///|
+test "default timestamps match Cassandra signed range except reserved minimum" {
+  for timestamp in [-9223372036854775807L, -1L, 0L, 9223372036854775807L] {
+    let request = @protocol.query(
+      "INSERT INTO ks.t (id) VALUES (1)",
+      options=@protocol.QueryOptions::new(timestamp~),
+    )
+    let r = @codec.Reader::new(request.body)
+    ignore(r.long_string())
+    ignore(r.u16())
+    assert_eq(r.i32(), 32)
+    assert_eq(r.i64(), timestamp)
+    r.finish()
+  }
+  assert_true(
+    try {
+      ignore(
+        @protocol.query(
+          "x",
+          options=@protocol.QueryOptions::new(timestamp=-9223372036854775808L),
+        ),
+      )
+      false
+    } catch {
+      @codec.CodecError(_) => true
+    },
+  )
 }

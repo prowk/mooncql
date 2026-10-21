@@ -142,7 +142,7 @@ fn SessionPrepared::accept_routing_metadata(
 pub fn SessionPrepared::parameters(
   self : SessionPrepared,
 ) -> Array[@protocol.Column] {
-  self.parameters.copy()
+  @protocol.columns_snapshot(self.parameters)
 }
 
 ///|

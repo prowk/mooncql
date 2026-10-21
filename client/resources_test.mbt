@@ -37,7 +37,7 @@ async test "Session resources expose pending abandoned cache and joined task han
           assert_eq(before.active, 0)
           assert_eq(before.pending, 0)
           assert_eq(before.cache_sizes, [1])
-          assert_eq(before.background_task_handles, 3)
+          assert_eq(before.background_task_handles, 4)
           before.cache_sizes[0] = 100
           assert_eq(session.resources().cache_sizes, [1])
           @async.with_task_group(requests => {

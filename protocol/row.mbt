@@ -76,7 +76,8 @@ fn type_size(
 }
 
 ///|
-fn copy_columns(columns : Array[Column]) -> Array[Column] {
+/// 复制列定义和嵌套类型数组，防止公开快照修改内部元数据。
+pub fn columns_snapshot(columns : Array[Column]) -> Array[Column] {
   columns.map(column => { ..column, typ: copy_type(column.typ), })
 }
 
@@ -99,9 +100,9 @@ pub fn Page::new(
       raise @codec.CodecError("row width does not match metadata")
     }
   }
-  let schema = { columns: copy_columns(columns), lookup: None, }
+  let schema = { columns: columns_snapshot(columns), lookup: None, }
   {
-    columns: copy_columns(schema.columns),
+    columns: columns_snapshot(schema.columns),
     rows,
     paging_state,
     new_metadata_id,
@@ -111,7 +112,7 @@ pub fn Page::new(
 
 ///|
 pub fn Page::columns_snapshot(self : Page) -> Array[Column] {
-  copy_columns(self.schema.columns)
+  columns_snapshot(self.schema.columns)
 }
 
 ///|
@@ -217,7 +218,7 @@ pub fn Row::value_at(self : Row, index : Int) -> @types.Value raise RowError {
 
 ///|
 pub fn Row::columns_snapshot(self : Row) -> Array[Column] {
-  copy_columns(self.schema.columns)
+  columns_snapshot(self.schema.columns)
 }
 
 ///|

@@ -10,6 +10,7 @@ pub(all) suberror DriverError {
   Overloaded(OverloadReason)
   AbandonedLimitExceeded
   AbandonedRequestExpired
+  HeartbeatFailed
 } derive(@debug.Debug)
 
 ///|
@@ -38,6 +39,8 @@ pub(all) struct Config {
   max_abandoned : Int
   abandoned_timeout_ms : Int
   event_capacity : Int
+  heartbeat_interval_ms : Int
+  heartbeat_timeout_ms : Int
   metrics : Metrics?
 }
 
@@ -64,6 +67,8 @@ pub fn Config::new(
   max_abandoned? : Int = 64,
   abandoned_timeout_ms? : Int = 30000,
   event_capacity? : Int = 256,
+  heartbeat_interval_ms? : Int = 30000,
+  heartbeat_timeout_ms? : Int = 5000,
   metrics? : Metrics,
 ) -> Config {
   {
@@ -88,6 +93,8 @@ pub fn Config::new(
     max_abandoned,
     abandoned_timeout_ms,
     event_capacity,
+    heartbeat_interval_ms,
+    heartbeat_timeout_ms,
     metrics,
   }
 }
@@ -105,6 +112,8 @@ pub struct Connection {
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
+  mut health_task : @async.Task[Unit]?
+  mut last_received : Int64
   mut abandoned : Int
   pending : Map[Int, Pending]
   admission : Admission
@@ -261,6 +270,11 @@ async fn[G] connect_internal(
   connection.reaper_task = Some(
     group.spawn(() => connection.reap_abandoned(), no_wait=true),
   )
+  if config.heartbeat_interval_ms > 0 {
+    connection.health_task = Some(
+      group.spawn(() => connection.maintain_health(), no_wait=true),
+    )
+  }
   transferred = true
   connection
 }
@@ -286,6 +300,8 @@ async fn open_connection(config : Config) -> Connection {
     reader_active: false,
     reader_task: None,
     reaper_task: None,
+    health_task: None,
+    last_received: @async.now(),
     abandoned: 0,
     pending: Map([]),
     admission: Admission::new(config),
@@ -381,6 +397,8 @@ fn Config::validate(self : Config) -> Unit raise DriverError {
     self.max_abandoned > 32768 ||
     self.event_capacity < 1 ||
     self.event_capacity > 65536 ||
+    self.heartbeat_interval_ms < 0 ||
+    self.heartbeat_timeout_ms <= 0 ||
     self.abandoned_timeout_ms <= 0 {
     raise Configuration("invalid timeout, frame limit or port")
   }
@@ -411,4 +429,10 @@ pub async fn Connection::shutdown(self : Connection) -> Unit {
   }
   self.reader_task = None
   self.reaper_task = None
+  if self.health_task is Some(task) {
+    ignore(task.wait()) catch {
+      _ => ()
+    }
+  }
+  self.health_task = None
 }

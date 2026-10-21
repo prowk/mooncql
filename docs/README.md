@@ -1,0 +1,43 @@
+# mooncql 文档
+
+适用于 0.2.0。[项目首页](../README.md) · [API](https://mooncakes.io/docs/prowk/mooncql)
+
+## 开始使用
+
+1. [入门教程](getting-started.md)：启动数据库、创建应用、绑定参数、预处理、分页和资源关闭。
+2. [连接配置](configuration.md)：认证、TLS、超时、额度和多节点的常用配置。
+3. [从 0.1 升级](migration.md)：新增接口与失败语义变化。
+
+## 使用指南
+
+| 主题 | 内容 |
+| --- | --- |
+| [Session 与恢复](session.md) | 作用域、节点状态、重连、资源快照 |
+| [连接健康](connection-health.md) | 空闲心跳、半断开识别、关闭和恢复 |
+| [TLS](tls.md) | 信任根、名称验证、证书链和客户端身份 |
+| [超时与取消](timeouts.md) | 请求阶段、Deadline、迟到响应 |
+| [背压](backpressure.md) | 请求数量、字节预算、过载 |
+| [预处理缓存](prepared-cache.md) | LRU、并发准备、元数据 |
+| [行与值](rows.md) | 类型化读取、NULL、UUID、日期和精确数值 |
+| [分页与游标](paging.md) | 自动续页、恢复上下文、失败语义 |
+| [条件写入](conditional-writes.md) | LWT、applied、串行一致性 |
+| [批处理](batches.md) | 同分区写入、批类型和重放边界 |
+| [重试](retries.md) | 幂等声明、预算和失败历史 |
+| [执行信息](execution-info.md) | tracing、warnings、custom payload |
+| [指标](metrics.md) | RPC、排队、连接、缓存和监听器 |
+
+## 集群与路由
+
+- [事件订阅](events.md)：REGISTER、拓扑、状态和 schema 事件。
+- [拓扑发现](topology.md)：控制连接、系统表、地址映射和刷新。
+- [数据中心与 token-aware 路由](routing.md)：分区键、Murmur3、复制策略和安全回退。
+
+## 开发与验证
+
+- [开发指南](development.md)：构建、回归、CI 和发布检查。
+- [v5 协议依据](protocol-v5-regression.md)：固定源码、字节样例和互操作边界。
+- [差分测试](differential-tests.md)：独立类型、压缩和状态机校验。
+- [性能基准](performance.md)：可复现的测量方法。
+- [混合负载与故障示例](long-run.md)：短时运行及按需执行的长期验证。
+
+兼容声明限于实际验证的 Cassandra 5.0.5。长期负载测试尚未执行，不由单元测试或短时集成结果替代。

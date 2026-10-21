@@ -112,7 +112,7 @@ async fn Connection::prepare_internal(
 
 ///|
 pub fn Prepared::parameters(self : Prepared) -> Array[@protocol.Column] {
-  self.metadata.parameters.copy()
+  @protocol.columns_snapshot(self.metadata.parameters)
 }
 
 ///|
