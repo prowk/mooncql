@@ -102,7 +102,7 @@ def main():
         assert v5_row.payload == payload
         row = session.execute('SELECT message FROM mooncql_test.interop WHERE id=1').one()
         assert row.message == 'MoonBit verified Python', row.message
-        print('PASS independent Python ↔ MoonBit interoperability', flush=True)
+        print('PASS independent Python and MoonBit interoperability', flush=True)
     finally:
         cluster.shutdown()
 
