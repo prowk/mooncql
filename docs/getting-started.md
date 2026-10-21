@@ -26,9 +26,10 @@ docker compose up -d --wait --wait-timeout 360
 moon new mooncql-demo
 cd mooncql-demo
 moon add prowk/mooncql@0.2.0
+moon add moonbitlang/async@0.22.3
 ```
 
-将 `cmd/main/moon.pkg` 替换为：
+应用直接导入异步运行时，因此需要显式添加 async 依赖；驱动的间接依赖不能替代应用的直接声明。将 `cmd/main/moon.pkg` 替换为：
 
 ```moonbit
 import {

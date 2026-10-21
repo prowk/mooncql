@@ -12,9 +12,10 @@ MoonBit 原生异步 Cassandra 驱动，使用正式 Native Protocol v5，面向
 
 ```sh
 moon add prowk/mooncql@0.2.0
+moon add moonbitlang/async@0.22.3
 ```
 
-在应用的 `moon.pkg` 中导入 `prowk/mooncql/client`；使用查询选项时再导入 `prowk/mooncql/protocol`。需要 MoonBit native 工具链；当前验收使用 moonc 0.10.14+7d59c7ec9 和 moonbitlang/async 0.22.3。
+在应用的 `moon.pkg` 中导入 `moonbitlang/async` 和 `prowk/mooncql/client`；使用查询选项时再导入 `prowk/mooncql/protocol`。需要 MoonBit native 工具链；当前验收使用 moonc 0.10.14+7d59c7ec9。
 
 ## 快速示例
 
