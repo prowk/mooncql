@@ -33,6 +33,7 @@ fn transient_reason(error : Error) -> String? {
       Some("disconnected")
     @client.AbandonedLimitExceeded => Some("abandoned_limit")
     @client.AbandonedRequestExpired => Some("abandoned_expired")
+    @client.HeartbeatFailed => Some("heartbeat_failed")
     @client.TimedOut(info) =>
       Some("timeout:\{info.phase.to_repr()}:sent=\{info.may_have_been_sent}")
     @client.Overloaded(_) => Some("local_overload")

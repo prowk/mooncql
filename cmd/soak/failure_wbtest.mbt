@@ -9,6 +9,7 @@ test "smoke counts bounded connection recycling but preserves fatal validation e
     Some("abandoned_expired"),
   )
   assert_eq(transient_reason(@client.Closed), Some("disconnected"))
+  assert_eq(transient_reason(@client.HeartbeatFailed), Some("heartbeat_failed"))
   assert_eq(transient_reason(@client.Unexpected("row mismatch")), None)
   assert_eq(transient_reason(@client.Configuration("bad configuration")), None)
   assert_eq(transient_reason(@client.Authentication("bad credentials")), None)
