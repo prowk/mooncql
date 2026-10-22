@@ -96,7 +96,7 @@ async fn main {
           )
           output.bytes(Some(@framing.lz4_compress(payload)))
         }
-        2 => {
+        2 | 5 => {
           guard reader.bytes() is Some(metadata) else {
             fail("missing malformed type")
           }
@@ -111,6 +111,15 @@ async fn main {
             _ => false
           }
           output.u8(if accepted { 1 } else { 0 })
+        }
+        4 => {
+          let value : @types.Value = match reader.u8() {
+            0 => Null
+            1 => Unset
+            2 => Empty
+            _ => fail("unknown binding boundary")
+          }
+          @types.write_value(output, value)
         }
         3 => {
           guard reader.bytes() is Some(compressed) else {

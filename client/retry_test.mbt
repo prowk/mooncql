@@ -346,14 +346,26 @@ async test "counter conditional append and batch unknown outcomes are never repl
   for
     cql in [
       "UPDATE counters SET n=n+1 WHERE id=1", "INSERT INTO t(id) VALUES(1) IF NOT EXISTS",
-      "UPDATE t SET xs=xs+[1] WHERE id=1", "batch",
+      "UPDATE t SET xs=xs+[1] WHERE id=1", "batch", "unlogged", "counter_batch",
     ] {
     @async.with_timeout(5000, () => {
       @async.with_task_group(group => {
         let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
         defer server.close()
-        let request = if cql == "batch" {
-          @protocol.batch([Query("INSERT INTO t(id) VALUES(1)", [])])
+        let is_batch = cql == "batch" ||
+          cql == "unlogged" ||
+          cql == "counter_batch"
+        let request = if is_batch {
+          @protocol.batch(
+            [Query("INSERT INTO t(id) VALUES(1)", [])],
+            kind=if cql == "unlogged" {
+              Unlogged
+            } else if cql == "counter_batch" {
+              Counter
+            } else {
+              Logged
+            },
+          )
         } else {
           @protocol.query(cql)
         }
@@ -388,7 +400,7 @@ async test "counter conditional append and batch unknown outcomes are never repl
             assert_true(
               try {
                 // 即便调用方声明幂等，BATCH 的低层入口也禁止自动重试。
-                ignore(session.request(request, idempotent=cql == "batch"))
+                ignore(session.request(request, idempotent=is_batch))
                 false
               } catch {
                 _ => true

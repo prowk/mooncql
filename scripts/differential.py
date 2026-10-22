@@ -16,6 +16,7 @@ from cassandra import cqltypes as ct
 from cassandra.util import Date, Time, Duration, SortedSet
 import lz4.block
 from native_runner import build_native
+from differential_boundaries import corpus
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = 2026101819
@@ -164,6 +165,10 @@ def run(seed, count):
               (0, (48, [(9, []), (13, [])]), blob(i32(7))),
               (0, (49, [(9, []), (13, [])]), blob(i32(7)))]
     ct.Int32Type.support_empty_values = True
+    for typ in SCALARS.values():
+        typ.support_empty_values = True
+    boundary_cases, boundary_names = corpus(metadata, blob, i32)(driver_type)
+    cases += boundary_cases
     for size in [0, 1, 4, 12, 15, 16, 255, 256, 65535, 65536, 131071, 131072, 400000]:
         for compressible in [False, True]:
             payload = (b'abcd' * ((size + 3) // 4))[:size] if compressible else rng.randbytes(size)
@@ -182,7 +187,8 @@ def run(seed, count):
     for kind, left, right in cases:
         chunks.append(bytes([kind]))
         if kind == 0: chunks.extend([blob(metadata(left)), blob(right)])
-        elif kind in [1, 2]: chunks.extend([blob(left), blob(right)])
+        elif kind in [1, 2, 5]: chunks.extend([blob(left), blob(right)])
+        elif kind == 4: chunks.append(bytes([left]))
         else: chunks.extend([blob(left), i32(right)])
     data = b''.join(chunks)
     assert len(data) <= 67108864
@@ -208,13 +214,18 @@ def run(seed, count):
             assert typ.from_binary(encoded, 5) == expected, (index, left, folder)
         elif kind == 1:
             assert lz4.block.decompress(read_blob(stream), uncompressed_size=len(left)) == left, index
+        elif kind == 4:
+            assert stream.read(4) == i32([-1, -2, 0][left]), index
+        elif kind == 5:
+            assert stream.read(1) == b'\x00', (index, left.hex(), folder)
         else:
             flag = stream.read(1)
             assert flag in [b'\x00', b'\x01']
             accepted += flag == b'\x01'
     assert stream.read() == b''
-    report = {'seed': seed, 'nested_type_cases': count + 5, 'lz4_two_way_cases': sum(kind == 1 for kind, _, _ in cases),
+    report = {'seed': seed, 'nested_type_cases': sum(kind == 0 for kind, _, _ in cases), 'lz4_two_way_cases': sum(kind == 1 for kind, _, _ in cases),
               'mutated_type_and_lz4_cases': count * 2, 'accepted_mutations': accepted,
+              'boundary_names': boundary_names, 'strict_rejected_cases': sum(kind == 5 for kind, _, _ in cases),
               'reference': 'cassandra-driver 3.30.0 and lz4 4.4.5'}
     (folder / 'result.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(report), flush=True)

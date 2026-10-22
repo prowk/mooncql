@@ -1,0 +1,8 @@
+{
+  "repository": "prowk/mooncql",
+  "stable": "0.2.0",
+  "versions": [
+    {"version": "0.1.0", "commit": "960b9e3dce6629c7bef021228c9b6112a40f9b8a", "profile": "declaration", "packages": ["client", "protocol", "types", "codec", "framing"]},
+    {"version": "0.2.0", "commit": "0acc98a5bd184c9e31d57bbdc1be652922d0cea4", "profile": "stable", "packages": ["client", "protocol", "types", "codec", "framing", "routing"]}
+  ]
+}

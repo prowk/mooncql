@@ -11,6 +11,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: hustcer/setup-moonbit@v1.22
         with:
           version: '0.10.14+7d59c7ec9'
@@ -19,6 +21,7 @@ jobs:
       - run: python scripts/protocol_reference.py
       - run: python scripts/conversion_reference.py --check
       - run: python scripts/check_docs.py
+      - run: python scripts/package_acceptance.py
       - run: python -m unittest discover -s scripts/tests
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
@@ -31,6 +34,14 @@ jobs:
       - run: moon fmt --check
       - run: moon info
       - run: git diff --exit-code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: package-and-differential-${{ matrix.os }}
+          include-hidden-files: true
+          path: |
+            .artifacts/**/result.json
+            .artifacts/package-acceptance-*/**/*.log
   integration:
     needs: unit
     strategy:
@@ -45,6 +56,8 @@ jobs:
       CQL_ASSERT_V5_ONLY: '1'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: hustcer/setup-moonbit@v1.22
         with:
           version: '0.10.14+7d59c7ec9'
@@ -61,10 +74,23 @@ jobs:
           if [ "$CQL_AUTHENTICATOR" = PasswordAuthenticator ]; then
             export CQL_USERNAME=cassandra CQL_PASSWORD=cassandra
           fi
-          moon run cmd/integration
-          python scripts/interop.py
+          python scripts/short_acceptance.py --auth '${{ matrix.auth }}' --compression '${{ matrix.compression }}'
+          if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'password/lz4' ]; then
+            python scripts/package_acceptance.py --run
+          fi
           python scripts/tls_matrix.py --backend-port 9042
           python scripts/session_recovery.py --docker-compose
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: short-acceptance-${{ matrix.auth }}-${{ matrix.compression }}
+          include-hidden-files: true
+          path: |
+            .artifacts/**/result.json
+            .artifacts/**/integration.json
+            .artifacts/**/interop.json
+            .artifacts/short-acceptance-*/**/*.log
+            .artifacts/package-acceptance-*/**/*.log
       - if: always()
         run: docker compose logs --tail=80
       - if: always()

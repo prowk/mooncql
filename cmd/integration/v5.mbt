@@ -69,6 +69,15 @@ async fn verify_v5(connection : @client.Connection) -> Unit {
     fail("missing batch row")
   }
   assert_eq(batch_row.get(0, "d"), @types.Value::Duration(-1, -2, -3L))
+  guard connection.query(
+      "SELECT d FROM v5_values WHERE id=?",
+      values=[Integer(3)],
+      options=@protocol.QueryOptions::new(keyspace~),
+    )
+    is Rows(unlogged_row) else {
+    fail("missing unlogged batch row")
+  }
+  assert_eq(unlogged_row.get(0, "d"), @types.Value::Duration(2, 3, 4L))
   ignore(
     connection.query(
       "CREATE TABLE IF NOT EXISTS mooncql_test.v5_counters (id int PRIMARY KEY, n counter)",

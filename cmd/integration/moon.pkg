@@ -6,6 +6,8 @@ import {
   "moonbitlang/async",
   "moonbitlang/core/env",
   "moonbitlang/core/string",
+  "moonbitlang/core/json",
+  "moonbitlang/async/fs",
 }
 
 pkgtype(kind: "executable")

@@ -3,6 +3,8 @@
 import datetime
 import decimal
 import os
+import json
+from pathlib import Path
 import subprocess
 import uuid
 
@@ -51,6 +53,7 @@ def main():
             fetch_size=137,
         ))
         count = 0
+        checksum = 0
         for row in rows:
             assert row.id == count, (row.id, count)
             assert row.large_value == 9007199254740993 + count
@@ -59,7 +62,9 @@ def main():
             assert row.tags == ['moon', '中文']
             assert row.attrs == {'index': count}
             count += 1
+            checksum += row.id
         assert count == expected, (count, expected)
+        assert checksum == expected * (expected - 1) // 2
         print(f'Python verified all {count} MoonBit rows', flush=True)
         session.execute('CREATE TYPE IF NOT EXISTS mooncql_test.address (street text, zip int)')
         session.execute('''CREATE TABLE IF NOT EXISTS mooncql_test.interop (
@@ -103,6 +108,12 @@ def main():
         row = session.execute('SELECT message FROM mooncql_test.interop WHERE id=1').one()
         assert row.message == 'MoonBit verified Python', row.message
         print('PASS independent Python and MoonBit interoperability', flush=True)
+        if os.environ.get('CQL_INTEROP_REPORT'):
+            report = {'passed': True, 'protocol': cluster.protocol_version,
+                      'moonbit_to_python_rows': count, 'checksum': checksum,
+                      'python_to_moonbit_to_python': True, 'large_payload_two_way_bytes': 400000,
+                      'reference_driver': 'cassandra-driver 3.30.0'}
+            Path(os.environ['CQL_INTEROP_REPORT']).write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     finally:
         cluster.shutdown()
 

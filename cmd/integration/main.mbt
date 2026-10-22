@@ -21,7 +21,8 @@ async fn main {
     max_in_flight=64,
     throw_on_overload=true,
   )
-  @client.with_connection(config~, connection => {
+  let mut report = ""
+  let connection = @client.with_connection(config~, connection => {
     guard connection.query("SELECT release_version FROM system.local")
       is Rows(version) else {
       fail("missing server version")
@@ -30,6 +31,23 @@ async fn main {
       fail("missing version text")
     }
     println("Connected to Cassandra: \{release}")
+    let mut authenticator = ""
+    let settings = connection.pages(
+      "SELECT name,value FROM system_views.settings",
+    )
+    while settings.next() is Some(page) {
+      for row in 0..<page.rows.length() {
+        if page.get(row, "name") ==
+          @types.Value::Text("authenticator.class_name") ||
+          page.get(row, "name") == @types.Value::Text("authenticator") {
+          guard page.get(row, "value") is Text(value) else {
+            fail("missing authenticator name")
+          }
+          authenticator = value
+        }
+      }
+    }
+    assert_true(authenticator != "")
     guard connection.query(
         "SELECT driver_name,protocol_version FROM system_views.clients",
       )
@@ -83,8 +101,13 @@ async fn main {
     )
     let mut seen = 0
     let mut page_count = 0
+    let mut simple_checksum = 0L
+    let page_sizes : Array[Int] = []
+    let terminal_states : Array[Bool] = []
     while pager.next() is Some(page) {
       page_count += 1
+      page_sizes.push(page.rows.length())
+      terminal_states.push(page.paging_state is None)
       for row = 0; row < page.rows.length(); row = row + 1 {
         let id = seen
         assert_eq(page.get(row, "id"), @types.Value::Integer(id))
@@ -106,9 +129,13 @@ async fn main {
           @types.Value::MapValue([(Text("index"), Integer(id))]),
         )
         seen += 1
+        simple_checksum += id.to_int64()
       }
     }
     assert_eq(seen, count)
+    assert_eq(simple_checksum, count.to_int64() * (count - 1).to_int64() / 2L)
+    assert_true(terminal_states.last() == Some(true))
+    assert_true(pager.next() is None)
     guard connection.query(
         "SELECT id FROM mooncql_test.events WHERE device=42 AND id=0",
         options=@protocol.QueryOptions::new(consistency=Serial),
@@ -129,11 +156,19 @@ async fn main {
     )
     let mut prepared_count = 0
     let mut checksum = 0L
-    prepared_pages.for_each_row((_, row) => {
-      guard row[0] is Integer(id) else { fail("expected integer") }
-      checksum += id.to_int64()
-      prepared_count += 1
-    })
+    let mut prepared_page_count = 0
+    while prepared_pages.next() is Some(page) {
+      prepared_page_count += 1
+      for row in page.rows {
+        guard row[0] is Integer(id) else { fail("expected integer") }
+        assert_eq(id, prepared_count)
+        checksum += id.to_int64()
+        prepared_count += 1
+      }
+      if page.paging_state is None {
+        assert_eq(prepared_count, count)
+      }
+    }
     assert_eq(prepared_count, count)
     assert_eq(checksum, count.to_int64() * (count - 1).to_int64() / 2L)
     ignore(
@@ -189,5 +224,18 @@ async fn main {
     println(
       "PASS rows=\{count} simple_pages=\{page_count} prepared_rows=\{prepared_count} checksum=\{checksum} write_ms=\{write_ms}",
     )
+    report = "{\"rows\":\{count},\"checksum\":\{checksum},\"simple_checksum\":\{simple_checksum},\"simple_pages\":\{page_count},\"prepared_pages\":\{prepared_page_count},\"page_size\":113,\"page_sizes\":\{page_sizes.to_json().stringify()},\"terminal_states\":\{terminal_states.to_json().stringify()},\"paging_ended\":true,\"server\":\{release.to_json().stringify()},\"authenticator\":\{authenticator.to_json().stringify()},\"compression\":\{config.compression},\"protocol\":5,\"large_payload_bytes\":400000,\"large_payload_two_way\":true,\"batch\":[\"logged\",\"unlogged\",\"counter\"],\"ttl\":true,\"metadata_updated\":true,\"field_checks\":true,\"write_ms\":\{write_ms}}"
+    connection
   })
+  assert_true(connection.is_closed())
+  assert_eq(connection.pending_count(), 0)
+  assert_eq(connection.abandoned_count(), 0)
+  assert_eq(connection.in_flight_count(), 0)
+  assert_eq(connection.in_flight_bytes(), 0L)
+  assert_eq(connection.waiting_count(), 0)
+  assert_eq(connection.waiting_bytes(), 0L)
+  if @env.get_env_var("CQL_INTEGRATION_REPORT") is Some(path) {
+    ignore(@json.parse(report))
+    @fs.write_file(path, report + "\n")
+  }
 }

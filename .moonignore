@@ -12,6 +12,7 @@ notes/
 plans/
 design/
 cmd/
+examples/
 scripts/
 fixtures/
 docs/benchmarks/
