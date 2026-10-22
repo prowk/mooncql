@@ -4,7 +4,7 @@
 
 运行 `python -m pip install -r scripts/requirements-reference.txt` 和 `python scripts/differential.py`。无需数据库，构建 MoonBit native 测试入口并用固定种子 2026101819 生成输入；可用 --seed 和 --count 复现或扩展。生成的二进制语料、输出和报告保存在忽略的 .artifacts/differential-*，不写入公共仓库。
 
-默认包含 805 个类型案例、34 个双向 LZ4 块和 1600 个类型 / 压缩变异案例。类型覆盖全部已支持标量及深度最多四层的 list、set、map、tuple、UDT，含 NULL 字段、4096 位整数、精确 decimal、IPv4 / IPv6、UUID 和纳秒时间。独立驱动为 cassandra-driver 3.30.0，压缩参考为 lz4 4.4.5。
+默认包含 865 个类型案例、34 个双向 LZ4 块和 1600 个类型 / 压缩变异案例，另有 3 个绑定长度边界与 7 个必须拒绝的非法输入。随机类型覆盖全部已支持标量及深度最多四层的 list、set、map、tuple、UDT；[具名边界语料](../scripts/differential_boundaries.py)增加更深的混合容器、NULL／空值、根绑定 UNSET、1001 位正负整数与 decimal、Int64 两端和 duration 符号极值。独立驱动为 cassandra-driver 3.30.0，压缩参考为 lz4 4.4.5。
 
 Python 先独立序列化；MoonBit 解码后输出结构化语义描述，并重新编码；Python 同时比较语义描述和重新解码的值，避免仅做同一实现的编解码回环。浮点通过 IEEE 位模式核对，整数不经过浮点；timestamp 的完整边界另外由 conversion_reference.py 和实际数据库互操作覆盖。LZ4 两方向分别由对方解压。131072 和 400000 字节消息按 v5 单块 131071 字节上限分块。
 

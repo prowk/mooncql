@@ -22,6 +22,8 @@
 
 [源码](../examples/device-events/main.mbt)创建 `events(device,id,message,large_value,recorded_at,tags)`，主键为 `(device,id)`。最多 16 个并发预处理写入，Int64 保留大整数与毫秒时间戳；预处理 SELECT 以页大小 17 惰性读取，核对所有字段、行序与校验和。
 
+输入按 `id=0..CQL_EXAMPLE_ROWS-1` 生成：文本为 `CQL_MESSAGE` 加 ID，大整数为 `9007199254740993 + id`，时间戳为 `1700000000000 + id` 毫秒，标签为 `['中文','moon']`；设备编号取 `CQL_DEVICE`。这组确定的数据便于发现字段损坏、乱序、重复和缺失。
+
 ```sh
 moon run examples/device-events
 ```

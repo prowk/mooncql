@@ -51,6 +51,6 @@ python scripts/short_acceptance.py --auth password --compression lz4
 
 确定性 TCP 回归覆盖 QUERY 和三种 BATCH 的排队取消、部分发送取消／断线、完整发送后取消与迟到响应、服务端错误后不重发、并发乱序成功／错误响应。Session 回归另外检查断线恢复后不会重发未知写入，低层入口的语义保持独立。匹配 ID 的 UNPREPARED 最多恢复一次，错误 ID 和批处理直接返回错误。
 
-差分以 Cassandra Python Driver 3.30.0 和 python-lz4 4.4.5 为独立参考，固定随机种子 2026101819，并增加具名边界：多层 map／list／tuple／UDT、标量 NULL／空值、根绑定 UNSET、1001 位正负 varint／decimal、Int64 两端及 duration 同号极值。非法集合长度、截断字段、结果中的 UNSET、异号 duration 和超深类型必须失败；缩减种子 2026102201 固定保留，不能仅靠随机输入“恰好通过”。
+差分以 Cassandra Python Driver 3.30.0 和 python-lz4 4.4.5 为独立参考，固定随机种子 2026101819，并增加具名边界：多层 map／list／tuple／UDT、标量 NULL／空值、根绑定 UNSET、1001 位正负 varint／decimal、Int64 两端及 duration 同号极值。非法集合长度、截断字段、结果中的 UNSET、异号 duration 和超深类型必须失败；深度边界样例 2026102201 固定保留，不能仅靠随机输入“恰好通过”。
 
 本页全部入口均为短时验证。至少 6 小时的混合负载和周期故障测试仍按用户要求暂缓。

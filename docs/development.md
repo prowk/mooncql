@@ -43,6 +43,8 @@ docker compose down
 
 CI 覆盖 Windows 与 Linux 本地回归、无认证与密码认证、普通帧与 LZ4 四种数据库组合，以及三节点发现和故障恢复。三节点运行方式见[拓扑](topology.md)和[Session](session.md)。
 
+需要机器可读的短时验收报告时，运行 `python scripts/short_acceptance.py --docker-matrix`；已有专用实例可选择单组。发布包独立消费检查为 `python scripts/package_acceptance.py`，增加 `--run` 可运行两个已发布版本的三个场景。CI 在失败时也归档原始结果和日志，详见[申报验收](acceptance.md)及[版本验收](versions.md)。
+
 ## 发布检查
 
 1. 模块元数据、STARTUP 上报版本与更新记录保持一致。
