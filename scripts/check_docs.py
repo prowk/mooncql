@@ -28,6 +28,10 @@ def main():
     source = (ROOT / 'cmd/tutorial/main.mbt').read_text(encoding='utf-8').strip()
     if source not in tutorial:
         failures.append('tutorial source differs from documented runnable example')
+    development = (ROOT / 'docs/development-api.md').read_text(encoding='utf-8')
+    features = (ROOT / 'cmd/features/main.mbt').read_text(encoding='utf-8').strip()
+    if features not in development:
+        failures.append('development feature example differs from documented runnable source')
     if failures:
         raise SystemExit('\n'.join(failures))
     print(f'PASS {len(documents)} documents, navigation and runnable tutorial')

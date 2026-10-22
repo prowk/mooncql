@@ -221,6 +221,7 @@ async fn main {
     verify_execution(connection)
     verify_connection_health(config)
     verify_signed_timestamp(connection)
+    verify_session_batches(config)
     println(
       "PASS rows=\{count} simple_pages=\{page_count} prepared_rows=\{prepared_count} checksum=\{checksum} write_ms=\{write_ms}",
     )

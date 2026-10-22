@@ -142,6 +142,8 @@ pub struct Session {
   changed : @async.CondVar
   nodes : Array[SessionNode]
   mut closed : Bool
+  mut draining : Bool
+  mut drain_outcome : DrainOutcome?
   mut generation : Int
   mut next_node : Int
   mut last_error : Error?
@@ -219,6 +221,8 @@ pub async fn[T] with_session(
       changed: @async.CondVar::Cond(),
       nodes,
       closed: false,
+      draining: false,
+      drain_outcome: None,
       generation: 0,
       next_node: 0,
       last_error: None,
@@ -248,6 +252,9 @@ pub async fn[T] with_session(
 ///|
 fn Session::stop(self : Session) -> Unit {
   if !self.closed {
+    if self.draining && self.drain_outcome is None {
+      self.drain_outcome = Some(Interrupted(self.active))
+    }
     self.closed = true
     if self.control is Some(control) {
       if control.connection is Some(connection) {
@@ -355,7 +362,7 @@ async fn[G] Session::maintain(
   }
   let random = @random.Rand::new()
   let mut backoff = self.config.backoff_initial_ms
-  while !self.closed {
+  while !self.closed && !self.draining {
     node.state = Connecting
     node.attempts += 1
     self.changed.broadcast()
@@ -396,7 +403,7 @@ async fn[G] Session::maintain(
         backoff = self.config.backoff_initial_ms
       }
     }
-    if self.closed {
+    if self.closed || self.draining {
       return
     }
     node.state = Backoff
@@ -540,7 +547,7 @@ pub async fn Session::request(
   if request.body.length() > self.config.connection.max_frame_bytes {
     raise Configuration("request exceeds frame limit")
   }
-  self.active += 1
+  self.begin_operation()
   defer {
     self.active -= 1
     self.changed.broadcast()

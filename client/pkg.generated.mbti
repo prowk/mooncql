@@ -24,6 +24,7 @@ pub async fn[T] with_session(config? : SessionConfig, async (Session) -> T) -> T
 // Errors
 pub(all) suberror DriverError {
   Closed
+  Draining
   Unexpected(String)
   Authentication(String)
   TlsFailure(String)
@@ -56,6 +57,19 @@ pub(all) struct AttemptFailure {
   execution_info : ExecutionInfo?
 }
 
+pub struct AuthProvider {
+  create : async (String, Endpoint) -> Authenticator
+}
+pub fn AuthProvider::new(async (String, Endpoint) -> Authenticator) -> Self
+pub fn AuthProvider::password(async (Endpoint) -> (String, String)) -> Self
+
+pub struct Authenticator {
+  initial_response : async () -> Bytes?
+  evaluate_challenge : async (Bytes?) -> Bytes?
+  on_success : async (Bytes?) -> Unit
+}
+pub fn Authenticator::new(async () -> Bytes?, evaluate_challenge? : async (Bytes?) -> Bytes?, on_success? : async (Bytes?) -> Unit) -> Self
+
 pub(all) enum CacheEvent {
   Hit
   Miss
@@ -82,6 +96,9 @@ pub(all) struct Config {
   port : Int
   username : String?
   password : String?
+  auth_provider : AuthProvider?
+  max_auth_rounds : Int
+  max_auth_token_bytes : Int
   timeout_ms : Int
   connect_timeout_ms : Int
   queue_timeout_ms : Int
@@ -103,7 +120,7 @@ pub(all) struct Config {
   heartbeat_timeout_ms : Int
   metrics : Metrics?
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, auth_provider? : AuthProvider, max_auth_rounds? : Int, max_auth_token_bytes? : Int, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
 
 pub struct Connection {
   socket : Transport
@@ -111,6 +128,9 @@ pub struct Connection {
   wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
+  mut draining : Bool
+  mut drain_outcome : DrainOutcome?
+  mut active_requests : Int
   closed_changed : @cond_var.Cond
   mut failure : Error?
   mut generation : Int
@@ -134,10 +154,12 @@ pub fn Connection::abandoned_count(Self) -> Int
 pub async fn Connection::batch(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline) -> Unit
 pub async fn Connection::batch_with_info(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline) -> Execution[Unit]
 pub fn Connection::close(Self) -> Unit
+pub async fn Connection::drain(Self, Deadline) -> DrainOutcome
 pub fn Connection::dropped_event_count(Self) -> Int64
 pub fn Connection::in_flight_bytes(Self) -> Int64
 pub fn Connection::in_flight_count(Self) -> Int
 pub fn Connection::is_closed(Self) -> Bool
+pub fn Connection::is_draining(Self) -> Bool
 pub async fn Connection::next_event(Self) -> @protocol.ServerEvent
 pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
 pub fn Connection::pending_count(Self) -> Int
@@ -181,6 +203,15 @@ pub(all) struct DiscoveryConfig {
   address_mapper : (@protocol.InetEndpoint) -> Endpoint?
 }
 pub fn DiscoveryConfig::new(refresh_interval_ms? : Int, debounce_ms? : Int, max_nodes? : Int, max_keyspaces? : Int, max_tokens_per_node? : Int, address_mapper? : (@protocol.InetEndpoint) -> Endpoint?) -> Self
+
+pub(all) enum DrainOutcome {
+  Drained
+  DeadlineReached(Int)
+  Interrupted(Int)
+} derive(Eq, @debug.Debug)
+pub fn DrainOutcome::equal(Self, Self) -> Bool
+pub fn DrainOutcome::not_equal(Self, Self) -> Bool
+pub fn DrainOutcome::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Endpoint {
   host : String
@@ -446,6 +477,8 @@ pub struct Session {
   changed : @cond_var.Cond
   nodes : Array[SessionNode]
   mut closed : Bool
+  mut draining : Bool
+  mut drain_outcome : DrainOutcome?
   mut generation : Int
   mut next_node : Int
   mut last_error : Error?
@@ -455,9 +488,13 @@ pub struct Session {
   control : ControlState?
 }
 pub fn Session::active_count(Self) -> Int
+pub async fn Session::batch(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Unit
+pub async fn Session::batch_with_info(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Execution[Unit]
 pub async fn Session::close(Self) -> Unit
 pub fn Session::control_status(Self) -> ControlStatus?
+pub async fn Session::drain(Self, Deadline) -> DrainOutcome
 pub fn Session::is_closed(Self) -> Bool
+pub fn Session::is_draining(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
 pub fn Session::nodes(Self) -> Array[NodeInfo]
 pub fn Session::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
@@ -471,6 +508,13 @@ pub fn Session::resources(Self) -> SessionResources
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::topology(Self) -> TopologySnapshot?
 pub fn Session::waiting_count(Self) -> Int
+
+type SessionBatchBinding
+
+pub struct SessionBatchStatement {
+  binding : SessionBatchBinding
+}
+pub fn SessionBatchStatement::query(String, values? : Array[@types.Value]) -> Self raise
 
 pub(all) struct SessionConfig {
   connection : Config
@@ -496,6 +540,7 @@ pub struct SessionPrepared {
   mut partition_key_indices : Array[Int]
   mut routing_keyspace : String?
 }
+pub fn SessionPrepared::bind_batch(Self, Array[@types.Value]) -> SessionBatchStatement raise
 pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
 pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn SessionPrepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> Execution[@protocol.ResultSet]
@@ -534,6 +579,7 @@ pub(all) enum TimeoutPhase {
   WaitingPrepare
   WaitingConnection
   WaitingRetry
+  WaitingDrain
 } derive(Eq, @debug.Debug)
 pub fn TimeoutPhase::equal(Self, Self) -> Bool
 pub fn TimeoutPhase::not_equal(Self, Self) -> Bool

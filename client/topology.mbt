@@ -346,7 +346,7 @@ async fn[G] Session::reconcile(
     }
     index -= 1
   }
-  if self.closed {
+  if self.closed || self.draining {
     return
   }
   for key, endpoint in desired {
@@ -372,7 +372,7 @@ async fn[G] Session::maintain_control(
   let mut next = 0
   let mut backoff = self.config.backoff_initial_ms
   let random = @random.Rand::new()
-  while !self.closed {
+  while !self.closed && !self.draining {
     let candidates = self.nodes.map(node => node.endpoint)
     if candidates.is_empty() {
       for endpoint in self.config.contact_points {
@@ -409,7 +409,7 @@ async fn[G] Session::maintain_control(
         metrics.data.control_reconnects += 1L
         metrics.emit(Reconnected(endpoint, control.generation, true))
       }
-      while !self.closed {
+      while !self.closed && !self.draining {
         let snapshot = read_topology(
           connection,
           endpoint,
@@ -452,7 +452,7 @@ async fn[G] Session::maintain_control(
         control.stale = true
       }
     }
-    if self.closed {
+    if self.closed || self.draining {
       return
     }
     if connected_at is Some(since) &&

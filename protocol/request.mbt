@@ -145,8 +145,14 @@ pub fn password_auth(
   token.raw(user)
   token.u8(0)
   token.raw(pass)
+  auth_response(Some(token.to_bytes()))
+}
+
+///|
+/// 编码认证会话的响应；NULL 和空令牌保持不同的协议长度。
+pub fn auth_response(token : Bytes?) -> Request {
   let w = @codec.Writer::new()
-  w.bytes(Some(token.to_bytes()))
+  w.bytes(token)
   { opcode: 15, body: w.to_bytes(), flags: 0, }
 }
 

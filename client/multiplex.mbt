@@ -12,6 +12,9 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
   if self.closed {
     return
   }
+  if self.draining && self.drain_outcome is None {
+    self.drain_outcome = Some(Interrupted(self.drain_remaining()))
+  }
   self.closed = true
   if self.reader_active && self.config.metrics is Some(metrics) {
     metrics.data.connections_closed += 1L
@@ -233,6 +236,7 @@ fn Connection::retire(
 ) -> Unit {
   self.pending.remove(stream)
   self.release_resources(pending)
+  self.closed_changed.broadcast()
   if pending.abandoned_at is Some(_) {
     self.abandoned -= 1
   }

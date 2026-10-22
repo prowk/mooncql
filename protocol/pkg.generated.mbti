@@ -9,6 +9,8 @@ import {
 }
 
 // Values
+pub fn auth_response(Bytes?) -> Request
+
 pub fn batch(Array[BatchStatement], kind? : BatchType, options? : QueryOptions) -> Request raise @codec.CodecError
 
 pub fn columns_snapshot(Array[Column]) -> Array[Column]

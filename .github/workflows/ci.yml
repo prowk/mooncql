@@ -75,6 +75,7 @@ jobs:
             export CQL_USERNAME=cassandra CQL_PASSWORD=cassandra
           fi
           python scripts/short_acceptance.py --auth '${{ matrix.auth }}' --compression '${{ matrix.compression }}'
+          moon run cmd/features
           if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'password/lz4' ]; then
             python scripts/package_acceptance.py --run
           fi

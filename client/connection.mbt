@@ -1,6 +1,7 @@
 ///|
 pub(all) suberror DriverError {
   Closed
+  Draining
   Unexpected(String)
   Authentication(String)
   TlsFailure(String)
@@ -22,6 +23,9 @@ pub(all) struct Config {
   port : Int
   username : String?
   password : String?
+  auth_provider : AuthProvider?
+  max_auth_rounds : Int
+  max_auth_token_bytes : Int
   timeout_ms : Int
   connect_timeout_ms : Int
   queue_timeout_ms : Int
@@ -50,6 +54,9 @@ pub fn Config::new(
   port? : Int = 9042,
   username? : String,
   password? : String,
+  auth_provider? : AuthProvider,
+  max_auth_rounds? : Int = 16,
+  max_auth_token_bytes? : Int = 65536,
   timeout_ms? : Int = 10000,
   connect_timeout_ms? : Int,
   queue_timeout_ms? : Int,
@@ -76,6 +83,9 @@ pub fn Config::new(
     port,
     username,
     password,
+    auth_provider,
+    max_auth_rounds,
+    max_auth_token_bytes,
     timeout_ms,
     connect_timeout_ms: connect_timeout_ms.unwrap_or(timeout_ms),
     queue_timeout_ms: queue_timeout_ms.unwrap_or(timeout_ms),
@@ -106,6 +116,9 @@ pub struct Connection {
   wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
+  mut draining : Bool
+  mut drain_outcome : DrainOutcome?
+  mut active_requests : Int
   closed_changed : @async.CondVar
   mut failure : Error?
   mut generation : Int
@@ -161,6 +174,14 @@ async fn Connection::request_internal(
   if self.closed {
     raise Closed
   }
+  if self.draining {
+    raise Draining
+  }
+  self.active_requests += 1
+  defer {
+    self.active_requests -= 1
+    self.closed_changed.broadcast()
+  }
   if request.body.length() > self.config.max_frame_bytes {
     raise Configuration("request exceeds frame limit")
   }
@@ -188,6 +209,10 @@ async fn Connection::handshake_request(
     raise Unexpected("response stream mismatch")
   }
   let envelope = @protocol.decode_payload(frame)
+  if (frame.header.opcode == 14 || frame.header.opcode == 16) &&
+    envelope.message.length() > self.config.max_auth_token_bytes + 4 {
+    raise Authentication("authentication token exceeds limit")
+  }
   Reply::{
     response: @protocol.decode_response(frame.header.opcode, envelope.message),
     warnings: envelope.warnings,
@@ -294,6 +319,9 @@ async fn open_connection(config : Config) -> Connection {
     ),
     mutex: @async.Mutex(),
     closed: false,
+    draining: false,
+    drain_outcome: None,
+    active_requests: 0,
     closed_changed: @async.CondVar::Cond(),
     failure: None,
     generation: 0,
@@ -340,23 +368,7 @@ async fn open_connection(config : Config) -> Connection {
     Ready => connection.wire.framed = true
     Authenticate(authenticator) => {
       connection.wire.framed = true
-      if authenticator != "org.apache.cassandra.auth.PasswordAuthenticator" {
-        raise Authentication("unsupported server authenticator")
-      }
-      guard config.username is Some(username) else {
-        raise Authentication("server requires credentials")
-      }
-      guard config.password is Some(password) else {
-        raise Authentication("server requires password")
-      }
-      match
-        connection.handshake_request(
-          @protocol.password_auth(username, password),
-        ).response {
-        AuthSuccess(_) => ()
-        Failure(error) => raise Server(error)
-        _ => raise Authentication("unexpected authentication response")
-      }
+      connection.authenticate(authenticator)
     }
     Failure(error) => raise Server(error)
     _ => raise Unexpected("unexpected STARTUP response")
@@ -391,6 +403,10 @@ fn Config::validate(self : Config) -> Unit raise DriverError {
     self.max_in_flight_bytes < 9 ||
     self.max_waiting < 0 ||
     self.max_waiting_bytes < 0 ||
+    self.max_auth_rounds < 1 ||
+    self.max_auth_rounds > 128 ||
+    self.max_auth_token_bytes < 0 ||
+    self.max_auth_token_bytes > 16777216 ||
     self.prepared_cache_capacity < 0 ||
     self.prepared_cache_capacity > 65536 ||
     self.max_abandoned < 0 ||
@@ -404,6 +420,9 @@ fn Config::validate(self : Config) -> Unit raise DriverError {
   }
   if (self.username is None) != (self.password is None) {
     raise Configuration("username and password must be supplied together")
+  }
+  if self.auth_provider is Some(_) && self.username is Some(_) {
+    raise Configuration("use either auth_provider or username/password")
   }
 }
 
@@ -435,4 +454,7 @@ pub async fn Connection::shutdown(self : Connection) -> Unit {
     }
   }
   self.health_task = None
+  while self.active_requests > 0 {
+    self.closed_changed.wait()
+  }
 }

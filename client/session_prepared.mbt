@@ -31,7 +31,7 @@ pub async fn Session::prepare_with_info(
   if request.body.length() > self.config.connection.max_frame_bytes {
     raise Configuration("request exceeds frame limit")
   }
-  self.active += 1
+  self.begin_operation()
   defer {
     self.active -= 1
     self.changed.broadcast()
@@ -168,7 +168,7 @@ pub async fn SessionPrepared::execute_with_info(
     .length()
     .to_int64() +
     9L
-  self.session.active += 1
+  self.session.begin_operation()
   defer {
     self.session.active -= 1
     self.session.changed.broadcast()
