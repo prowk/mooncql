@@ -57,6 +57,7 @@ struct ControlState {
   mut stale : Bool
   mut generation : Int
   mut refreshes : Int
+  mut schema_epoch : Int
   mut last_error : Error?
   mut ring : @routing.Ring?
   mut locations : Map[String, (String, Bytes)]
@@ -296,6 +297,7 @@ async fn wait_topology_signal(
     () => {
       ignore(connection.next_event())
       control.stale = true
+      control.schema_epoch += 1
       @async.sleep(config.debounce_ms)
       // 单一控制任务合并已到达事件，不为每条通知创建刷新任务。
       while connection.events.try_get() is Some(_) {

@@ -46,6 +46,10 @@ pub(all) suberror RetryExhausted {
   RetryExhausted(Array[AttemptFailure])
 }
 
+pub(all) suberror SchemaMetadataError {
+  SchemaMetadataError(String, Error)
+}
+
 // Types and methods
 type Admission
 
@@ -500,6 +504,83 @@ pub fn SchemaAgreementState::equal(Self, Self) -> Bool
 pub fn SchemaAgreementState::not_equal(Self, Self) -> Bool
 pub fn SchemaAgreementState::to_repr(Self) -> @debug.Repr
 
+type SchemaCache
+
+pub(all) struct SchemaColumn {
+  name : String
+  cql_type : String
+  kind : SchemaColumnKind
+  position : Int
+  clustering_order : String
+} derive(ToJson)
+pub fn SchemaColumn::to_json(Self) -> Json
+
+pub(all) enum SchemaColumnKind {
+  PartitionKey
+  Clustering
+  Static
+  Regular
+} derive(Eq, @debug.Debug)
+pub fn SchemaColumnKind::equal(Self, Self) -> Bool
+pub fn SchemaColumnKind::not_equal(Self, Self) -> Bool
+pub fn SchemaColumnKind::to_json(Self) -> Json
+pub fn SchemaColumnKind::to_repr(Self) -> @debug.Repr
+pub impl ToJson for SchemaColumnKind
+
+pub(all) struct SchemaKeyspace {
+  name : String
+  durable_writes : Bool
+  replication : Map[String, String]
+} derive(ToJson)
+pub fn SchemaKeyspace::to_json(Self) -> Json
+
+pub struct SchemaOptions {
+  names : Array[String]
+  max_keyspaces : Int
+  max_tables : Int
+  max_columns : Int
+  max_types : Int
+  max_fields : Int
+  max_bytes : Int
+  identity : Bytes
+}
+pub fn SchemaOptions::keyspaces(Self) -> Array[String]
+pub fn SchemaOptions::new(keyspaces? : Array[String], max_keyspaces? : Int, max_tables? : Int, max_columns? : Int, max_types? : Int, max_fields? : Int, max_bytes? : Int) -> Self raise DriverError
+
+pub struct SchemaSnapshot {
+  version : Bytes
+  origin : Endpoint
+  read_at : Int64
+  keyspace_data : Array[SchemaKeyspace]
+  table_data : Array[SchemaTable]
+  type_data : Array[SchemaUserType]
+}
+pub fn SchemaSnapshot::coordinator(Self) -> Endpoint
+pub fn SchemaSnapshot::keyspaces(Self) -> Array[SchemaKeyspace]
+pub fn SchemaSnapshot::loaded_at(Self) -> Int64
+pub fn SchemaSnapshot::schema_version(Self) -> Bytes
+pub fn SchemaSnapshot::table(Self, String, String) -> SchemaTable?
+pub fn SchemaSnapshot::tables(Self, keyspace? : String) -> Array[SchemaTable]
+pub fn SchemaSnapshot::user_type(Self, String, String) -> SchemaUserType?
+pub fn SchemaSnapshot::user_types(Self, keyspace? : String) -> Array[SchemaUserType]
+
+pub(all) struct SchemaTable {
+  keyspace : String
+  name : String
+  base_table : String?
+  columns : Array[SchemaColumn]
+  partition_key : Array[SchemaColumn]
+  clustering_key : Array[SchemaColumn]
+} derive(ToJson)
+pub fn SchemaTable::to_json(Self) -> Json
+
+pub(all) struct SchemaUserType {
+  keyspace : String
+  name : String
+  fields : Array[(String, String)]
+} derive(ToJson)
+pub fn SchemaUserType::to_json(Self) -> Json
+
 pub(all) struct SchemaVersionObservation {
   endpoint : Endpoint
   generation : Int
@@ -521,6 +602,7 @@ pub struct Session {
   mut waiting : Int
   mut waiting_bytes : Int64
   control : ControlState?
+  schema_cache : SchemaCache
 }
 pub fn Session::active_count(Self) -> Int
 pub async fn Session::batch(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Unit
@@ -529,6 +611,7 @@ pub async fn Session::check_schema_agreement(Self, deadline? : Deadline) -> Sche
 pub async fn Session::close(Self) -> Unit
 pub fn Session::control_status(Self) -> ControlStatus?
 pub async fn Session::drain(Self, Deadline) -> DrainOutcome
+pub fn Session::invalidate_schema(Self) -> Unit
 pub fn Session::is_closed(Self) -> Bool
 pub fn Session::is_draining(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
@@ -541,6 +624,7 @@ pub fn Session::query_plan(Self, hint? : RoutingHint) -> Array[Endpoint]
 pub async fn Session::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Execution[@protocol.ResultSet]
 pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Reply
 pub fn Session::resources(Self) -> SessionResources
+pub async fn Session::schema_metadata(Self, options? : SchemaOptions, deadline? : Deadline) -> SchemaSnapshot
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::topology(Self) -> TopologySnapshot?
 pub async fn Session::wait_schema_agreement(Self, deadline? : Deadline) -> SchemaAgreement
@@ -618,6 +702,7 @@ pub(all) enum TimeoutPhase {
   WaitingConnection
   WaitingRetry
   WaitingDrain
+  WaitingSchema
 } derive(Eq, @debug.Debug)
 pub fn TimeoutPhase::equal(Self, Self) -> Bool
 pub fn TimeoutPhase::not_equal(Self, Self) -> Bool

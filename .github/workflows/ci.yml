@@ -78,6 +78,7 @@ jobs:
           fi
           python scripts/short_acceptance.py --auth '${{ matrix.auth }}' --compression '${{ matrix.compression }}'
           moon run cmd/features
+          python scripts/schema_reference.py
           if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'password/lz4' ]; then
             python scripts/package_acceptance.py --run
           fi
@@ -94,6 +95,8 @@ jobs:
             .artifacts/**/interop.json
             .artifacts/short-acceptance-*/**/*.log
             .artifacts/package-acceptance-*/**/*.log
+            .artifacts/schema-reference-*/**/*.log
+            .artifacts/schema-reference-*/**/*.json
       - if: always()
         run: docker compose logs --tail=80
       - if: always()

@@ -154,6 +154,7 @@ pub struct Session {
   mut waiting : Int
   mut waiting_bytes : Int64
   control : ControlState?
+  schema_cache : SchemaCache
 }
 
 ///|
@@ -214,6 +215,7 @@ pub async fn[T] with_session(
       stale: true,
       generation: 0,
       refreshes: 0,
+      schema_epoch: 0,
       last_error: None,
       ring: None,
       locations: Map([]),
@@ -234,6 +236,7 @@ pub async fn[T] with_session(
       waiting: 0,
       waiting_bytes: 0L,
       control,
+      schema_cache: SchemaCache::new(),
     }
     defer session.stop()
     for node in nodes {
@@ -260,6 +263,7 @@ fn Session::stop(self : Session) -> Unit {
       self.drain_outcome = Some(Interrupted(self.active))
     }
     self.closed = true
+    self.schema_cache.entry = None
     if self.control is Some(control) {
       if control.connection is Some(connection) {
         connection.close()

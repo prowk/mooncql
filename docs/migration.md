@@ -31,3 +31,5 @@ moon add --upgrade prowk/mooncql@0.2.0
 认证拒绝现在返回脱敏的 `Authentication`，不再把服务端可能回显凭据的原始 ServerError 直接暴露；业务查询的 ServerError 不受此改变影响。默认作用域关闭仍立即取消，只有显式调用 drain 才等待；BATCH 无论低层还是新 Session 接口均不自动重放。
 
 `SessionConfig` 增加默认关闭的 schema agreement 配置；`ExecutionInfo` 增加可选的 `schema_agreement` 报告。常规构造器调用及读取既有字段的代码无需修改；手写完整记录字面量时补上新字段。开启等待后，DDL 成功与等待超时仍分别表示，详见 [schema agreement](schema-agreement.md)。
+
+新增按需 `Session.schema_metadata`、`SchemaOptions` 和隔离的 `SchemaSnapshot`，不会自动读取整份目录。穷尽匹配 `TimeoutPhase` 时须增加 `WaitingSchema`；读取错误为 `SchemaMetadataError(stage, cause)`，详见 [Schema 元数据](schema-metadata.md)。

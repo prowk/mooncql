@@ -9,6 +9,7 @@ pub(all) enum TimeoutPhase {
   WaitingConnection
   WaitingRetry
   WaitingDrain
+  WaitingSchema
 } derive(Eq, @debug.Debug)
 
 ///|
