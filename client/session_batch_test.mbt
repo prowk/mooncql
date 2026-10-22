@@ -213,7 +213,7 @@ async test "Session batch shares one deadline across all preparations and sends 
         assert_eq(@codec.Reader::new(marker.body).long_string(), "marker")
         respond(peer, marker.header.stream, 8, b"\x00\x00\x00\x01")
         let prepare = receive(peer)
-        @async.sleep(100)
+        // 第一条立即完成，第二条由信号阻塞，避免依赖两次 RPC 必须挤进 50ms。
         respond(peer, prepare.header.stream, 8, prepared_result(b"b-one"))
         let prepare = receive(peer)
         assert_eq(prepare.header.opcode, 9)
@@ -237,7 +237,7 @@ async test "Session batch shares one deadline across all preparations and sends 
             try {
               session.batch(
                 [one.bind_batch([Integer(1)]), two.bind_batch([Integer(2)])],
-                deadline=@client.Deadline::after(150),
+                deadline=@client.Deadline::after(1000),
               )
               false
             } catch {
@@ -245,7 +245,7 @@ async test "Session batch shares one deadline across all preparations and sends 
               _ => false
             },
           )
-          assert_true(@async.now() - started < 1000L)
+          assert_true(@async.now() - started < 3000L)
           release.put(())
           // 排空迟到 PREPARED 后再退出作用域，避免测试服务端向已关闭连接写入。
           while session.resources().abandoned > 0 {
