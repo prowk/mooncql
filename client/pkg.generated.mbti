@@ -234,6 +234,7 @@ pub(all) struct ExecutionInfo {
   custom_payload : Map[String, Bytes?]
   previous : Array[ExecutionInfo]
   cached : Bool
+  schema_agreement : SchemaAgreement?
 }
 
 pub(all) enum MetricEvent {
@@ -472,6 +473,40 @@ pub(all) struct RoutingHint {
 }
 pub fn RoutingHint::new(String, Bytes) -> Self
 
+pub(all) struct SchemaAgreement {
+  state : SchemaAgreementState
+  observations : Array[SchemaVersionObservation]
+  excluded : Array[Endpoint]
+  membership_changed : Bool
+  timed_out : Bool
+  checked_at : Int64
+  error : Error?
+}
+
+pub(all) struct SchemaAgreementConfig {
+  wait_after_ddl : Bool
+  timeout_ms : Int
+  poll_interval_ms : Int
+  max_nodes : Int
+}
+pub fn SchemaAgreementConfig::new(wait_after_ddl? : Bool, timeout_ms? : Int, poll_interval_ms? : Int, max_nodes? : Int) -> Self
+
+pub(all) enum SchemaAgreementState {
+  Unknown
+  Disagreed
+  Agreed
+} derive(Eq, @debug.Debug)
+pub fn SchemaAgreementState::equal(Self, Self) -> Bool
+pub fn SchemaAgreementState::not_equal(Self, Self) -> Bool
+pub fn SchemaAgreementState::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SchemaVersionObservation {
+  endpoint : Endpoint
+  generation : Int
+  version : Bytes?
+  error : Error?
+}
+
 pub struct Session {
   config : SessionConfig
   changed : @cond_var.Cond
@@ -490,6 +525,7 @@ pub struct Session {
 pub fn Session::active_count(Self) -> Int
 pub async fn Session::batch(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Unit
 pub async fn Session::batch_with_info(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Execution[Unit]
+pub async fn Session::check_schema_agreement(Self, deadline? : Deadline) -> SchemaAgreement
 pub async fn Session::close(Self) -> Unit
 pub fn Session::control_status(Self) -> ControlStatus?
 pub async fn Session::drain(Self, Deadline) -> DrainOutcome
@@ -507,6 +543,7 @@ pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, ide
 pub fn Session::resources(Self) -> SessionResources
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::topology(Self) -> TopologySnapshot?
+pub async fn Session::wait_schema_agreement(Self, deadline? : Deadline) -> SchemaAgreement
 pub fn Session::waiting_count(Self) -> Int
 
 type SessionBatchBinding
@@ -525,8 +562,9 @@ pub(all) struct SessionConfig {
   stable_reset_ms : Int
   routing : RoutingConfig?
   discovery : DiscoveryConfig?
+  schema_agreement : SchemaAgreementConfig
 }
-pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig) -> Self
+pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig) -> Self
 
 type SessionNode
 

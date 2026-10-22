@@ -19,22 +19,73 @@ async fn wait_ready(session : @client.Session, expected : Int) -> Unit {
 
 ///|
 async fn wait_schema(session : @client.Session) -> Unit {
-  @async.with_timeout(30000, () => {
-    while true {
-      let versions = []
-      for _ in 0..<3 {
-        guard session.query("SELECT schema_version FROM system.local")
-          is Rows(page) else {
-          fail("missing schema version")
-        }
-        versions.push(page.get(0, "schema_version"))
-      }
-      if versions[0] == versions[1] && versions[1] == versions[2] {
-        return
-      }
-      @async.sleep(100)
-    }
-  })
+  let agreement = session.wait_schema_agreement(
+    deadline=@client.Deadline::after(30000),
+  )
+  assert_eq(agreement.state, @client.SchemaAgreementState::Agreed)
+  assert_eq(agreement.observations.length(), 3)
+  assert_true(!agreement.timed_out)
+}
+
+///|
+async fn verify_schema_ddl(session : @client.Session) -> Unit {
+  ignore(
+    session.query("DROP TABLE IF EXISTS mooncql_cluster_probe.schema_udt_probe"),
+  )
+  ignore(
+    session.query("DROP TYPE IF EXISTS mooncql_cluster_probe.schema_address"),
+  )
+  ignore(
+    session.query(
+      "CREATE TYPE mooncql_cluster_probe.schema_address(street text)",
+    ),
+  )
+  let changed = session.query_with_info(
+    "ALTER TYPE mooncql_cluster_probe.schema_address ADD zip int",
+  )
+  assert_true(changed.value is SchemaChanged(_))
+  guard changed.info.schema_agreement is Some(report) else {
+    fail("missing schema agreement report")
+  }
+  assert_eq(report.state, @client.SchemaAgreementState::Agreed)
+  assert_eq(report.observations.length(), 3)
+  ignore(
+    session.query(
+      "CREATE TABLE mooncql_cluster_probe.schema_udt_probe(id int PRIMARY KEY,address frozen<schema_address>)",
+    ),
+  )
+  let insert = session.prepare(
+    "INSERT INTO mooncql_cluster_probe.schema_udt_probe(id,address) VALUES(?,?)",
+  )
+  ignore(
+    insert.execute(
+      [
+        Integer(1),
+        UdtValue([("street", Text("月亮路")), ("zip", Integer(12345))]),
+      ],
+      options=@protocol.QueryOptions::new(consistency=All),
+    ),
+  )
+  let select = session.prepare(
+    "SELECT address FROM mooncql_cluster_probe.schema_udt_probe WHERE id=?",
+  )
+  guard select.execute(
+      [Integer(1)],
+      options=@protocol.QueryOptions::new(consistency=All),
+    )
+    is Rows(page) else {
+    fail("missing schema UDT result")
+  }
+  assert_eq(
+    page.get(0, "address"),
+    @types.Value::UdtValue([
+      ("street", Text("月亮路")),
+      ("zip", Integer(12345)),
+    ]),
+  )
+  println(
+    "PASS three-node schema agreement after CREATE and ALTER UDT before prepare",
+  )
 }
 
 ///|
@@ -83,6 +134,10 @@ async fn main {
       operation_timeout_ms=180000,
     ),
     contact_points=endpoints,
+    schema_agreement=@client.SchemaAgreementConfig::new(
+      wait_after_ddl=true,
+      timeout_ms=30000,
+    ),
   )
   @client.with_session(config~, session => {
     wait_ready(session, 3)
@@ -106,6 +161,7 @@ async fn main {
       ),
     )
     wait_schema(session)
+    verify_schema_ddl(session)
     ignore(session.query("TRUNCATE mooncql_cluster_probe.items"))
     let insert = session.prepare(
       "INSERT INTO mooncql_cluster_probe.items (id,value) VALUES (?,?)",

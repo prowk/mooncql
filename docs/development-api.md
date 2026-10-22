@@ -4,6 +4,8 @@
 
 本页仅适用于当前源码分支，尚未包含在 Mooncakes 的 0.2.0 中。稳定版和历史版仍使用各自标签中的接口；不要将以下代码复制到只安装 0.2.0 的项目。
 
+多节点 DDL 可配置 [schema agreement](schema-agreement.md) 等待；结果与等待状态分开保留，已成功的 DDL 不会因为等待超时而重放。
+
 ## Session 批处理
 
 `SessionBatchStatement.query(cql, values?)` 构造普通项，`SessionPrepared.bind_batch(values)` 构造逻辑预处理项；两者在构造时深拷贝绑定值。`Session.batch` 和 `batch_with_info` 支持混合这两类项，默认 Logged，也支持 Unlogged 和 Counter。绑定结果属于创建它的 Session，不允许跨 Session 使用。
@@ -64,55 +66,65 @@ async fn main {
     auth_provider?=provider,
     compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
   )
-  @client.with_session(config=@client.SessionConfig::new(connection=config), session => {
-    ignore(
-      session.query(
-        "CREATE KEYSPACE IF NOT EXISTS mooncql_examples WITH replication={'class':'SimpleStrategy','replication_factor':1}",
-      ),
-    )
-    ignore(
-      session.query(
-        "CREATE TABLE IF NOT EXISTS mooncql_examples.features(device int,id int,message text,PRIMARY KEY(device,id))",
-      ),
-    )
-    let insert = session.prepare(
-      "INSERT INTO features(device,id,message) VALUES(?,?,?)",
-      keyspace="mooncql_examples",
-    )
-    let batch = [
-      insert.bind_batch([Integer(42), Integer(1), Text("逻辑预处理")]),
-      @client.SessionBatchStatement::query(
+  @client.with_session(
+    config=@client.SessionConfig::new(
+      connection=config,
+      schema_agreement=@client.SchemaAgreementConfig::new(wait_after_ddl=true),
+    ),
+    session => {
+      ignore(
+        session.query(
+          "CREATE KEYSPACE IF NOT EXISTS mooncql_examples WITH replication={'class':'SimpleStrategy','replication_factor':1}",
+        ),
+      )
+      ignore(
+        session.query(
+          "CREATE TABLE IF NOT EXISTS mooncql_examples.features(device int,id int,message text,PRIMARY KEY(device,id))",
+        ),
+      )
+      let insert = session.prepare(
         "INSERT INTO features(device,id,message) VALUES(?,?,?)",
-        values=[Integer(42), Integer(2), Text("普通语句")],
-      ),
-    ]
-    let execution = session.batch_with_info(
-      batch,
-      kind=Unlogged,
-      options=@protocol.QueryOptions::new(keyspace="mooncql_examples"),
-    )
-    let pages = session.pages(
-      "SELECT id,message FROM mooncql_examples.features WHERE device=?",
-      values=[Integer(42)],
-      options=@protocol.QueryOptions::new(page_size=1),
-    )
-    let mut count = 0
-    while pages.next() is Some(page) {
-      for row in 0..<page.rows.length() {
-        assert_eq(page.get(row, "id"), @types.Value::Integer(count + 1))
-        count += 1
+        keyspace="mooncql_examples",
+      )
+      let batch = [
+        insert.bind_batch([Integer(42), Integer(1), Text("逻辑预处理")]),
+        @client.SessionBatchStatement::query(
+          "INSERT INTO features(device,id,message) VALUES(?,?,?)",
+          values=[Integer(42), Integer(2), Text("普通语句")],
+        ),
+      ]
+      let execution = session.batch_with_info(
+        batch,
+        kind=Unlogged,
+        options=@protocol.QueryOptions::new(keyspace="mooncql_examples"),
+      )
+      let pages = session.pages(
+        "SELECT id,message FROM mooncql_examples.features WHERE device=?",
+        values=[Integer(42)],
+        options=@protocol.QueryOptions::new(page_size=1),
+      )
+      let mut count = 0
+      while pages.next() is Some(page) {
+        for row in 0..<page.rows.length() {
+          assert_eq(page.get(row, "id"), @types.Value::Integer(count + 1))
+          count += 1
+        }
       }
-    }
-    assert_eq(count, 2)
-    assert_eq(
-      session.drain(@client.Deadline::after(2000)),
-      @client.DrainOutcome::Drained,
-    )
-    assert_eq(session.resources().background_task_handles, 0)
-    println(
-      "PASS development features rows=\{count} batch_attempts=\{execution.info.attempt_count} resources=0",
-    )
-  })
+      assert_eq(count, 2)
+      assert_eq(
+        session.check_schema_agreement().state,
+        @client.SchemaAgreementState::Agreed,
+      )
+      assert_eq(
+        session.drain(@client.Deadline::after(2000)),
+        @client.DrainOutcome::Drained,
+      )
+      assert_eq(session.resources().background_task_handles, 0)
+      println(
+        "PASS development features rows=\{count} batch_attempts=\{execution.info.attempt_count} resources=0",
+      )
+    },
+  )
 }
 ```
 

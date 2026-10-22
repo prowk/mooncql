@@ -6,12 +6,15 @@ async fn verify_session_batches(config : @client.Config) -> Unit {
     _ => None
   }
   @client.with_session(
-    config=@client.SessionConfig::new(connection={
-      ..config,
-      username: None,
-      password: None,
-      auth_provider: provider,
-    }),
+    config=@client.SessionConfig::new(
+      connection={
+        ..config,
+        username: None,
+        password: None,
+        auth_provider: provider,
+      },
+      schema_agreement=@client.SchemaAgreementConfig::new(wait_after_ddl=true),
+    ),
     session => {
       ignore(
         session.query(
@@ -79,6 +82,9 @@ async fn verify_session_batches(config : @client.Config) -> Unit {
         fail("missing session counter row")
       }
       assert_eq(page.get(0, "n"), @types.Value::BigInteger(5L))
+      let agreement = session.check_schema_agreement()
+      assert_eq(agreement.state, @client.SchemaAgreementState::Agreed)
+      assert_eq(agreement.observations.length(), 1)
       assert_eq(
         session.drain(@client.Deadline::after(2000)),
         @client.DrainOutcome::Drained,
@@ -89,6 +95,6 @@ async fn verify_session_batches(config : @client.Config) -> Unit {
     },
   )
   println(
-    "PASS Session mixed batches logged unlogged counter dynamic PasswordAuthenticator and graceful drain",
+    "PASS Session mixed batches logged unlogged counter dynamic PasswordAuthenticator schema agreement and graceful drain",
   )
 }

@@ -7,6 +7,7 @@ pub(all) struct ExecutionInfo {
   custom_payload : Map[String, Bytes?]
   previous : Array[ExecutionInfo]
   cached : Bool
+  schema_agreement : SchemaAgreement?
 }
 
 ///|
@@ -31,6 +32,9 @@ fn copy_execution_info(info : ExecutionInfo) -> ExecutionInfo {
     warnings: info.warnings.copy(),
     custom_payload: payload,
     previous: info.previous.map(copy_execution_info),
+    schema_agreement: info.schema_agreement.map(agreement => {
+      agreement.snapshot()
+    }),
   }
 }
 
@@ -64,6 +68,7 @@ pub fn Reply::execution_info(self : Reply) -> ExecutionInfo {
     custom_payload: self.custom_payload,
     previous: self.previous,
     cached: false,
+    schema_agreement: None,
   }
 }
 
@@ -186,13 +191,19 @@ pub async fn Session::query_with_info(
   routing? : RoutingHint,
 ) -> Execution[@protocol.ResultSet] {
   let deadline = self.operation_deadline(deadline)
-  result_with_info(
-    self.request(
-      @protocol.query(cql, values~, options~),
-      deadline~,
-      idempotent~,
-      retry~,
-      routing?,
+  let request = @protocol.query(cql, values~, options~)
+  if request.body.length() > self.config.connection.max_frame_bytes {
+    raise Configuration("request exceeds frame limit")
+  }
+  self.begin_operation()
+  defer {
+    self.active -= 1
+    self.changed.broadcast()
+  }
+  self.finish_schema(
+    result_with_info(
+      self.request_accepted(request, deadline, idempotent, retry, routing),
     ),
+    deadline,
   )
 }

@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 显式 schema agreement 检查和可选的 DDL 后等待，超时保留已经成功的 DDL 结果。
+- 固定版本和校验和的 CI 工具缓存引导，避免依赖 Release 分页搜索与预热缓存。
 - Session 逻辑批处理及预处理绑定，在选定协调节点后准备，失败不重放整批操作。
 - 可插拔认证会话、动态 PasswordAuthenticator 凭据、有界多轮挑战及错误脱敏。
 - Session／Connection 的显式优雅排空，并发和重复关闭共享结果，期限到达后回收资源。

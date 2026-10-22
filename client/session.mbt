@@ -85,6 +85,7 @@ pub(all) struct SessionConfig {
   stable_reset_ms : Int
   routing : RoutingConfig?
   discovery : DiscoveryConfig?
+  schema_agreement : SchemaAgreementConfig
 }
 
 ///|
@@ -97,6 +98,7 @@ pub fn SessionConfig::new(
   stable_reset_ms? : Int = 1000,
   discovery? : DiscoveryConfig,
   routing? : RoutingConfig,
+  schema_agreement? : SchemaAgreementConfig = SchemaAgreementConfig::new(),
 ) -> SessionConfig {
   {
     connection,
@@ -107,6 +109,7 @@ pub fn SessionConfig::new(
     stable_reset_ms,
     discovery,
     routing,
+    schema_agreement,
   }
 }
 
@@ -160,6 +163,7 @@ pub async fn[T] with_session(
 ) -> T {
   let config = { ..config, contact_points: config.contact_points.copy(), }
   config.connection.validate()
+  config.schema_agreement.validate()
   if config.routing is Some(routing) &&
     (
       config.discovery is None ||
@@ -552,6 +556,18 @@ pub async fn Session::request(
     self.active -= 1
     self.changed.broadcast()
   }
+  self.request_accepted(request, deadline, idempotent, retry, routing)
+}
+
+///|
+async fn Session::request_accepted(
+  self : Session,
+  request : @protocol.Request,
+  deadline : Deadline,
+  idempotent : Bool,
+  retry : RetryPolicy,
+  routing : RoutingHint?,
+) -> Reply {
   let enabled = idempotent && (request.opcode == 7 || request.opcode == 10)
   self.execute_retry(
     deadline,
@@ -589,17 +605,16 @@ pub async fn Session::query(
   retry? : RetryPolicy = RetryPolicy::new(),
   routing? : RoutingHint,
 ) -> @protocol.ResultSet {
-  let deadline = self.operation_deadline(deadline)
-  match
-    self.request(
-      @protocol.query(cql, values~, options~),
-      deadline~,
-      idempotent~,
-      retry~,
-      routing?,
-    ).response {
-    Result(result) => result
-    Failure(error) => raise Server(error)
-    _ => raise Unexpected("expected RESULT response")
+  self.query_with_info(
+    cql,
+    values~,
+    options~,
+    deadline?,
+    idempotent~,
+    retry~,
+    routing?,
+  ).value catch {
+    ExecutionError(error, _) => raise error
+    error => raise error
   }
 }

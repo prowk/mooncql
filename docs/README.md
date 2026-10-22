@@ -36,6 +36,7 @@
 ## 开发与验证
 
 - [开发分支接口](development-api.md)：尚未发布的 Session 批处理、动态认证与优雅排空，以及对应的可运行示例。
+- [Schema agreement](schema-agreement.md)：开发分支的显式检查、DDL 后等待和超时报告。
 
 - [开发指南](development.md)：构建、回归、CI 和发布检查。
 - [申报功能与验收证据](acceptance.md)：功能对应清单、四组合短时验收、故障和类型边界。

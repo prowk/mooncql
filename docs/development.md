@@ -6,6 +6,8 @@
 
 当前验收工具链为 moonc 0.10.14+7d59c7ec9、moon 0.1.20260920、moonbitlang/async 0.22.3，默认目标 native。所有文本文件使用 UTF-8，新代码注释使用中文。
 
+CI 安装前通过 `scripts/precache_nushell.py` 按固定 Nu 0.112.2 发布资产和 SHA256SUMS 校验填充工具缓存，避免上游安装器只搜索第一页 Release 导致冷缓存失败；MoonBit 编译器与 core 版本仍固定为上述版本。
+
 ```sh
 moon update
 moon check --target native --deny-warn
