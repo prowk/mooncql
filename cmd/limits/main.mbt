@@ -9,6 +9,9 @@ async fn main {
     endpoints.push(@client.Endpoint::new(host~, port=@string.parse_int(port)))
   }
   let metrics = @client.Metrics::new()
+  let pool_size = @string.parse_int(
+    @env.get_env_var("CQL_POOL_SIZE").unwrap_or("1"),
+  )
   @client.with_session(
     config=@client.SessionConfig::new(
       connection=@client.Config::new(
@@ -21,6 +24,7 @@ async fn main {
         metrics~,
       ),
       contact_points=endpoints,
+      connections_per_node=pool_size,
       limits=@client.SessionLimits::new(
         max_in_flight=2,
         max_in_flight_bytes=4096,
@@ -30,11 +34,7 @@ async fn main {
     ),
     session => {
       @async.with_timeout(30000, () => {
-        while session
-              .nodes()
-              .filter(node => node.status.state == Ready)
-              .length() <
-              endpoints.length() {
+        while !session.pools().all(pool => pool.ready == pool_size) {
           @async.sleep(10)
         }
       })
@@ -72,7 +72,7 @@ async fn main {
       assert_eq(budget.waiting_bytes, 0L)
       assert_eq(session.resources().background_task_handles, 0)
       println(
-        "PASS Session total budget requests=12 peak_rpc=\{observed.peak_in_flight} capacity=2 nodes=\{endpoints.length()} resources=0",
+        "PASS Session total budget requests=12 peak_rpc=\{observed.peak_in_flight} capacity=2 nodes=\{endpoints.length()} pool_size=\{pool_size} resources=0",
       )
     },
   )

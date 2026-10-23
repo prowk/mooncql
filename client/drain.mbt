@@ -60,9 +60,12 @@ pub async fn Session::drain(
     }
   }
   for node in self.nodes {
-    if node.current is Some(connection) {
-      connection.pause_health()
-    } else if node.worker is Some(worker) {
+    for slot in node.slots {
+      if slot.current is Some(connection) {
+        connection.pause_health()
+      }
+    }
+    if node.representative() is None && node.worker is Some(worker) {
       worker.cancel()
     }
   }

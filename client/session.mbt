@@ -29,13 +29,16 @@ fn endpoint_config(
 fn session_node(
   base : Config,
   endpoint : Endpoint,
+  connections_per_node : Int,
 ) -> SessionNode raise DriverError {
   {
     endpoint,
     config: endpoint_config(base, endpoint),
-    current: None,
+    slots: Array::makei(connections_per_node, index => PoolSlot::new(index)),
+    next_slot: 0,
+    connect_gate: @async.Mutex(),
+    connecting: 0,
     worker: None,
-    state: Connecting,
     generation: 0,
     attempts: 0,
     last_error: None,
@@ -88,6 +91,7 @@ pub(all) struct SessionConfig {
   schema_agreement : SchemaAgreementConfig
   execution_profile : ExecutionProfile?
   limits : SessionLimits
+  connections_per_node : Int
 }
 
 ///|
@@ -103,6 +107,7 @@ pub fn SessionConfig::new(
   schema_agreement? : SchemaAgreementConfig = SchemaAgreementConfig::new(),
   execution_profile? : ExecutionProfile,
   limits? : SessionLimits = SessionLimits::new(),
+  connections_per_node? : Int = 1,
 ) -> SessionConfig {
   {
     connection,
@@ -116,6 +121,7 @@ pub fn SessionConfig::new(
     schema_agreement,
     execution_profile,
     limits,
+    connections_per_node,
   }
 }
 
@@ -137,9 +143,11 @@ pub(all) struct NodeInfo {
 struct SessionNode {
   endpoint : Endpoint
   config : Config
-  mut current : Connection?
+  slots : Array[PoolSlot]
+  mut next_slot : Int
+  connect_gate : @async.Mutex
+  mut connecting : Int
   mut worker : @async.Task[Unit]?
-  mut state : NodeState
   mut generation : Int
   mut attempts : Int
   mut last_error : Error?
@@ -173,6 +181,9 @@ pub async fn[T] with_session(
   config.connection.validate()
   config.schema_agreement.validate()
   config.limits.validate()
+  if config.connections_per_node < 1 || config.connections_per_node > 8 {
+    raise Configuration("connections_per_node must be 1-8")
+  }
   if config.routing is Some(routing) &&
     (
       config.discovery is None ||
@@ -201,7 +212,7 @@ pub async fn[T] with_session(
       raise Configuration("duplicate contact point")
     }
     seen[key] = true
-    session_node(config.connection, endpoint)
+    session_node(config.connection, endpoint, config.connections_per_node)
   })
   let control = config.discovery.map(discovery => {
     if discovery.refresh_interval_ms < 1 ||
@@ -289,9 +300,7 @@ fn Session::stop(self : Session) -> Unit {
       }
     }
     for node in self.nodes {
-      if node.current is Some(connection) {
-        connection.close()
-      }
+      node.close_connections()
       if node.worker is Some(task) {
         task.cancel()
       }
@@ -336,9 +345,9 @@ pub fn Session::status(self : Session) -> NodeStatus {
   for node in self.nodes {
     attempts += node.attempts
     if !self.closed {
-      if node.current is Some(connection) && !connection.is_closed() {
+      if node.representative() is Some(_) {
         state = Ready
-      } else if state != Ready && node.state == Connecting {
+      } else if state != Ready && node.state() == Connecting {
         state = Connecting
       }
     }
@@ -351,7 +360,7 @@ pub fn Session::nodes(self : Session) -> Array[NodeInfo] {
   self.nodes.map(node => {
     endpoint: node.endpoint,
     status: {
-      state: node.state,
+      state: node.state(),
       generation: node.generation,
       attempts: node.attempts,
     },
@@ -375,54 +384,61 @@ pub fn Session::active_count(self : Session) -> Int {
 }
 
 ///|
-async fn[G] Session::maintain(
+async fn[G] Session::maintain_slot(
   self : Session,
   node : SessionNode,
+  slot : PoolSlot,
   group : @async.TaskGroup[G],
 ) -> Unit {
   defer {
-    node.state = Stopped
+    slot.state = Stopped
     self.changed.broadcast()
   }
   let random = @random.Rand::new()
   let mut backoff = self.config.backoff_initial_ms
   while !self.closed && !self.draining {
-    node.state = Connecting
-    node.attempts += 1
+    slot.state = Connecting
     self.changed.broadcast()
-    let connection = Some(
-      connect_observed(group, node.config, None, Some(self.admission)),
-    ) catch {
+    let connection = Some(self.connect_pool_node(node, group, Some(slot))) catch {
       error => {
         node.last_error = Some(error)
+        slot.last_error = Some(error)
         self.last_error = Some(error)
         None
       }
     }
     if connection is Some(connection) {
+      if self.closed || self.draining {
+        connection.shutdown()
+        return
+      }
       let since = @async.now()
       {
-        node.current = Some(connection)
+        slot.current = Some(connection)
+        let replacement = slot.generation > 0
         node.generation += 1
-        if node.generation > 1 &&
-          self.config.connection.metrics is Some(metrics) {
+        slot.generation = node.generation
+        connection.pool_slot = slot.index
+        if replacement && self.config.connection.metrics is Some(metrics) {
           metrics.data.reconnects += 1L
           metrics.emit(Reconnected(node.endpoint, node.generation, false))
         }
         self.generation += 1
-        connection.generation = node.generation
-        node.state = Ready
+        connection.generation = slot.generation
+        slot.state = Ready
         node.last_error = None
+        slot.last_error = None
         self.last_error = None
         self.changed.broadcast()
-        // 一个节点的收尾仅处理自己的连接，其他节点继续服务。
+        // 单个槽只回收自己的连接，同节点及其他节点的连接继续服务。
         defer @async.protect_from_cancel(() => {
           connection.shutdown()
-          node.current = None
+          slot.current = None
           self.changed.broadcast()
         })
         connection.wait_closed()
         node.last_error = connection.failure
+        slot.last_error = connection.failure
         self.last_error = connection.failure
       }
       if @async.now() - since >= self.config.stable_reset_ms.to_int64() {
@@ -432,7 +448,7 @@ async fn[G] Session::maintain(
     if self.closed || self.draining {
       return
     }
-    node.state = Backoff
+    slot.state = Backoff
     self.changed.broadcast()
     let candidate = backoff.to_double() *
       (1.0 - self.config.jitter + 2.0 * self.config.jitter * random.double())
@@ -464,8 +480,7 @@ fn Session::choose(
     return None
   }
   for index in indices {
-    if self.nodes[index].current is Some(connection) &&
-      connection.admission.fits(bytes) {
+    if self.nodes[index].choose(bytes) is Some(connection) {
       self.next_node = (index + 1) % self.nodes.length()
       return Some(connection)
     }
@@ -498,7 +513,7 @@ async fn Session::select(
       self.config.limits.overload_policy == Reject ||
       self.config.connection.overload_policy == Reject
     ) &&
-    self.nodes[candidates[0]].current is Some(connection) &&
+    self.nodes[candidates[0]].representative() is Some(connection) &&
     connection.admission.block_reason(bytes) is Some(reason) {
     raise Overloaded(reason)
   }

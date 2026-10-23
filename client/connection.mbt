@@ -122,6 +122,7 @@ pub struct Connection {
   closed_changed : @async.CondVar
   mut failure : Error?
   mut generation : Int
+  mut pool_slot : Int
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
@@ -326,6 +327,7 @@ async fn open_connection(config : Config, parent? : Admission) -> Connection {
     closed_changed: @async.CondVar::Cond(),
     failure: None,
     generation: 0,
+    pool_slot: 0,
     reader_active: false,
     reader_task: None,
     reaper_task: None,

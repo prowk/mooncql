@@ -37,3 +37,5 @@ moon add --upgrade prowk/mooncql@0.2.0
 `SessionConfig` 增加可选的 `execution_profile`，省略时保留既有查询默认值。新增的 [ExecutionProfile](execution-profiles.md) 在准备和 Pager 创建时保存选定配置，每次调用仍需显式声明幂等；单次 `options` 替换整份查询选项。手工构造完整 SessionConfig 记录时须补上字段，穷尽匹配 TimeoutPhase 时须增加 `WaitingPage`。游标格式保持兼容；超时和重试预算不写入游标。
 
 开发分支的 Session 新增 `limits` 字段及固定总预算，默认 128 个 RPC／64 MiB 在途和 64 个等待者／64 MiB 等待字节；多个节点及控制连接合计受限，原单连接限制也继续生效。穷尽匹配 OverloadReason 时须增加五个 `Session*` 原因；满载时可能在 Session 选择阶段等待，相关观测归入 Session 等待，参见[总额度](session-limits.md)。低层独立 Connection 不自动加入其他 Session 的预算。
+
+`SessionConfig` 增加 `connections_per_node`，默认 1，可配置 1–8；手写完整记录字面量时须补齐。多连接下 `NodeStatus.generation` 是该节点累计接受的连接代次，初次建池也会增长；按槽诊断使用 `Session.pools()`，参见[连接池](pooling.md)。已有构造器调用及默认单连接的行为保持兼容。

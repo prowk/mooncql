@@ -40,6 +40,7 @@
 - [Schema 元数据](schema-metadata.md)：开发分支的按需目录、不可变快照、缓存失效和独立对照。
 - [请求执行配置](execution-profiles.md)：开发分支的不可变配置、单次覆盖、分页策略和遍历预算。
 - [节点负载与 Session 总额度](session-limits.md)：开发分支的可用额度选择、跨连接预算与后台 RPC 计费。
+- [每节点连接池](pooling.md)：开发分支的可选多连接、准备与故障隔离、串行恢复和池快照。
 
 - [开发指南](development.md)：构建、回归、CI 和发布检查。
 - [申报功能与验收证据](acceptance.md)：功能对应清单、四组合短时验收、故障和类型边界。
@@ -47,6 +48,7 @@
 - [v5 协议依据](protocol-v5-regression.md)：固定源码、字节样例和互操作边界。
 - [差分测试](differential-tests.md)：独立类型、压缩和状态机校验。
 - [性能基准](performance.md)：可复现的测量方法。
+- [每节点连接数评估](pooling-evaluation.md)：固定总并发的短时交错测量、原始样本和资源代价。
 - [混合负载与故障示例](long-run.md)：短时运行及按需执行的长期验证。
 
 兼容声明限于实际验证的 Cassandra 5.0.5。长期负载测试尚未执行，不由单元测试或短时集成结果替代。

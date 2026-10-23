@@ -337,9 +337,7 @@ async fn[G] Session::reconcile(
       is Some(endpoint) &&
       endpoint.server_name == node.endpoint.server_name
     if !keep {
-      if node.current is Some(connection) {
-        connection.close()
-      }
+      node.close_connections()
       if node.worker is Some(worker) {
         worker.cancel()
         @async.protect_from_cancel(() => ignore(worker.wait()) catch { _ => () })
@@ -355,7 +353,11 @@ async fn[G] Session::reconcile(
     if !self.nodes.any(node => {
         "\{node.endpoint.host}:\{node.endpoint.port}" == key
       }) {
-      let node = session_node(self.config.connection, endpoint)
+      let node = session_node(
+        self.config.connection,
+        endpoint,
+        self.config.connections_per_node,
+      )
       self.nodes.push(node)
       node.worker = Some(
         group.spawn(() => self.maintain(node, group), no_wait=true),
@@ -393,12 +395,16 @@ async fn[G] Session::maintain_control(
     next += 1
     let mut connected_at = None
     try {
-      let connection = connect_observed(
-        group,
-        endpoint_config(self.config.connection, endpoint),
-        None,
-        Some(self.admission),
-      )
+      let connection = match self.pool_for(endpoint) {
+        Some(node) => self.connect_pool_node(node, group, None)
+        None =>
+          connect_observed(
+            group,
+            endpoint_config(self.config.connection, endpoint),
+            None,
+            Some(self.admission),
+          )
+      }
       connected_at = Some(@async.now())
       control.connection = Some(connection)
       defer @async.protect_from_cancel(() => {

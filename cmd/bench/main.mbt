@@ -53,13 +53,14 @@ fn print_result(
   samples : Array[Int64],
   pages : Array[Int64],
   version : String,
+  connections : Int,
 ) -> Unit {
   samples.sort()
   pages.sort()
   let ops = count.to_double() * 1000000000.0 / elapsed.to_double()
   let cpu_percent = cpu.to_double() * 100.0 / elapsed.to_double()
   println(
-    "{\"mode\":\"\{mode}\",\"entropy\":\"\{entropy}\",\"size\":\{size},\"compressed\":\{compressed},\"count\":\{count},\"concurrency\":\{concurrency},\"page_size\":\{page_size},\"elapsed_ns\":\{elapsed},\"cpu_ns\":\{cpu},\"cpu_percent\":\{cpu_percent},\"peak_memory_bytes\":\{peak_bytes()},\"operations_per_second\":\{ops},\"p50_ns\":\{percentile(samples, 50)},\"p95_ns\":\{percentile(samples, 95)},\"p99_ns\":\{percentile(samples, 99)},\"page_count\":\{pages.length()},\"page_p50_ns\":\{percentile(pages, 50)},\"page_p95_ns\":\{percentile(pages, 95)},\"page_p99_ns\":\{percentile(pages, 99)},\"server_version\":\"\{version}\"}",
+    "{\"mode\":\"\{mode}\",\"entropy\":\"\{entropy}\",\"size\":\{size},\"compressed\":\{compressed},\"count\":\{count},\"concurrency\":\{concurrency},\"connections\":\{connections},\"page_size\":\{page_size},\"elapsed_ns\":\{elapsed},\"cpu_ns\":\{cpu},\"cpu_percent\":\{cpu_percent},\"peak_memory_bytes\":\{peak_bytes()},\"operations_per_second\":\{ops},\"p50_ns\":\{percentile(samples, 50)},\"p95_ns\":\{percentile(samples, 95)},\"p99_ns\":\{percentile(samples, 99)},\"page_count\":\{pages.length()},\"page_p50_ns\":\{percentile(pages, 50)},\"page_p95_ns\":\{percentile(pages, 95)},\"page_p99_ns\":\{percentile(pages, 99)},\"server_version\":\"\{version}\"}",
   )
 }
 
@@ -100,6 +101,7 @@ async fn benchmark() -> Unit {
   let count = integer_env("BENCH_COUNT", "1000")
   let concurrency = integer_env("BENCH_CONCURRENCY", "32")
   let page_size = integer_env("BENCH_PAGE_SIZE", "4")
+  let connection_count = integer_env("BENCH_CONNECTIONS", "1")
   let compressed = mode == "lz4" ||
     @env.get_env_var("CQL_COMPRESSION") == Some("lz4")
   if (size != 64 && size != 400000) ||
@@ -107,6 +109,8 @@ async fn benchmark() -> Unit {
     count > 1000000 ||
     concurrency < 1 ||
     concurrency > 128 ||
+    connection_count < 1 ||
+    connection_count > 8 ||
     page_size < 1 ||
     page_size > 16 ||
     (entropy != "repeat" && entropy != "random") {
@@ -157,6 +161,7 @@ async fn benchmark() -> Unit {
       samples,
       [],
       "",
+      0,
     )
     return
   }
@@ -173,7 +178,8 @@ async fn benchmark() -> Unit {
     max_waiting=128,
     timeout_ms=60000,
   )
-  @client.with_connection(config~, connection => {
+  with_bench_connections(config, connection_count, [], connections => {
+    let connection = connections[0]
     guard connection.query("SELECT release_version FROM system.local")
       is Rows(version) else {
       fail("missing server version")
@@ -190,22 +196,41 @@ async fn benchmark() -> Unit {
       ),
     )
     let partition = "\{size}_\{entropy}"
-    let insert = connection.prepare(
-      "INSERT INTO mooncql_bench.probe (partition,id,data) VALUES (?,?,?)",
-    )
+    // 每条连接单独准备和保存句柄，基准不跨物理连接复用预处理状态。
+    let inserts = []
+    let selects = []
+    let scans = []
+    for current in connections {
+      inserts.push(
+        current.prepare(
+          "INSERT INTO mooncql_bench.probe (partition,id,data) VALUES (?,?,?)",
+        ),
+      )
+      selects.push(
+        current.prepare(
+          "SELECT id,data FROM mooncql_bench.probe WHERE partition=? AND id=0",
+        ),
+      )
+      scans.push(
+        current.prepare(
+          "SELECT id,data FROM mooncql_bench.probe WHERE partition=?",
+        ),
+      )
+    }
+    let insert = inserts[0]
     for id in 0..<9 {
       ignore(insert.execute([Text(partition), Integer(id), Bytes(data)]))
     }
-    let select = connection.prepare(
-      "SELECT id,data FROM mooncql_bench.probe WHERE partition=? AND id=0",
-    )
-    let scan = connection.prepare(
-      "SELECT id,data FROM mooncql_bench.probe WHERE partition=?",
-    )
+    let mut next_connection = 0
     let samples = []
     let pages = []
     async fn operation(record : Bool) -> Unit {
       let started = now_ns()
+      let index = next_connection
+      next_connection = (index + 1) % connections.length()
+      let insert = inserts[index]
+      let select = selects[index]
+      let scan = scans[index]
       match mode {
         "write" =>
           assert_true(
@@ -262,9 +287,11 @@ async fn benchmark() -> Unit {
     let elapsed = now_ns() - start
     let measured_cpu = cpu_ns() - cpu
     assert_eq(samples.length(), count)
-    assert_eq(connection.pending_count(), 0)
-    assert_eq(connection.waiting_count(), 0)
-    guard select.execute([Text(partition)]) is Rows(final_page) else {
+    for current in connections {
+      assert_eq(current.pending_count(), 0)
+      assert_eq(current.waiting_count(), 0)
+    }
+    guard selects[0].execute([Text(partition)]) is Rows(final_page) else {
       fail("missing final row")
     }
     assert_eq(final_page.row(0).bytes("data"), data)
@@ -285,8 +312,28 @@ async fn benchmark() -> Unit {
       samples,
       pages,
       version,
+      connections.length(),
     )
   })
+}
+
+///|
+// 嵌套既有作用域保证部分建连失败也关闭已打开连接，并保持旧基线 API 兼容。
+async fn with_bench_connections(
+  config : @client.Config,
+  remaining : Int,
+  connections : Array[@client.Connection],
+  body : async (Array[@client.Connection]) -> Unit,
+) -> Unit {
+  if remaining == 0 {
+    body(connections)
+  } else {
+    @client.with_connection(config~, connection => {
+      connections.push(connection)
+      defer ignore(connections.pop())
+      with_bench_connections(config, remaining - 1, connections, body)
+    })
+  }
 }
 
 ///|

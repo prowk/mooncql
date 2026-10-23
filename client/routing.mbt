@@ -55,9 +55,7 @@ fn Session::plan_indices(
   for offset in 0..<self.nodes.length() {
     let index = (self.next_node + offset) % self.nodes.length()
     let node = self.nodes[index]
-    guard node.current is Some(connection) && !connection.is_closed() else {
-      continue
-    }
+    guard node.representative() is Some(_) else { continue }
     let key = "\{node.endpoint.host}:\{node.endpoint.port}"
     let location = match self.control {
       Some(control) => control.locations.get(key)

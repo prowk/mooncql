@@ -91,7 +91,7 @@ async fn Session::inspect_schema(
   let participants : Array[(SessionNode, Connection)] = []
   let excluded = []
   for node in self.nodes {
-    if node.current is Some(connection) && !connection.closed {
+    if node.representative() is Some(connection) {
       participants.push((node, connection))
     } else {
       excluded.push(node.endpoint)
@@ -120,8 +120,7 @@ async fn Session::inspect_schema(
           version.length() == 16 else {
           raise Unexpected("invalid local schema version")
         }
-        if connection.closed ||
-          !(node.current is Some(current) && physical_equal(current, connection)) {
+        if connection.closed || !node.owns(connection) {
           raise Unexpected("schema observer connection was replaced")
         }
         Ok(version)
@@ -149,13 +148,15 @@ async fn Session::inspect_schema(
   let observations = @async.all(reads, max_concurrent=8)
   let current = []
   for node in self.nodes {
-    if node.current is Some(connection) && !connection.closed {
-      current.push(connection)
+    if node.representative() is Some(_) {
+      current.push(node)
     }
   }
   let membership_changed = current.length() != participants.length() ||
     !participants.all(pair => {
-      current.any(connection => physical_equal(connection, pair.1))
+      current.any(node => physical_equal(node, pair.0)) &&
+      pair.0.owns(pair.1) &&
+      !pair.1.closed
     })
   let state : SchemaAgreementState = if membership_changed ||
     observations.is_empty() ||

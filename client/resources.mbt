@@ -25,8 +25,13 @@ pub fn Session::resources(self : Session) -> SessionResources {
     if node.worker is Some(_) {
       handles += 1
     }
-    if node.current is Some(connection) {
-      connections.push(connection)
+    for slot in node.slots {
+      if slot.worker is Some(_) {
+        handles += 1
+      }
+      if slot.current is Some(connection) {
+        connections.push(connection)
+      }
     }
   }
   if self.control is Some(control) {

@@ -4,6 +4,8 @@
 
 `scripts/benchmark.py` 在隔离目录构建指定 Git 基线和当前工作区，以同一入口、工具链和专用数据库比较。数据校验失败立即停止，不将失败计作成功样本。
 
+该入口固定单连接。开发分支另有[每节点连接数评估](pooling-evaluation.md)，使用相同数据通道与固定总并发比较 1／2／4 条连接，记录吞吐、尾延迟和客户端资源成本。
+
 ```sh
 docker compose -f compose.benchmark.yaml up -d --wait --wait-timeout 360
 python scripts/benchmark.py --baseline-ref 50fa621 --trials 3 --server-description "记录系统、JRE、堆大小和网络环境"

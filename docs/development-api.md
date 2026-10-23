@@ -69,6 +69,9 @@ async fn main {
   @client.with_session(
     config=@client.SessionConfig::new(
       connection=config,
+      connections_per_node=@string.parse_int(
+        @env.get_env_var("CQL_POOL_SIZE").unwrap_or("1"),
+      ),
       schema_agreement=@client.SchemaAgreementConfig::new(wait_after_ddl=true),
     ),
     session => {

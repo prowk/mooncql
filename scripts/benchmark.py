@@ -26,16 +26,16 @@ def command(arguments, folder=ROOT):
                           encoding='utf-8', timeout=240).stdout.strip()
 
 
-def build(folder):
-    command(['moon', 'build', '--target', 'native', '--release', 'cmd/bench'], folder)
-    binary = folder / '_build/native/release/build/cmd/bench/bench'
+def build(folder, package='cmd/bench'):
+    command(['moon', 'build', '--target', 'native', '--release', package], folder)
+    binary = folder / '_build/native/release/build' / package / Path(package).name
     if os.name == 'nt': binary = binary.with_suffix('.exe')
     assert binary.is_file() and binary.resolve().is_relative_to(folder.resolve())
     return str(binary)
 
 
-def generated_c_digest(folder):
-    data = (folder / '_build/native/release/build/cmd/bench/bench.c').read_text(encoding='utf-8')
+def generated_c_digest(folder, package='cmd/bench'):
+    data = (folder / '_build/native/release/build' / package / (Path(package).name + '.c')).read_text(encoding='utf-8')
     data = re.sub(r'(?m)^\s*#line[^\n]*\n', '', data)
     data = data.replace(str(folder.resolve()).replace('\\', '\\\\'), '<workspace>')
     return hashlib.sha256(data.encode('utf-8')).hexdigest()
@@ -140,7 +140,7 @@ def main():
                 environment = dict(os.environ, BENCH_MODE=case['mode'], BENCH_SIZE=str(case['size']),
                                    BENCH_ENTROPY=case['entropy'], BENCH_COUNT=str(case['count']),
                                    BENCH_CONCURRENCY=str(case['concurrency']), BENCH_PAGE_SIZE=str(max(1, case['page_size'])),
-                                   CQL_COMPRESSION='lz4' if case['compressed'] else 'none')
+                                   CQL_COMPRESSION='lz4' if case['compressed'] else 'none', BENCH_CONNECTIONS='1')
                 process = subprocess.run([source['binary']], cwd=ROOT, env=environment,
                                          capture_output=True, encoding='utf-8', timeout=240,
                                          creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)

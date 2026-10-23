@@ -78,11 +78,15 @@ jobs:
           fi
           python scripts/short_acceptance.py --auth '${{ matrix.auth }}' --compression '${{ matrix.compression }}'
           moon run cmd/features
+          CQL_POOL_SIZE=3 moon run cmd/features
           moon run cmd/profiles
           moon run cmd/limits
+          CQL_POOL_SIZE=3 moon run cmd/limits
           python scripts/schema_reference.py
           if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'password/lz4' ]; then
             python scripts/package_acceptance.py --run
+            python scripts/pooling_evaluation.py --smoke
+            python scripts/pooling_evaluation.py --session --smoke
           fi
           python scripts/tls_matrix.py --backend-port 9042
           python scripts/session_recovery.py --docker-compose
@@ -99,6 +103,8 @@ jobs:
             .artifacts/package-acceptance-*/**/*.log
             .artifacts/schema-reference-*/**/*.log
             .artifacts/schema-reference-*/**/*.json
+            .artifacts/pooling-evaluation-*/**/*.log
+            .artifacts/pooling-evaluation-*/records.jsonl
       - if: always()
         run: docker compose logs --tail=80
       - if: always()
@@ -128,6 +134,7 @@ jobs:
       - run: moon run cmd/limits
         env:
           CQL_CONTACT_PORTS: '19052,19053,19054'
+          CQL_POOL_SIZE: '2'
       - run: python scripts/cluster_failover.py --docker-compose
       - if: always()
         run: docker compose -f compose.cluster.yaml logs --tail=80
