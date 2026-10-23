@@ -9,6 +9,7 @@ pub(all) struct SessionLimits {
 }
 
 ///|
+/// 默认 128 个 RPC／64 MiB 在途和 64 个等待者／64 MiB 等待；with_session 统一校验配置。
 pub fn SessionLimits::new(
   max_in_flight? : Int = 128,
   max_in_flight_bytes? : Int = 67108864,
@@ -60,6 +61,7 @@ pub(all) struct SessionBudget {
 }
 
 ///|
+/// 返回业务、目录与心跳共享的总额度快照，取消后额度可能保留到迟到响应排空。
 pub fn Session::budget(self : Session) -> SessionBudget {
   {
     in_flight: self.admission.in_flight,

@@ -8,6 +8,10 @@ ROOT = Path(__file__).resolve().parent.parent
 def main():
     documents = [ROOT / 'README.md', *sorted((ROOT / 'docs').glob('*.md'))]
     failures = []
+    readme = (ROOT / 'README.md').read_text(encoding='utf-8')
+    quickstart = (ROOT / 'cmd/readme/main.mbt').read_text(encoding='utf-8').removeprefix('///|\n').strip()
+    if quickstart not in readme:
+        failures.append('README quickstart differs from compiled source')
     for path in documents:
         source = path.read_text(encoding='utf-8')
         for destination in re.findall(r'\]\(([^)]+)\)', source):

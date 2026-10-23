@@ -10,25 +10,31 @@ CI 安装前通过 `scripts/precache_nushell.py` 按固定 Nu 0.112.2 发布资�
 
 ```sh
 moon update
+python -m pip install -r scripts/requirements-reference.txt
 moon check --target native --deny-warn
 moon test --target native --deny-warn
 moon info
 moon fmt --check
 python scripts/protocol_reference.py
 python scripts/conversion_reference.py --check
+python scripts/check_docs.py
+python scripts/check_api.py
 python -m unittest discover -s scripts/tests
 ```
 
 独立类型、LZ4、路由和 TLS 验收：
 
 ```sh
-python -m pip install -r scripts/requirements-reference.txt
 python scripts/differential.py
 python scripts/routing_reference.py
 python scripts/tls_matrix.py
 ```
 
 TLS 矩阵包含根 CA 直接签发、中间证书链、缺失中间证书、错误信任根、名称与有效期、双向 TLS、大消息和取消。Windows 仅为双向测试临时安装本次生成的客户端证书，并在结束时删除。
+
+文档检查覆盖本地链接、统一导航，以及 README、入门、开发接口与结构映射片段和可编译源码的一致性。README 原片段位于 `cmd/readme`，无认证实库 CI 会直接运行；独立稳定版消费项目也会编译同一片段。历史 0.1 项目继续使用自身支持的示例，不混入 Session。
+
+`check_api.py` 将七个公开包与固定 v0.2.0 标签对照，并核对 [api-compatibility.json](../fixtures/api-compatibility.json)。检查包括调用签名、公开记录字段、枚举／错误分支与导出实现，不把不透明类型私有字段的变化当作构造接口变化。当前审计为 114 项新增声明、23 项既有声明变化、无删除；变化已在[迁移说明](migration.md)记录。后续修改接口时先审阅 `moon info` 差异及迁移说明，再用 `python scripts/check_api.py --update` 更新合同；未审阅的新差异会使 CI 失败。该检查不能替代默认值、取消、重试或协议行为的回归。
 
 ## 真实数据库集成
 
@@ -45,7 +51,11 @@ docker compose down
 
 CI 覆盖 Windows 与 Linux 本地回归、无认证与密码认证、普通帧与 LZ4 四种数据库组合，以及三节点发现和故障恢复。三节点运行方式见[拓扑](topology.md)和[Session](session.md)。
 
+开发分支另覆盖[双 DC](multidc.md)、[原生 TLS 与最小权限](native-tls-acceptance.md)及[Prometheus 格式](diagnostics.md)。它们与 TLS 代理、独立模拟和实际 Cassandra 的证据分别归档。
+
 需要机器可读的短时验收报告时，运行 `python scripts/short_acceptance.py --docker-matrix`；已有专用实例可选择单组。发布包独立消费检查为 `python scripts/package_acceptance.py`，增加 `--run` 可运行两个已发布版本的三个场景。CI 在失败时也归档原始结果和日志，详见[申报验收](acceptance.md)及[版本验收](versions.md)。
+
+普通功能修改主要检查本地源码及相关集成；发布前、修改消费示例或依赖配置时执行完整发布包验收。CI 根据差异决定是否安装历史／稳定包，手动运行 checks 或推送标签时强制执行。
 
 ## 发布检查
 

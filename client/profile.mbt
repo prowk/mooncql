@@ -8,6 +8,7 @@ pub struct ExecutionProfile {
 }
 
 ///|
+/// 默认 LOCAL_ONE；显式页大小与预算须为正。重试策略不替代每次调用的幂等声明。
 pub fn ExecutionProfile::new(
   consistency? : @protocol.Consistency = LocalOne,
   page_size? : Int,
@@ -50,16 +51,19 @@ pub fn ExecutionProfile::options(
 }
 
 ///|
+/// 返回单次查询／取页预算；None 表示继承连接的操作预算。
 pub fn ExecutionProfile::timeout_ms(self : ExecutionProfile) -> Int? {
   self.timeout
 }
 
 ///|
+/// 返回整个遍历的预算；None 表示不附加遍历期限，单页仍有操作预算。
 pub fn ExecutionProfile::traversal_timeout_ms(self : ExecutionProfile) -> Int? {
   self.traversal_timeout
 }
 
 ///|
+/// 返回策略值副本，不使非幂等操作自动重放。
 pub fn ExecutionProfile::retry_policy(self : ExecutionProfile) -> RetryPolicy {
   self.policy
 }

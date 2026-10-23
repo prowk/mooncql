@@ -26,6 +26,8 @@ python scripts/package_acceptance.py
 
 检查内容包括 GitHub Release 已公开且非预发布、当前 stable 与 GitHub latest 一致、源码标签指向固定提交、模块名称和版本、Apache-2.0 许可证、公开 `.mbti`、全部已安装 `.mbt`／C 运行时源码与标签逐字节一致（仅统一 CRLF/LF）。CI 在 Windows 和 Linux 分别完成这些检查。
 
+稳定版消费项目还编译 README 原始 Session 片段，报告 `readme_compiled=true`；0.1.0 不复制这段新接口。它的默认无认证运行由源码实库 CI 单独检查，三个可配置场景仍在两个发布包中分别实际运行。
+
 连接专用 Cassandra 后执行完整运行验收：
 
 ```sh

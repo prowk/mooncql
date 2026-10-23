@@ -68,14 +68,19 @@ def accept_version(folder, contract, execute):
         f'name = "acceptance/consumer"\nversion = "0.0.0"\npreferred_target = "native"\n'
         f'import {{ "prowk/mooncql@{version}", "moonbitlang/async@0.22.3", }}\n', encoding='utf-8')
     (project / 'moon.pkg').write_text('', encoding='utf-8')
-    for scenario in SCENARIOS:
+    sources = [(scenario, ROOT / 'examples' / scenario) for scenario in SCENARIOS]
+    if contract['profile'] == 'stable':
+        # README 使用稳定版 Session；不把该接口片段混进 0.1 的历史消费项目。
+        sources.append(('readme', ROOT / 'cmd/readme'))
+    for scenario, source_directory in sources:
         target = project / scenario
         target.mkdir()
         for name in ['main.mbt', 'moon.pkg']:
-            source = (ROOT / 'examples' / scenario / name).read_text(encoding='utf-8')
+            source = (source_directory / name).read_text(encoding='utf-8')
             assert '../' not in source and 'internal/' not in source
             (target / name).write_text(source, encoding='utf-8')
-    report = {'version': version, 'profile': contract['profile'], 'passed': False, 'examples_executed': False}
+    report = {'version': version, 'profile': contract['profile'], 'passed': False, 'examples_executed': False,
+              'readme_compiled': False}
     try:
         # 没有本地 path 依赖，没有符号链接，运行目录是独立模块。
         run(['moon', 'update'], folder, 'update', cwd=project)
@@ -83,6 +88,7 @@ def accept_version(folder, contract, execute):
         report['package'] = check_package(project, contract, folder)
         report['github_release'] = github_release(version)
         run(['moon', 'build', '--target', 'native', '--deny-warn'], folder, 'build', cwd=project)
+        report['readme_compiled'] = contract['profile'] == 'stable'
         if execute:
             environment = dict(os.environ, CQL_EXAMPLE_ROWS='64', CQL_EXAMPLE_ERROR='1')
             environment.pop('CQL_INSPECT_EXISTING', None)

@@ -42,6 +42,7 @@ jobs:
       - run: moon fmt --check
       - run: moon info
       - run: git diff --exit-code
+      - run: python scripts/check_api.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -86,6 +87,9 @@ jobs:
             export CQL_USERNAME=cassandra CQL_PASSWORD=cassandra
           fi
           python scripts/short_acceptance.py --auth '${{ matrix.auth }}' --compression '${{ matrix.compression }}'
+          if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'none/none' ]; then
+            moon run cmd/readme
+          fi
           moon run cmd/features
           CQL_POOL_SIZE=3 moon run cmd/features
           CQL_MAPPING_INTEGRATION=1 moon run cmd/value-mapping

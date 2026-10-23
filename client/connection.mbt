@@ -49,6 +49,7 @@ pub(all) struct Config {
 }
 
 ///|
+/// 构造连接配置，默认操作预算十秒、心跳三十秒；连接前统一校验参数与认证冲突。
 pub fn Config::new(
   host? : String = "127.0.0.1",
   port? : Int = 9042,

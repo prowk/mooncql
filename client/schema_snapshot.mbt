@@ -1,5 +1,5 @@
 ///|
-/// 目录读取要求完整成功；kind 区分权限／协议等来源与目录自身的不完整状态。
+/// 目录读取要求完整成功；stage 标记读取阶段，cause 保留权限／协议等原始错误。
 pub(all) suberror SchemaMetadataError {
   SchemaMetadataError(String, Error)
 }
@@ -18,6 +18,7 @@ pub struct SchemaOptions {
 }
 
 ///|
+/// 冻结 keyspace 过滤和数量／字节预算；默认目录文本上限十六 MiB，非法参数立即报错。
 pub fn SchemaOptions::new(
   keyspaces? : Array[String] = [],
   max_keyspaces? : Int = 128,
@@ -80,6 +81,7 @@ pub fn SchemaOptions::new(
 }
 
 ///|
+/// 返回排序后的过滤名称副本，空数组表示不限制 keyspace。
 pub fn SchemaOptions::keyspaces(self : SchemaOptions) -> Array[String] {
   self.names.copy()
 }

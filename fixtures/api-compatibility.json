@@ -1,0 +1,749 @@
+{
+  "baseline_version": "0.2.0",
+  "baseline_commit": "0acc98a5bd184c9e31d57bbdc1be652922d0cea4",
+  "packages": [
+    "client",
+    "codec",
+    "framing",
+    "mapping",
+    "protocol",
+    "routing",
+    "types"
+  ],
+  "added": [
+    {
+      "package": "client",
+      "symbol": "fn AuthProvider::new",
+      "signature_sha256": "f5d364aa16b9d6b0f61936fa83ad9a46f6a9bd9bdff6b0609f995b0154179420"
+    },
+    {
+      "package": "client",
+      "symbol": "fn AuthProvider::password",
+      "signature_sha256": "c45fc45a94cafb14aa31ceaaea12574cf52ff2483764534ed9b6b0db6c76d704"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Authenticator::new",
+      "signature_sha256": "49eec544bd332c535724ad84153a3d8e2c90611fc72502ad913370eed7117e66"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Connection::drain",
+      "signature_sha256": "0ee5b88bc2626b1128cbb3cc4ac4959445c188237333948cb1e7f40e2e7a227e"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Connection::is_draining",
+      "signature_sha256": "c71f8a080cf7a3bef80183ada7551058bdfddf0adc16fd7d4bdb74ca49a829d6"
+    },
+    {
+      "package": "client",
+      "symbol": "fn DrainOutcome::equal",
+      "signature_sha256": "fbb4f9fe33200deb3b2101f195229cc932a0d4d69b9fa5f8628a21af528e472b"
+    },
+    {
+      "package": "client",
+      "symbol": "fn DrainOutcome::not_equal",
+      "signature_sha256": "4ac33bdbca896fcb8fbbfcd1dd498f321e3c6cb3f0ad8b085867572996424dcd"
+    },
+    {
+      "package": "client",
+      "symbol": "fn DrainOutcome::to_repr",
+      "signature_sha256": "ba461c1345f580a2ee6b4c52760e84c7a2530919b82f7aedd621a2707b7f96be"
+    },
+    {
+      "package": "client",
+      "symbol": "fn ExecutionProfile::new",
+      "signature_sha256": "c830062a7beb8c83ae473f17071a1c8f18e5bd2132a30b676cc5168b1dd6a93c"
+    },
+    {
+      "package": "client",
+      "symbol": "fn ExecutionProfile::options",
+      "signature_sha256": "eb82d59c2c9f45911f294695022d3d93f1e4227c6ca8ab1c5a107c6349edf928"
+    },
+    {
+      "package": "client",
+      "symbol": "fn ExecutionProfile::retry_policy",
+      "signature_sha256": "3a09c7d99f1b649f89aeeaf2d17339e7e43303b6572f57971ba8872ac39f5bbf"
+    },
+    {
+      "package": "client",
+      "symbol": "fn ExecutionProfile::timeout_ms",
+      "signature_sha256": "9cd42f0210cfb9102c0b2fbb32228a4a3a7ceb098a6786fa1e25b5e2c8bbfd6c"
+    },
+    {
+      "package": "client",
+      "symbol": "fn ExecutionProfile::traversal_timeout_ms",
+      "signature_sha256": "e1db5e9cb40c780869e40eac9d6f40a94ecfd3c11ace6e4cbd5a0cb67055cb96"
+    },
+    {
+      "package": "client",
+      "symbol": "fn OperationEvent::to_repr",
+      "signature_sha256": "0957f258d4ec6fb570bdce4c4bd0cf633d9784cb911fa8f5d20de850b453c847"
+    },
+    {
+      "package": "client",
+      "symbol": "fn OperationKind::equal",
+      "signature_sha256": "f938a8c792c40158acc1003ba204f9a548126df3beaca19b739d689f01cf61b7"
+    },
+    {
+      "package": "client",
+      "symbol": "fn OperationKind::not_equal",
+      "signature_sha256": "1233f52264e7a00213c0d0d574dd5ff5beaf6d535443e6c5f597725dc3653509"
+    },
+    {
+      "package": "client",
+      "symbol": "fn OperationKind::to_repr",
+      "signature_sha256": "f3bf5fbc8911d47b8c21d98b25d5cbbde05b96cc2062a0c8274f6d8d792e7b37"
+    },
+    {
+      "package": "client",
+      "symbol": "fn RpcScope::equal",
+      "signature_sha256": "58f7950b4cd5f8cace02317a7974b2e6e8814c4e809fdb5f1ac31ba047eece29"
+    },
+    {
+      "package": "client",
+      "symbol": "fn RpcScope::not_equal",
+      "signature_sha256": "a2036178ed3547a3a18b912a1f37cd23712fd4b469ea18c3aa0e8484c330f4a0"
+    },
+    {
+      "package": "client",
+      "symbol": "fn RpcScope::to_repr",
+      "signature_sha256": "757ec338bdf9c9754af8cad68c4d223f7a711ea0bbd6b285ae3dc1cdb09c47b8"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaAgreementConfig::new",
+      "signature_sha256": "d4ca055fa0db485d14404a54b120b6e276d0c0c9fa431546b4441380978802e7"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaAgreementState::equal",
+      "signature_sha256": "3e0b838568536734a819938cdc1603ffa458407a63a9f6061f1ab74cc52e268c"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaAgreementState::not_equal",
+      "signature_sha256": "7902246f3a39d73421892267725f26e232954a506a26b1396cd2dd663586d317"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaAgreementState::to_repr",
+      "signature_sha256": "bff9eb8458fb8473befc55cbd0400119a7edaecc95770635d6f0fa6009bfac7e"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaColumn::to_json",
+      "signature_sha256": "d27a4dc15b29ac31d1ec8711dfbc8db0be4cdcac0e88d4eaefb7cea51cd0afe4"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaColumnKind::equal",
+      "signature_sha256": "3e4dfa166eee1633c649ba8723c60cf019bd133c7630efe45848b71e89746c41"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaColumnKind::not_equal",
+      "signature_sha256": "93da6012e6669d5730e6733e2365b956d16e1e023793cb2c5c19c3e6b7c71c9c"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaColumnKind::to_json",
+      "signature_sha256": "a1d17f3b563392c0d82953030a48b7fafed49df1964a152bde514ac754cdf9f3"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaColumnKind::to_repr",
+      "signature_sha256": "9c324c0fcbc2030cf2b28b78bda440aa9641645808251b9d7877561f8a2de452"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaKeyspace::to_json",
+      "signature_sha256": "1312cb55485c1cf0d9ab4f3bf7566dcb8d1a31f9230fc6493f87d56131821ad8"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaOptions::keyspaces",
+      "signature_sha256": "3940cc13b1432cf45f46be90f7124b7a711b2e36fa9c4ab5a19c115aad93497b"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaOptions::new",
+      "signature_sha256": "7a430df54112dcd58baf2c96685b79b9d442859a363ffba69609ac93dbc899fe"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::coordinator",
+      "signature_sha256": "6a7b183df20a05e7341e85e83de1281b367c13b6ea0035bca7fb415e2213ea42"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::keyspaces",
+      "signature_sha256": "06300dd97f318bacf37bf04e6ef67146e2b52f9fd7039c6ec0957010ce66b6e6"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::loaded_at",
+      "signature_sha256": "0a593e5e46ff426c165f26377308f4cee7d3c49450baf4125f863f66d8ca918a"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::schema_version",
+      "signature_sha256": "cf404c2311c1312deacb5b26d3d5f371b51506b55010447ec8ebd590b0282778"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::table",
+      "signature_sha256": "97b72f609039a5ab05a831ca0d73baf814ab389d8ad3ac22c300c1550b6200fd"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::tables",
+      "signature_sha256": "907a0307125ffda78a35e9169f5f392c4fb6a599f0585e8cf19172c3da603396"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::user_type",
+      "signature_sha256": "b7ba6f47f6305e90ff4092c10303b1cc55d81d109ddbebe385097d53be73a698"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaSnapshot::user_types",
+      "signature_sha256": "b981888fc26130342680dce34dd810d234d9876ef3db65d3bb5957dffcb5fba2"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaTable::to_json",
+      "signature_sha256": "8aecaa53fe57e76a16885201b557de1f867d3457b780316df364ee26233a89e5"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SchemaUserType::to_json",
+      "signature_sha256": "a74d088be2287914b7cb59e1d5e794d603cbc59d002ae311ba1aaca1d8ffdbbe"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::batch",
+      "signature_sha256": "343eb0c6fca2cd83b7e99e0762fe44e74770a5f99a5732fefc381af009b98bf8"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::batch_with_info",
+      "signature_sha256": "6daffacaba99b35e12a8b8afda1b257f37eeb2fc5861a193c754af2e80642ac0"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::budget",
+      "signature_sha256": "ae7418f72aa71d5ee7f96b623e59f5c547f6cb57cb0fb742795210b99449c385"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::check_schema_agreement",
+      "signature_sha256": "3fd8cd79ec161bd5ee9349f9d06f81e89e2a7da736c3668026711b884fbdea7c"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::drain",
+      "signature_sha256": "b0b5dde7f3e6a5e6f44ec6f21bce1bb19f62b7fdafb6bb2d2f67312b1e92fb1e"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::invalidate_schema",
+      "signature_sha256": "3c4845b0f0101f11e23d9a1d3e3f3ef291d6590f3f5425858b6b3c64d039a657"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::is_draining",
+      "signature_sha256": "69e40687eceafa70e09ff5a778a57cdf62daf359ab938745b90294df21f98380"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::pools",
+      "signature_sha256": "c5a5a6ef7476a30c5a7ac9202c5bfa8a9b732d19f9c3821d9ce343696fa70f77"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::schema_metadata",
+      "signature_sha256": "a4f5f7556efdf064b6c9f62ccaa272d02de4460d62c5f58037267995e11dcaaf"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::wait_schema_agreement",
+      "signature_sha256": "f7d0b980de009acdeabf5f1beffbb7959bfa8e8b48bd9dbad1c2455fb329fec4"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionBatchStatement::query",
+      "signature_sha256": "867d7951f061d0538c3c1cc136cdb7aad461ac74cea9f14bddbb6823bce3b7ec"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionLimits::new",
+      "signature_sha256": "8e8e0cd687cd5dd96aa10801bc6e7466fd05d8f659d846f69f033eb00577d791"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionPrepared::bind_batch",
+      "signature_sha256": "14365ea0b02c0628065ac32bbe45986bbdfae66cc99d7402aef27878edca68ac"
+    },
+    {
+      "package": "client",
+      "symbol": "impl ToJson for SchemaColumnKind",
+      "signature_sha256": "0746390cc9819170e875b2c1164b916bd4b926a129aedcd38b9da6a3d8963062"
+    },
+    {
+      "package": "client",
+      "symbol": "type AuthProvider",
+      "signature_sha256": "bb816cf50a4964226026794f4290a594ca79dbec23b879c19ea0b422e8d97cc9"
+    },
+    {
+      "package": "client",
+      "symbol": "type Authenticator",
+      "signature_sha256": "452ab6b789eb48c01628eb3a27ada2326a97b0f0d55e604843ffe49feb653065"
+    },
+    {
+      "package": "client",
+      "symbol": "type DrainOutcome",
+      "signature_sha256": "dfc0fbfd2d6e16795e164ec62d724d2d5a0d384f5ca767d2cb3e5be405f66ca5"
+    },
+    {
+      "package": "client",
+      "symbol": "type ExecutionProfile",
+      "signature_sha256": "ddaab1f27079c9aeaab088a54958515f740af3fef239603246b48122fbf64799"
+    },
+    {
+      "package": "client",
+      "symbol": "type OperationEvent",
+      "signature_sha256": "cc3cbe9672d8207539f0902ab8f73b844976597e05adf444174415cfc1ee82be"
+    },
+    {
+      "package": "client",
+      "symbol": "type OperationKind",
+      "signature_sha256": "6555c2289d063686f229dd78e2319c916a01633b5492f3594d1fb959dc27529f"
+    },
+    {
+      "package": "client",
+      "symbol": "type PoolConnectionStatus",
+      "signature_sha256": "6e12b6de02ca7efdac7892bdaec5bd2771442eb306730ed6400ebac79e2f971b"
+    },
+    {
+      "package": "client",
+      "symbol": "type PoolStatus",
+      "signature_sha256": "5c34a414d4d532c856746e18a4a3c8a245d3ee400bd18b282a1c3b46cbd506df"
+    },
+    {
+      "package": "client",
+      "symbol": "type RpcScope",
+      "signature_sha256": "dbde0660d14c6e76aa5f5934740519d415de108776b411ca8d1e435a848b53b1"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaAgreement",
+      "signature_sha256": "6f4575cf28710a1bd909aebf84c63bf17353fcf04bdc1da7ad6f5097de7b8d12"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaAgreementConfig",
+      "signature_sha256": "1e60813744775d4b24e7a87b2902a822cfac6a8455adaf2f708debe87be6c6e0"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaAgreementState",
+      "signature_sha256": "580dfad64cb1ad4d12c736fa4dd1abcc78e4a936b0ba3d3c3712376316329007"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaColumn",
+      "signature_sha256": "f68f28947c68c1152e0777c6ab38cb7ab500f45309f12733b7342d31b7816d7c"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaColumnKind",
+      "signature_sha256": "40c02f9bb2a022f1ddbfb1068e09c0fac8e77193f4645a98f9f5a61f612ff12f"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaKeyspace",
+      "signature_sha256": "7c3c8ce8e5db86a93cf151133c098a56818286ec510fff0a55c2af6f0425358c"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaMetadataError",
+      "signature_sha256": "52133995ff8c3d638e4e869b36b4722613ff1f57a41e2577259c50d80654315d"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaOptions",
+      "signature_sha256": "09854eb40b04fa57c14ed6c6714c11c6ab681c7c136af9cbcc0c30031168cc30"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaSnapshot",
+      "signature_sha256": "e1e730bfa8c4b82cfc233c09cd8a1f2ad456a9686403e09e6e9e30e412b2395c"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaTable",
+      "signature_sha256": "279dc7b6b35164ea83691b6eafd0899c71323e68cd750ce440d3159adab970ea"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaUserType",
+      "signature_sha256": "2d8233d3dd55a1d42e301a73d42be358f8b0577e2e541c286cd9c0fb3732009d"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchemaVersionObservation",
+      "signature_sha256": "d95ee50675a383cde16b87c4a2029d1ec092cbd182a2a5353749be5cba6ee5b0"
+    },
+    {
+      "package": "client",
+      "symbol": "type SessionBatchStatement",
+      "signature_sha256": "75ab3013dd781f4194c5d8e640c756085d258de094eead4cfbec703f34769191"
+    },
+    {
+      "package": "client",
+      "symbol": "type SessionBudget",
+      "signature_sha256": "97bdd75979e6e88168065b09bce43ac939d6b1659e2531fc877178525f6921c5"
+    },
+    {
+      "package": "client",
+      "symbol": "type SessionLimits",
+      "signature_sha256": "36de53dd22cfdaff6ff3497ba7465170a996f0b931d6310aa9e6ffa3e40ec86e"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn EncodeContext::field",
+      "signature_sha256": "956016b8a5ab80579635745c5770a71c9aaef9ea16a5a593243befeb427076a5"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn EncodeContext::item",
+      "signature_sha256": "66888d212b7d8489db6416dc9ade4bb0195e04a7a17efefe8c7443f67f959789"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn MappingError::to_repr",
+      "signature_sha256": "1b9ffa81ccdc142855cc6414fce30351793139aa79a8b78a2e20d1a8d040b0c1"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn MappingReason::equal",
+      "signature_sha256": "60b0760152a9422c1873981c41d1d22ef998995908ebb64aef6bd7346d0e5726"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn MappingReason::not_equal",
+      "signature_sha256": "8ad2278f4e1ad7d1580893ca8077b9acce1940e462fb64267e9940b1c7e7d4a1"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn MappingReason::to_repr",
+      "signature_sha256": "ec95e6c8b3291f9b6c5f93b4987341579f313e66d0d9aa99771a90c673417c5b"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn MissingColumnPolicy::equal",
+      "signature_sha256": "99529f8150a25d3bf3d6d7c4134205f0f94bdfa2b7532b0f27654e00a40448d8"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn MissingColumnPolicy::not_equal",
+      "signature_sha256": "e3aebc4f7f5d2ea1b9fedaaf153ada580b6e1908f863fa1501026b569ac61a99"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn MissingColumnPolicy::to_repr",
+      "signature_sha256": "87f0812850f01a4135f3c643e73e1e882ea98410a3356d4c3f088575b2c19c6b"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn RowCodec::decode",
+      "signature_sha256": "ddaed9bebe40fce02da75bf3bfbcd226ee85366be8113c7746eec69b1c51da31"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn RowCodec::new",
+      "signature_sha256": "609ab8a4da3738cc93ff95d306fd4083f27d7a0d51c5d6cc90f2124dbd309846"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn RowReader::column",
+      "signature_sha256": "583c69b4edb2eddab8497704506500bcb2177f79f288d6c7da868661f05fb3af"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueCodec::cql_type",
+      "signature_sha256": "4c835ccbfe7e7aec68b92a843736e97ba689d020a183e0b5d84cb0aa3ea22eb0"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueCodec::decode",
+      "signature_sha256": "2a198eb0081a72b02a7c1fa3bf3ecde3c180097d22f730b924588c5e58966d1a"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueCodec::encode",
+      "signature_sha256": "e7ea33083d136dd7c80a7136af13a5ea5c0788b44af9a0ae1760d3ef060f81f0"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueCodec::new",
+      "signature_sha256": "637e268ede1f25ded3e3af718a45970bd16394b9077ca8be17859a3835c759cc"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueCodec::optional",
+      "signature_sha256": "27e5b3c8abc17898435bee259f92dbd0bac656adb4e1c7ffb206c980abc2027a"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueReader::field",
+      "signature_sha256": "faff364533960dd8bd32c2797108cf792d50d5340d2ec7647643463f01a16a32"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueReader::is_null",
+      "signature_sha256": "a33cfebe370b0ce96481a3830a5bf324122e8953d6600006d333ac50cb4fff2f"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueReader::item",
+      "signature_sha256": "2138b27af0b408da12764485097289a3462d81bab72189dc973c46624c093c4f"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueReader::read",
+      "signature_sha256": "76661739a1766a43d2e47f4fc3841b5084d8d5274f5ce6a36119b6ea00e16145"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn ValueReader::value",
+      "signature_sha256": "4cc6054f7da7d3ac822c8bf1a2a094366bea7789aeaa1ebd9b9f7662c30b69c5"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn bool_codec",
+      "signature_sha256": "be320a1d671d164ff654116e720b60f442a143f0eceb2b795c5c936611c9a8bf"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn int_codec",
+      "signature_sha256": "f3725890abeb9994fde08a094caa03f795520044d1ad5ffb1efe8a706ca4061b"
+    },
+    {
+      "package": "mapping",
+      "symbol": "fn text_codec",
+      "signature_sha256": "fafa247484d8d86794f825059d589b32e139831634f458efa61aed2fbce14bb4"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type EncodeContext",
+      "signature_sha256": "f5b2202bf6a822978d0c00a9dc2fd61b3b1084fb004c44e8ffdb8c25304f2f9d"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type MappingError",
+      "signature_sha256": "162226de9aae32bacf0c91e86cc91258f2be17b66a5306166fb91f3280d447d3"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type MappingReason",
+      "signature_sha256": "150efbcc73dc01991030e998407f3b6b69acb1eb26b9bbcf4c5ae520844ddcf1"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type MissingColumnPolicy",
+      "signature_sha256": "c5192e50744a8ae6990b30fe7fc001c99697e05d7a9d3b58e1bc92a7133afc0a"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type RowCodec",
+      "signature_sha256": "2a0a50e2aeebf4ea97b5ff093c7bbb5136a2862358118249ab2a9d540f733cd4"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type RowReader",
+      "signature_sha256": "6b7d24052438e1b104859f534c22e9d747077086793e4ca9f2ebb35cc314c861"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type ValueCodec",
+      "signature_sha256": "498f88070c8f4f4e011aed126ec3ff7222620792737a8041fe636b90e84134e7"
+    },
+    {
+      "package": "mapping",
+      "symbol": "type ValueReader",
+      "signature_sha256": "5d440ddaf81e39d67971c6aff231d1abaf21cdc43963ce42da4ec065564d4ea4"
+    },
+    {
+      "package": "protocol",
+      "symbol": "fn auth_response",
+      "signature_sha256": "ee18f3bb556e8901be8d293d6e514c0d23d8fe17a5b050f0447b48cfc97501bb"
+    }
+  ],
+  "changed": [
+    {
+      "package": "client",
+      "symbol": "fn Config::new",
+      "before": "pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self",
+      "after": "pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, auth_provider? : AuthProvider, max_auth_rounds? : Int, max_auth_token_bytes? : Int, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Connection::pages",
+      "before": "pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise",
+      "after": "pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, traversal_deadline? : Deadline) -> Pager raise",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Prepared::pages",
+      "before": "pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise",
+      "after": "pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, traversal_deadline? : Deadline) -> Pager raise",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::pages",
+      "before": "pub fn Session::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise",
+      "after": "pub fn Session::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, profile? : ExecutionProfile, idempotent? : Bool, retry? : RetryPolicy, traversal_deadline? : Deadline) -> Pager raise",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::prepare",
+      "before": "pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> SessionPrepared",
+      "after": "pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions, profile? : ExecutionProfile) -> SessionPrepared",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::prepare_with_info",
+      "before": "pub async fn Session::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Execution[SessionPrepared]",
+      "after": "pub async fn Session::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions, profile? : ExecutionProfile) -> Execution[SessionPrepared]",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::query",
+      "before": "pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> @protocol.ResultSet",
+      "after": "pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> @protocol.ResultSet",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::query_with_info",
+      "before": "pub async fn Session::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Execution[@protocol.ResultSet]",
+      "after": "pub async fn Session::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> Execution[@protocol.ResultSet]",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionConfig::new",
+      "before": "pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig) -> Self",
+      "after": "pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig, execution_profile? : ExecutionProfile, limits? : SessionLimits, connections_per_node? : Int) -> Self",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionPrepared::execute",
+      "before": "pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet",
+      "after": "pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, profile? : ExecutionProfile) -> @protocol.ResultSet",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionPrepared::execute_conditional",
+      "before": "pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult",
+      "after": "pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, profile? : ExecutionProfile) -> ConditionalResult",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionPrepared::execute_with_info",
+      "before": "pub async fn SessionPrepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> Execution[@protocol.ResultSet]",
+      "after": "pub async fn SessionPrepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, profile? : ExecutionProfile) -> Execution[@protocol.ResultSet]",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn SessionPrepared::pages",
+      "before": "pub fn SessionPrepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise",
+      "after": "pub fn SessionPrepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, profile? : ExecutionProfile, idempotent? : Bool, retry? : RetryPolicy, traversal_deadline? : Deadline) -> Pager raise",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type Config",
+      "before": "pub(all) struct Config {\n  host : String\n  port : Int\n  username : String?\n  password : String?\n  timeout_ms : Int\n  connect_timeout_ms : Int\n  queue_timeout_ms : Int\n  operation_timeout_ms : Int\n  max_frame_bytes : Int\n  max_in_flight : Int\n  max_in_flight_bytes : Int\n  max_waiting : Int\n  max_waiting_bytes : Int\n  overload_policy : OverloadPolicy\n  throw_on_overload : Bool\n  compression : Bool\n  tls : TlsConfig?\n  prepared_cache_capacity : Int\n  max_abandoned : Int\n  abandoned_timeout_ms : Int\n  event_capacity : Int\n  heartbeat_interval_ms : Int\n  heartbeat_timeout_ms : Int\n  metrics : Metrics?\n}",
+      "after": "pub(all) struct Config {\n  host : String\n  port : Int\n  username : String?\n  password : String?\n  auth_provider : AuthProvider?\n  max_auth_rounds : Int\n  max_auth_token_bytes : Int\n  timeout_ms : Int\n  connect_timeout_ms : Int\n  queue_timeout_ms : Int\n  operation_timeout_ms : Int\n  max_frame_bytes : Int\n  max_in_flight : Int\n  max_in_flight_bytes : Int\n  max_waiting : Int\n  max_waiting_bytes : Int\n  overload_policy : OverloadPolicy\n  throw_on_overload : Bool\n  compression : Bool\n  tls : TlsConfig?\n  prepared_cache_capacity : Int\n  max_abandoned : Int\n  abandoned_timeout_ms : Int\n  event_capacity : Int\n  heartbeat_interval_ms : Int\n  heartbeat_timeout_ms : Int\n  metrics : Metrics?\n}",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type DriverError",
+      "before": "pub(all) suberror DriverError {\n  Closed\n  Unexpected(String)\n  Authentication(String)\n  TlsFailure(String)\n  Server(@protocol.ServerError)\n  TimedOut(TimeoutInfo)\n  Configuration(String)\n  Overloaded(OverloadReason)\n  AbandonedLimitExceeded\n  AbandonedRequestExpired\n  HeartbeatFailed\n} derive(@debug.Debug)",
+      "after": "pub(all) suberror DriverError {\n  Closed\n  Draining\n  Unexpected(String)\n  Authentication(String)\n  TlsFailure(String)\n  Server(@protocol.ServerError)\n  TimedOut(TimeoutInfo)\n  Configuration(String)\n  Overloaded(OverloadReason)\n  AbandonedLimitExceeded\n  AbandonedRequestExpired\n  HeartbeatFailed\n} derive(@debug.Debug)",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type ExecutionInfo",
+      "before": "pub(all) struct ExecutionInfo {\n  coordinator : Endpoint\n  attempt_count : Int\n  warnings : Array[String]\n  tracing_id : Bytes?\n  custom_payload : Map[String, Bytes?]\n  previous : Array[ExecutionInfo]\n  cached : Bool\n}",
+      "after": "pub(all) struct ExecutionInfo {\n  coordinator : Endpoint\n  attempt_count : Int\n  warnings : Array[String]\n  tracing_id : Bytes?\n  custom_payload : Map[String, Bytes?]\n  previous : Array[ExecutionInfo]\n  cached : Bool\n  schema_agreement : SchemaAgreement?\n}",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type MetricEvent",
+      "before": "pub(all) enum MetricEvent {\n  RequestStarted(Endpoint, Int, Int64)\n  RequestFinished(RequestEvent)\n  ConnectionAttempt(Endpoint)\n  ConnectionEstablished(Endpoint)\n  ConnectionFailed(Endpoint, RequestOutcome)\n  ConnectionClosed(Endpoint)\n  Reconnected(Endpoint, Int, Bool)\n  Cache(Endpoint, CacheEvent)\n  WaitFinished(WaitScope, Int64, Int64, RequestOutcome)\n} derive(@debug.Debug)",
+      "after": "pub(all) enum MetricEvent {\n  RequestStarted(Endpoint, Int, Int64)\n  RequestFinished(RequestEvent)\n  ConnectionAttempt(Endpoint)\n  ConnectionEstablished(Endpoint)\n  ConnectionFailed(Endpoint, RequestOutcome)\n  ConnectionClosed(Endpoint)\n  Reconnected(Endpoint, Int, Bool)\n  Cache(Endpoint, CacheEvent)\n  WaitFinished(WaitScope, Int64, Int64, RequestOutcome)\n  OperationStarted(OperationKind)\n  OperationFinished(OperationEvent)\n  RetryStarted(Endpoint, Int)\n} derive(@debug.Debug)",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type MetricsSnapshot",
+      "before": "pub(all) struct MetricsSnapshot {\n  mut requests_started : Int64\n  mut requests_succeeded : Int64\n  mut requests_failed : Int64\n  mut requests_cancelled : Int64\n  mut request_timeouts : Int64\n  mut queue_ms : Int64\n  mut execution_ms : Int64\n  mut in_flight : Int64\n  mut in_flight_bytes : Int64\n  mut waiting : Int64\n  mut waiting_bytes : Int64\n  mut peak_in_flight : Int64\n  mut peak_in_flight_bytes : Int64\n  mut peak_waiting : Int64\n  mut peak_waiting_bytes : Int64\n  mut connect_attempts : Int64\n  mut connections_established : Int64\n  mut connections_closed : Int64\n  mut connect_failures : Int64\n  mut connect_cancellations : Int64\n  mut connect_timeouts : Int64\n  mut reconnects : Int64\n  mut control_reconnects : Int64\n  mut cache_hits : Int64\n  mut cache_misses : Int64\n  mut cache_coalesced : Int64\n  mut cache_evictions : Int64\n  mut sent_frames : Int64\n  mut sent_raw_payload_bytes : Int64\n  mut sent_encoded_payload_bytes : Int64\n  mut sent_complete_frame_bytes : Int64\n  mut received_frames : Int64\n  mut received_raw_payload_bytes : Int64\n  mut received_encoded_payload_bytes : Int64\n  mut received_complete_frame_bytes : Int64\n  mut session_waits : Int64\n  mut session_wait_failures : Int64\n  mut session_wait_cancellations : Int64\n  mut session_wait_ms : Int64\n  mut session_wait_timeouts : Int64\n  mut prepare_waits : Int64\n  mut prepare_wait_ms : Int64\n  mut prepare_wait_failures : Int64\n  mut prepare_wait_cancellations : Int64\n  mut prepare_wait_timeouts : Int64\n  mut retry_waits : Int64\n  mut retry_wait_ms : Int64\n  mut retry_wait_failures : Int64\n  mut retry_wait_cancellations : Int64\n  mut retry_wait_timeouts : Int64\n  mut listener_errors : Int64\n} derive(ToJson, @debug.Debug)",
+      "after": "pub(all) struct MetricsSnapshot {\n  mut logical_started : Int64\n  mut logical_succeeded : Int64\n  mut logical_failed : Int64\n  mut logical_cancelled : Int64\n  mut logical_ms : Int64\n  mut retry_attempts : Int64\n  mut requests_started : Int64\n  mut requests_succeeded : Int64\n  mut requests_failed : Int64\n  mut requests_cancelled : Int64\n  mut request_timeouts : Int64\n  mut queue_ms : Int64\n  mut execution_ms : Int64\n  mut in_flight : Int64\n  mut in_flight_bytes : Int64\n  mut waiting : Int64\n  mut waiting_bytes : Int64\n  mut peak_in_flight : Int64\n  mut peak_in_flight_bytes : Int64\n  mut peak_waiting : Int64\n  mut peak_waiting_bytes : Int64\n  mut connect_attempts : Int64\n  mut connections_established : Int64\n  mut connections_closed : Int64\n  mut connect_failures : Int64\n  mut connect_cancellations : Int64\n  mut connect_timeouts : Int64\n  mut reconnects : Int64\n  mut control_reconnects : Int64\n  mut cache_hits : Int64\n  mut cache_misses : Int64\n  mut cache_coalesced : Int64\n  mut cache_evictions : Int64\n  mut sent_frames : Int64\n  mut sent_raw_payload_bytes : Int64\n  mut sent_encoded_payload_bytes : Int64\n  mut sent_complete_frame_bytes : Int64\n  mut received_frames : Int64\n  mut received_raw_payload_bytes : Int64\n  mut received_encoded_payload_bytes : Int64\n  mut received_complete_frame_bytes : Int64\n  mut session_waits : Int64\n  mut session_wait_failures : Int64\n  mut session_wait_cancellations : Int64\n  mut session_wait_ms : Int64\n  mut session_wait_timeouts : Int64\n  mut prepare_waits : Int64\n  mut prepare_wait_ms : Int64\n  mut prepare_wait_failures : Int64\n  mut prepare_wait_cancellations : Int64\n  mut prepare_wait_timeouts : Int64\n  mut retry_waits : Int64\n  mut retry_wait_ms : Int64\n  mut retry_wait_failures : Int64\n  mut retry_wait_cancellations : Int64\n  mut retry_wait_timeouts : Int64\n  mut listener_errors : Int64\n} derive(ToJson, @debug.Debug)",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type OverloadReason",
+      "before": "pub(all) enum OverloadReason {\n  InFlightLimit\n  ByteLimit\n  WaitingQueueFull\n  WaitingBytesFull\n  RequestTooLarge\n} derive(Eq, @debug.Debug)",
+      "after": "pub(all) enum OverloadReason {\n  InFlightLimit\n  ByteLimit\n  WaitingQueueFull\n  WaitingBytesFull\n  RequestTooLarge\n  SessionInFlightLimit\n  SessionByteLimit\n  SessionWaitingQueueFull\n  SessionWaitingBytesFull\n  SessionRequestTooLarge\n} derive(Eq, @debug.Debug)",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type RequestEvent",
+      "before": "pub(all) struct RequestEvent {\n  endpoint : Endpoint\n  opcode : Int\n  request_bytes : Int64\n  outcome : RequestOutcome\n  phase : TimeoutPhase\n  may_have_been_sent : Bool\n  queue_ms : Int64\n  execution_ms : Int64\n} derive(@debug.Debug)",
+      "after": "pub(all) struct RequestEvent {\n  scope : RpcScope\n  endpoint : Endpoint\n  opcode : Int\n  request_bytes : Int64\n  outcome : RequestOutcome\n  phase : TimeoutPhase\n  may_have_been_sent : Bool\n  queue_ms : Int64\n  execution_ms : Int64\n} derive(@debug.Debug)",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type RequestOutcome",
+      "before": "pub(all) enum RequestOutcome {\n  Succeeded\n  ServerError(Int)\n  Timeout(TimeoutInfo)\n  Cancelled\n  LocalOverload(OverloadReason)\n  Disconnected\n  InvalidConfiguration\n  TlsError\n  ProtocolError\n  TransportError\n  OtherFailure\n} derive(@debug.Debug)",
+      "after": "pub(all) enum RequestOutcome {\n  Succeeded\n  ServerError(Int)\n  Timeout(TimeoutInfo)\n  Cancelled\n  LocalOverload(OverloadReason)\n  Disconnected\n  InvalidConfiguration\n  TlsError\n  AuthenticationError\n  ProtocolError\n  TransportError\n  OtherFailure\n} derive(@debug.Debug)",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type SessionConfig",
+      "before": "pub(all) struct SessionConfig {\n  connection : Config\n  contact_points : Array[Endpoint]\n  backoff_initial_ms : Int\n  backoff_max_ms : Int\n  jitter : Double\n  stable_reset_ms : Int\n  routing : RoutingConfig?\n  discovery : DiscoveryConfig?\n}",
+      "after": "pub(all) struct SessionConfig {\n  connection : Config\n  contact_points : Array[Endpoint]\n  backoff_initial_ms : Int\n  backoff_max_ms : Int\n  jitter : Double\n  stable_reset_ms : Int\n  routing : RoutingConfig?\n  discovery : DiscoveryConfig?\n  schema_agreement : SchemaAgreementConfig\n  execution_profile : ExecutionProfile?\n  limits : SessionLimits\n  connections_per_node : Int\n}",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "type TimeoutPhase",
+      "before": "pub(all) enum TimeoutPhase {\n  Connecting\n  WaitingSlot\n  WaitingWriteLock\n  Sending\n  WaitingResponse\n  WaitingPrepare\n  WaitingConnection\n  WaitingRetry\n} derive(Eq, @debug.Debug)",
+      "after": "pub(all) enum TimeoutPhase {\n  Connecting\n  WaitingSlot\n  WaitingWriteLock\n  Sending\n  WaitingResponse\n  WaitingPrepare\n  WaitingConnection\n  WaitingRetry\n  WaitingDrain\n  WaitingSchema\n  WaitingPage\n} derive(Eq, @debug.Debug)",
+      "migration": "docs/migration.md"
+    }
+  ],
+  "removed": []
+}

@@ -41,3 +41,5 @@ moon add --upgrade prowk/mooncql@0.2.0
 `SessionConfig` 增加 `connections_per_node`，默认 1，可配置 1–8；手写完整记录字面量时须补齐。多连接下 `NodeStatus.generation` 是该节点累计接受的连接代次，初次建池也会增长；按槽诊断使用 `Session.pools()`，参见[连接池](pooling.md)。已有构造器调用及默认单连接的行为保持兼容。
 
 开发分支的 `MetricEvent` 新增 OperationStarted／OperationFinished／RetryStarted，`RequestOutcome` 新增 AuthenticationError；穷尽匹配时补齐这些分支。手写 RequestEvent 须增加 `scope: RpcScope`，手写完整 MetricsSnapshot 须补上 logical_* 和 retry_attempts。原有请求、超时和取消总数保持 RPC／阶段口径，逻辑调用数独立读取；详见[运维诊断](diagnostics.md)。
+
+`Connection.pages` 和 `Prepared.pages` 新增可选 traversal_deadline；`Session.pages` 与 `SessionPrepared.pages` 还接受 profile、idempotent 和 retry。SessionPrepared 的 execute／execute_with_info／execute_conditional 新增可选 profile，并继承准备时选定的配置。常规旧调用继续可编译；使用完整函数类型或手写签名的适配层，应按新公开接口重新编译核对。分页预算与覆盖规则见[请求执行配置](execution-profiles.md)。

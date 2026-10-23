@@ -96,6 +96,7 @@ pub(all) struct SessionConfig {
 }
 
 ///|
+/// 默认每节点单连接并共享固定 limits；发现与 DDL 后等待须显式启用。
 pub fn SessionConfig::new(
   connection? : Config = Config::new(),
   contact_points? : Array[Endpoint] = [],
@@ -686,6 +687,7 @@ async fn Session::request_accepted(
 }
 
 ///|
+/// 执行一次逻辑查询；默认不重放，只有显式幂等且策略允许时才重试。
 pub async fn Session::query(
   self : Session,
   cql : String,
