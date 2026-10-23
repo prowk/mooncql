@@ -38,29 +38,29 @@ pub async fn Session::prepare_with_info(
   if request.body.length() > self.config.connection.max_frame_bytes {
     raise Configuration("request exceeds frame limit")
   }
-  self.begin_operation()
-  defer {
-    self.active -= 1
-    self.changed.broadcast()
-  }
-  let connection = self.select(deadline, request.body.length().to_int64() + 9L)
-  let statement = SessionPrepared::{
-    session: self,
-    cql,
-    keyspace,
-    request_options,
-    profile,
-    states: Map([]),
-    parameters: [],
-    partition_key_indices: [],
-    routing_keyspace: None,
-  }
-  let prepared = statement.statement_for(
-    connection,
-    deadline,
-    request.body.length().to_int64() + 9L,
-  )
-  { value: statement, info: prepared.info, }
+  self.with_operation(PrepareOperation, () => {
+    let connection = self.select(
+      deadline,
+      request.body.length().to_int64() + 9L,
+    )
+    let statement = SessionPrepared::{
+      session: self,
+      cql,
+      keyspace,
+      request_options,
+      profile,
+      states: Map([]),
+      parameters: [],
+      partition_key_indices: [],
+      routing_keyspace: None,
+    }
+    let prepared = statement.statement_for(
+      connection,
+      deadline,
+      request.body.length().to_int64() + 9L,
+    )
+    { value: statement, info: prepared.info, }
+  })
 }
 
 ///|
@@ -186,64 +186,64 @@ pub async fn SessionPrepared::execute_with_info(
     .length()
     .to_int64() +
     9L
-  self.session.begin_operation()
-  defer {
-    self.session.active -= 1
-    self.session.changed.broadcast()
-  }
-  self.session.execute_retry(
-    deadline,
-    charge,
-    idempotent,
-    retry,
-    hint,
-    connection => {
-      let preparation = self.statement_for(connection, deadline, charge)
-      let prepared = preparation.value
-      let result = prepared.execute_with_info(values, options~, deadline~) catch {
-        ExecutionError(error, info) => {
-          let previous = if preparation.info.cached {
-            info.previous.copy()
-          } else {
-            [preparation.info]
-          }
-          if !preparation.info.cached {
-            for prior in info.previous {
-              previous.push(prior)
+  self.session.with_operation(ExecuteOperation, () => {
+    self.session.execute_retry(
+      deadline,
+      charge,
+      idempotent,
+      retry,
+      hint,
+      connection => {
+        let preparation = self.statement_for(connection, deadline, charge)
+        let prepared = preparation.value
+        let result = prepared.execute_with_info(values, options~, deadline~) catch {
+          ExecutionError(error, info) => {
+            let previous = if preparation.info.cached {
+              info.previous.copy()
+            } else {
+              [preparation.info]
             }
+            if !preparation.info.cached {
+              for prior in info.previous {
+                previous.push(prior)
+              }
+            }
+            raise ExecutionError(error, { ..info, previous, })
           }
-          raise ExecutionError(error, { ..info, previous, })
+          error => raise error
         }
-        error => raise error
-      }
-      self.accept_routing_metadata(prepared)
-      if preparation.info.cached {
-        result
-      } else {
-        let previous = [preparation.info]
-        for prior in result.info.previous {
-          previous.push(prior)
-        }
-        { ..result, info: { ..result.info, previous, }, }
-      }
-    },
-    complete=(result, failures) => {
-      let previous = []
-      let mut attempts = result.info.attempt_count
-      for failure in failures {
-        if failure.execution_info is Some(info) {
-          previous.push(info)
-          attempts += info.attempt_count
+        self.accept_routing_metadata(prepared)
+        if preparation.info.cached {
+          result
         } else {
-          attempts += 1
+          let previous = [preparation.info]
+          for prior in result.info.previous {
+            previous.push(prior)
+          }
+          { ..result, info: { ..result.info, previous, }, }
         }
-      }
-      for info in result.info.previous {
-        previous.push(info)
-      }
-      { ..result, info: { ..result.info, attempt_count: attempts, previous, }, }
-    },
-  )
+      },
+      complete=(result, failures) => {
+        let previous = []
+        let mut attempts = result.info.attempt_count
+        for failure in failures {
+          if failure.execution_info is Some(info) {
+            previous.push(info)
+            attempts += info.attempt_count
+          } else {
+            attempts += 1
+          }
+        }
+        for info in result.info.previous {
+          previous.push(info)
+        }
+        {
+          ..result,
+          info: { ..result.info, attempt_count: attempts, previous, },
+        }
+      },
+    )
+  })
 }
 
 ///|

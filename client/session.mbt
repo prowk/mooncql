@@ -638,12 +638,16 @@ pub async fn Session::request(
   if request.body.length() > self.config.connection.max_frame_bytes {
     raise Configuration("request exceeds frame limit")
   }
-  self.begin_operation()
-  defer {
-    self.active -= 1
-    self.changed.broadcast()
-  }
-  self.request_accepted(request, deadline, idempotent, retry, routing)
+  self.with_operation(
+    RequestOperation,
+    () => self.request_accepted(request, deadline, idempotent, retry, routing),
+    outcome=reply => {
+      match reply.response {
+        Failure(error) => ServerError(error.code)
+        _ => Succeeded
+      }
+    },
+  )
 }
 
 ///|

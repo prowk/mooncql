@@ -65,45 +65,44 @@ pub async fn Session::batch_with_info(
     raise Configuration("request exceeds frame limit")
   }
   let charge = request.body.length().to_int64() + 9L
-  self.begin_operation()
-  defer {
-    self.active -= 1
-    self.changed.broadcast()
-  }
-  let connection = self.select(deadline, charge, hint?=routing)
-  let encoded = []
-  let history = []
-  for statement in statements {
-    match statement.binding {
-      Query(cql, values) =>
-        encoded.push(@protocol.BatchStatement::Query(cql, values))
-      Prepared(statement, values) => {
-        let preparation = statement.statement_for(connection, deadline, charge) catch {
-          error => raise error_with_history(error, history)
-        }
-        if !preparation.info.cached {
-          history.push(preparation.info)
-        }
-        encoded.push(preparation.value.bind_batch(values)) catch {
-          error => raise error_with_history(error, history)
+  self.with_operation(BatchOperation, () => {
+    let connection = self.select(deadline, charge, hint?=routing)
+    let encoded = []
+    let history = []
+    for statement in statements {
+      match statement.binding {
+        Query(cql, values) =>
+          encoded.push(@protocol.BatchStatement::Query(cql, values))
+        Prepared(statement, values) => {
+          let preparation = statement.statement_for(
+            connection, deadline, charge,
+          ) catch {
+            error => raise error_with_history(error, history)
+          }
+          if !preparation.info.cached {
+            history.push(preparation.info)
+          }
+          encoded.push(preparation.value.bind_batch(values)) catch {
+            error => raise error_with_history(error, history)
+          }
         }
       }
     }
-  }
-  // 发送失败、结果未知和 UNPREPARED 均由调用方处理，绝不重选节点重放 BATCH。
-  let execution = connection.batch_with_info(
-    encoded,
-    kind~,
-    options~,
-    deadline~,
-  ) catch {
-    error => raise error_with_history(error, history)
-  }
-  let previous = history.copy()
-  for prior in execution.info.previous {
-    previous.push(prior)
-  }
-  { ..execution, info: { ..execution.info, previous, }, }
+    // 发送失败、结果未知和 UNPREPARED 均由调用方处理，绝不重选节点重放 BATCH。
+    let execution = connection.batch_with_info(
+      encoded,
+      kind~,
+      options~,
+      deadline~,
+    ) catch {
+      error => raise error_with_history(error, history)
+    }
+    let previous = history.copy()
+    for prior in execution.info.previous {
+      previous.push(prior)
+    }
+    { ..execution, info: { ..execution.info, previous, }, }
+  })
 }
 
 ///|

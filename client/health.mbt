@@ -14,9 +14,11 @@ async fn Connection::maintain_health(self : Connection) -> Unit {
       continue
     }
     let healthy = try {
-      let reply = self.request(
+      let reply = self.request_measured(
         @protocol.options(),
-        deadline=Deadline::after(self.config.heartbeat_timeout_ms),
+        [],
+        Some(Deadline::after(self.config.heartbeat_timeout_ms)),
+        Heartbeat,
       )
       reply.response is Supported(options) && options.contains("CQL_VERSION")
     } catch {

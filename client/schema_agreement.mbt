@@ -187,12 +187,7 @@ pub async fn Session::check_schema_agreement(
   deadline? : Deadline,
 ) -> SchemaAgreement {
   let deadline = self.operation_deadline(deadline)
-  self.begin_operation()
-  defer {
-    self.active -= 1
-    self.changed.broadcast()
-  }
-  self.inspect_schema(deadline)
+  self.with_operation(SchemaCheckOperation, () => self.inspect_schema(deadline))
 }
 
 ///|
@@ -249,12 +244,9 @@ pub async fn Session::wait_schema_agreement(
   deadline? : Deadline,
 ) -> SchemaAgreement {
   let deadline = self.operation_deadline(deadline)
-  self.begin_operation()
-  defer {
-    self.active -= 1
-    self.changed.broadcast()
-  }
-  self.wait_schema_internal(deadline)
+  self.with_operation(SchemaWaitOperation, () => {
+    self.wait_schema_internal(deadline)
+  })
 }
 
 ///|

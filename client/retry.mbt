@@ -117,6 +117,10 @@ async fn[T] Session::execute_retry(
       endpoint = Some(
         Endpoint::new(host=connection.config.host, port=connection.config.port),
       )
+      if attempt > 1 && self.config.connection.metrics is Some(metrics) {
+        metrics.data.retry_attempts += 1L
+        metrics.emit(RetryStarted(endpoint.unwrap(), attempt))
+      }
       Ok(action(connection))
     } catch {
       error => Err(error)

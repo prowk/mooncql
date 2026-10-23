@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "prowk/mooncql/cmd/prometheus"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Histogram
+
+type Meter
+
+type NodeCounters
+
+// Type aliases
+
+// Traits

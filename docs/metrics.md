@@ -2,6 +2,8 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
+开发分支新增的逻辑调用计数、RPC 来源分类、延迟直方图与有界 Prometheus 文本导出见[运维诊断](diagnostics.md)。
+
 本文适用于 0.2.0。Config 默认不创建观测对象；传入同一个 Metrics 可汇总一个 Connection 或整个 Session 的连接、请求、资源额度、缓存与压缩帧。Metrics 不创建后台采样任务，也不保存请求历史。
 
 ```moonbit

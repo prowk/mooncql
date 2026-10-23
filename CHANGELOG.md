@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- 区分 Session 逻辑调用、实际 data／control／heartbeat RPC 和重试尝试，提供有界 Prometheus 文本示例、延迟直方图与独立解析验收。
+
 - 显式应用类型与 Value／Row 映射，支持嵌套 UDT／tuple、字段路径错误、独立缺列和 NULL 策略，以及与直接 Value 字节一致的可运行示例。
 
 - 同地址 host_id 替换时回收旧节点池和控制身份，刷新进行中停用旧副本偏好；新增地址、DC／rack、token 和复制因子变化回归及双 DC 实库入口。

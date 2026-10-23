@@ -139,6 +139,7 @@ pub struct Connection {
   mut failure : Error?
   mut generation : Int
   mut pool_slot : Int
+  mut rpc_scope : RpcScope
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
@@ -264,6 +265,9 @@ pub(all) enum MetricEvent {
   Reconnected(Endpoint, Int, Bool)
   Cache(Endpoint, CacheEvent)
   WaitFinished(WaitScope, Int64, Int64, RequestOutcome)
+  OperationStarted(OperationKind)
+  OperationFinished(OperationEvent)
+  RetryStarted(Endpoint, Int)
 } derive(@debug.Debug)
 pub fn MetricEvent::to_repr(Self) -> @debug.Repr
 
@@ -275,6 +279,12 @@ pub fn Metrics::new(listener? : (MetricEvent) -> Unit raise) -> Self
 pub fn Metrics::snapshot(Self) -> MetricsSnapshot
 
 pub(all) struct MetricsSnapshot {
+  mut logical_started : Int64
+  mut logical_succeeded : Int64
+  mut logical_failed : Int64
+  mut logical_cancelled : Int64
+  mut logical_ms : Int64
+  mut retry_attempts : Int64
   mut requests_started : Int64
   mut requests_succeeded : Int64
   mut requests_failed : Int64
@@ -355,6 +365,27 @@ pub(all) struct NodeStatus {
   generation : Int
   attempts : Int
 }
+
+pub(all) struct OperationEvent {
+  kind : OperationKind
+  outcome : RequestOutcome
+  elapsed_ms : Int64
+} derive(@debug.Debug)
+pub fn OperationEvent::to_repr(Self) -> @debug.Repr
+
+pub(all) enum OperationKind {
+  QueryOperation
+  PrepareOperation
+  ExecuteOperation
+  BatchOperation
+  RequestOperation
+  SchemaCheckOperation
+  SchemaWaitOperation
+  SchemaMetadataOperation
+} derive(Eq, @debug.Debug)
+pub fn OperationKind::equal(Self, Self) -> Bool
+pub fn OperationKind::not_equal(Self, Self) -> Bool
+pub fn OperationKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OverloadPolicy {
   Wait
@@ -468,6 +499,7 @@ pub(all) struct Reply {
 pub fn Reply::execution_info(Self) -> ExecutionInfo
 
 pub(all) struct RequestEvent {
+  scope : RpcScope
   endpoint : Endpoint
   opcode : Int
   request_bytes : Int64
@@ -488,6 +520,7 @@ pub(all) enum RequestOutcome {
   Disconnected
   InvalidConfiguration
   TlsError
+  AuthenticationError
   ProtocolError
   TransportError
   OtherFailure
@@ -523,6 +556,15 @@ pub(all) struct RoutingHint {
   key : Bytes
 }
 pub fn RoutingHint::new(String, Bytes) -> Self
+
+pub(all) enum RpcScope {
+  Data
+  Control
+  Heartbeat
+} derive(Eq, @debug.Debug)
+pub fn RpcScope::equal(Self, Self) -> Bool
+pub fn RpcScope::not_equal(Self, Self) -> Bool
+pub fn RpcScope::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SchemaAgreement {
   state : SchemaAgreementState

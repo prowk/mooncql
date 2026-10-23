@@ -123,6 +123,7 @@ pub struct Connection {
   mut failure : Error?
   mut generation : Int
   mut pool_slot : Int
+  mut rpc_scope : RpcScope
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
@@ -328,6 +329,7 @@ async fn open_connection(config : Config, parent? : Admission) -> Connection {
     failure: None,
     generation: 0,
     pool_slot: 0,
+    rpc_scope: Data,
     reader_active: false,
     reader_task: None,
     reaper_task: None,

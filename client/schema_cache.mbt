@@ -108,67 +108,69 @@ pub async fn Session::schema_metadata(
 ) -> SchemaSnapshot {
   let options = options.unwrap_or_else(() => SchemaOptions::new())
   let deadline = self.operation_deadline(deadline)
-  self.begin_operation()
-  defer {
-    self.active -= 1
-    self.changed.broadcast()
-  }
-  self.with_schema_lock(deadline, options.identity.length().to_int64(), () => {
-    let connection = self.select(deadline, options.identity.length().to_int64())
-    for _ in 0..<3 {
-      let epoch = self.schema_epoch()
-      let version = schema_version(connection, deadline) catch {
-        error => raise SchemaMetadataError("version", error)
-      }
-      let stable = epoch == self.schema_epoch() && !connection.closed
-      if stable &&
-        self.schema_cache.entry is Some(entry) &&
-        entry.identity == options.identity &&
-        entry.epoch == epoch &&
-        entry.snapshot.version == version {
-        return entry.snapshot
-      }
-      self.schema_cache.entry = None
-      let snapshot = match
-        (Ok(load_schema(connection, version, options, deadline)) catch {
-          error => Err(error)
-        }) {
-        Ok(snapshot) => snapshot
-        Err(error) => {
-          if connection.closed ||
-            (
-              error is SchemaMetadataError(_, Server(server)) &&
-              server.code == 0x2100
-            ) {
+  self.with_operation(SchemaMetadataOperation, () => {
+    self.with_schema_lock(deadline, options.identity.length().to_int64(), () => {
+      let connection = self.select(
+        deadline,
+        options.identity.length().to_int64(),
+      )
+      for _ in 0..<3 {
+        let epoch = self.schema_epoch()
+        let version = schema_version(connection, deadline) catch {
+          error => raise SchemaMetadataError("version", error)
+        }
+        let stable = epoch == self.schema_epoch() && !connection.closed
+        if stable &&
+          self.schema_cache.entry is Some(entry) &&
+          entry.identity == options.identity &&
+          entry.epoch == epoch &&
+          entry.snapshot.version == version {
+          return entry.snapshot
+        }
+        self.schema_cache.entry = None
+        let snapshot = match
+          (Ok(load_schema(connection, version, options, deadline)) catch {
+            error => Err(error)
+          }) {
+          Ok(snapshot) => snapshot
+          Err(error) => {
+            if connection.closed ||
+              (
+                error is SchemaMetadataError(_, Server(server)) &&
+                server.code == 0x2100
+              ) {
+              raise error
+            }
+            let after_failure = schema_version(connection, deadline) catch {
+              _ => raise error
+            }
+            if after_failure != version || epoch != self.schema_epoch() {
+              continue
+            }
             raise error
           }
-          let after_failure = schema_version(connection, deadline) catch {
-            _ => raise error
-          }
-          if after_failure != version || epoch != self.schema_epoch() {
-            continue
-          }
-          raise error
+        }
+        let after = schema_version(connection, deadline) catch {
+          error => raise SchemaMetadataError("version", error)
+        }
+        if self.closed {
+          raise Closed
+        }
+        if after == version &&
+          epoch == self.schema_epoch() &&
+          !connection.closed {
+          self.schema_cache.entry = Some({
+            identity: options.identity,
+            epoch,
+            snapshot,
+          })
+          return snapshot
         }
       }
-      let after = schema_version(connection, deadline) catch {
-        error => raise SchemaMetadataError("version", error)
-      }
-      if self.closed {
-        raise Closed
-      }
-      if after == version && epoch == self.schema_epoch() && !connection.closed {
-        self.schema_cache.entry = Some({
-          identity: options.identity,
-          epoch,
-          snapshot,
-        })
-        return snapshot
-      }
-    }
-    raise SchemaMetadataError(
-      "changed",
-      Unexpected("schema changed repeatedly while loading metadata"),
-    )
+      raise SchemaMetadataError(
+        "changed",
+        Unexpected("schema changed repeatedly while loading metadata"),
+      )
+    })
   })
 }

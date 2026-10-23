@@ -8,6 +8,7 @@ pub(all) enum RequestOutcome {
   Disconnected
   InvalidConfiguration
   TlsError
+  AuthenticationError
   ProtocolError
   TransportError
   OtherFailure
@@ -44,7 +45,52 @@ pub extend WaitScope with Eq::{equal, not_equal}
 pub extend WaitScope with @debug.Debug::{to_repr}
 
 ///|
+/// 区分普通数据请求、控制连接请求和驱动自身发起的空闲心跳。
+pub(all) enum RpcScope {
+  Data
+  Control
+  Heartbeat
+} derive(Eq, @debug.Debug)
+
+///|
+pub extend RpcScope with Eq::{equal, not_equal}
+
+///|
+pub extend RpcScope with @debug.Debug::{to_repr}
+
+///|
+/// 已接受的 Session API 调用类别，内部 RPC 与重试不会重复产生逻辑调用。
+pub(all) enum OperationKind {
+  QueryOperation
+  PrepareOperation
+  ExecuteOperation
+  BatchOperation
+  RequestOperation
+  SchemaCheckOperation
+  SchemaWaitOperation
+  SchemaMetadataOperation
+} derive(Eq, @debug.Debug)
+
+///|
+pub extend OperationKind with Eq::{equal, not_equal}
+
+///|
+pub extend OperationKind with @debug.Debug::{to_repr}
+
+///|
+/// 逻辑调用结束事件；耗时覆盖选连接、准备、重试及该调用内的 DDL 等待。
+pub(all) struct OperationEvent {
+  kind : OperationKind
+  outcome : RequestOutcome
+  elapsed_ms : Int64
+} derive(@debug.Debug)
+
+///|
+pub extend OperationEvent with @debug.Debug::{to_repr}
+
+///|
 pub(all) struct RequestEvent {
+  scope : RpcScope
   endpoint : Endpoint
   opcode : Int
   request_bytes : Int64
@@ -69,6 +115,9 @@ pub(all) enum MetricEvent {
   Reconnected(Endpoint, Int, Bool)
   Cache(Endpoint, CacheEvent)
   WaitFinished(WaitScope, Int64, Int64, RequestOutcome)
+  OperationStarted(OperationKind)
+  OperationFinished(OperationEvent)
+  RetryStarted(Endpoint, Int)
 } derive(@debug.Debug)
 
 ///|
@@ -76,6 +125,12 @@ pub extend MetricEvent with @debug.Debug::{to_repr}
 
 ///|
 pub(all) struct MetricsSnapshot {
+  mut logical_started : Int64
+  mut logical_succeeded : Int64
+  mut logical_failed : Int64
+  mut logical_cancelled : Int64
+  mut logical_ms : Int64
+  mut retry_attempts : Int64
   mut requests_started : Int64
   mut requests_succeeded : Int64
   mut requests_failed : Int64
@@ -146,6 +201,12 @@ pub fn Metrics::new(listener? : (MetricEvent) -> Unit raise) -> Metrics {
   {
     listener,
     data: {
+      logical_started: 0L,
+      logical_succeeded: 0L,
+      logical_failed: 0L,
+      logical_cancelled: 0L,
+      logical_ms: 0L,
+      retry_attempts: 0L,
       requests_started: 0L,
       requests_succeeded: 0L,
       requests_failed: 0L,
@@ -349,12 +410,20 @@ fn Metrics::gauges(
 fn request_outcome(error : Error) -> RequestOutcome {
   match error {
     ExecutionError(cause, _) => request_outcome(cause)
+    SchemaMetadataError(_, cause) => request_outcome(cause)
+    RetryExhausted(failures) =>
+      if failures.is_empty() {
+        OtherFailure
+      } else {
+        request_outcome(failures[failures.length() - 1].error)
+      }
     Server(error) => ServerError(error.code)
     TimedOut(info) => Timeout(info)
     Overloaded(reason) => LocalOverload(reason)
     Closed | HeartbeatFailed | @io.ReaderClosed => Disconnected
     Configuration(_) => InvalidConfiguration
     TlsFailure(_) => TlsError
+    Authentication(_) => AuthenticationError
     Unexpected(_) | @codec.CodecError(_) => ProtocolError
     @os_error.OSError(_, ..) => TransportError
     _ => OtherFailure
@@ -448,6 +517,7 @@ fn WaitObservation::finish(self : WaitObservation) -> Unit {
 
 ///|
 priv struct RequestObservation {
+  scope : RpcScope
   metrics : Metrics
   endpoint : Endpoint
   opcode : Int
@@ -462,6 +532,7 @@ fn RequestObservation::new(
   metrics : Metrics,
   config : Config,
   request : @protocol.Request,
+  scope : RpcScope,
 ) -> RequestObservation {
   let endpoint = Endpoint::new(host=config.host, port=config.port)
   let bytes = request.body.length().to_int64() + 9L
@@ -469,6 +540,7 @@ fn RequestObservation::new(
   metrics.data.requests_started += 1L
   metrics.emit(RequestStarted(endpoint, request.opcode, bytes))
   {
+    scope,
     metrics,
     endpoint,
     opcode: request.opcode,
@@ -507,6 +579,7 @@ fn RequestObservation::finish(
   data.execution_ms += execution_ms
   self.metrics.emit(
     RequestFinished({
+      scope: self.scope,
       endpoint: self.endpoint,
       opcode: self.opcode,
       request_bytes: self.bytes,
@@ -526,10 +599,21 @@ pub async fn Connection::request(
   cached? : Array[@protocol.Column] = [],
   deadline? : Deadline,
 ) -> Reply {
+  self.request_measured(request, cached, deadline, self.rpc_scope)
+}
+
+///|
+async fn Connection::request_measured(
+  self : Connection,
+  request : @protocol.Request,
+  cached : Array[@protocol.Column],
+  deadline : Deadline?,
+  scope : RpcScope,
+) -> Reply {
   let context = TimeoutContext::{ phase: WaitingSlot, sent: false, }
   let observation = match self.config.metrics {
     Some(metrics) =>
-      Some(RequestObservation::new(metrics, self.config, request))
+      Some(RequestObservation::new(metrics, self.config, request, scope))
     None => None
   }
   defer (if observation is Some(observation) { observation.finish(context) })

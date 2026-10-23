@@ -415,6 +415,7 @@ async fn[G] Session::maintain_control(
       }
       connected_at = Some(@async.now())
       control.connection = Some(connection)
+      connection.rpc_scope = Control
       defer @async.protect_from_cancel(() => {
         connection.shutdown()
         control.connection = None

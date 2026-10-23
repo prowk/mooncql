@@ -165,6 +165,8 @@ async test "authentication rejects excessive rounds oversized tokens server refu
             },
           )
         })
+        let events = []
+        let metrics = @client.Metrics::new(listener=event => events.push(event))
         assert_true(
           try {
             @client.with_connection(
@@ -173,6 +175,7 @@ async test "authentication rejects excessive rounds oversized tokens server refu
                 auth_provider=provider,
                 max_auth_rounds=2,
                 max_auth_token_bytes=4,
+                metrics~,
               ),
               _ => (),
             )
@@ -183,6 +186,9 @@ async test "authentication rejects excessive rounds oversized tokens server refu
               !message.contains("password")
             _ => false
           },
+        )
+        assert_true(
+          events.any(event => event is ConnectionFailed(_, AuthenticationError)),
         )
         worker.wait()
       })

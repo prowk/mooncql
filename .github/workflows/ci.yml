@@ -29,7 +29,6 @@ jobs:
         run: python scripts/package_scope.py
       - if: steps.package_scope.outputs.required == 'true'
         run: python scripts/package_acceptance.py
-      - run: python -m unittest discover -s scripts/tests
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
       - run: moon run cmd/value-mapping
@@ -37,6 +36,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install -r scripts/requirements-reference.txt
+      - run: python -m unittest discover -s scripts/tests
       - run: python scripts/differential.py
       - run: python scripts/tls_matrix.py
       - run: moon fmt --check
@@ -89,6 +89,7 @@ jobs:
           moon run cmd/features
           CQL_POOL_SIZE=3 moon run cmd/features
           CQL_MAPPING_INTEGRATION=1 moon run cmd/value-mapping
+          python scripts/prometheus_acceptance.py
           moon run cmd/profiles
           moon run cmd/limits
           CQL_POOL_SIZE=3 moon run cmd/limits
@@ -119,6 +120,7 @@ jobs:
             .artifacts/schema-reference-*/**/*.json
             .artifacts/pooling-evaluation-*/**/*.log
             .artifacts/pooling-evaluation-*/records.jsonl
+            .artifacts/prometheus-*/
       - if: always()
         run: docker compose logs --tail=80
       - if: always()

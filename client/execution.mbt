@@ -203,15 +203,12 @@ pub async fn Session::query_with_info(
   if request.body.length() > self.config.connection.max_frame_bytes {
     raise Configuration("request exceeds frame limit")
   }
-  self.begin_operation()
-  defer {
-    self.active -= 1
-    self.changed.broadcast()
-  }
-  self.finish_schema(
-    result_with_info(
-      self.request_accepted(request, deadline, idempotent, retry, routing),
-    ),
-    deadline,
-  )
+  self.with_operation(QueryOperation, () => {
+    self.finish_schema(
+      result_with_info(
+        self.request_accepted(request, deadline, idempotent, retry, routing),
+      ),
+      deadline,
+    )
+  })
 }
