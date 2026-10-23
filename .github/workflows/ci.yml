@@ -1,5 +1,8 @@
 name: checks
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -22,7 +25,10 @@ jobs:
       - run: python scripts/protocol_reference.py
       - run: python scripts/conversion_reference.py --check
       - run: python scripts/check_docs.py
-      - run: python scripts/package_acceptance.py
+      - id: package_scope
+        run: python scripts/package_scope.py
+      - if: steps.package_scope.outputs.required == 'true'
+        run: python scripts/package_acceptance.py
       - run: python -m unittest discover -s scripts/tests
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
@@ -59,6 +65,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - id: package_scope
+        run: python scripts/package_scope.py
       - run: python scripts/precache_nushell.py
       - uses: hustcer/setup-moonbit@v1.22
         with:
@@ -84,12 +92,16 @@ jobs:
           CQL_POOL_SIZE=3 moon run cmd/limits
           python scripts/schema_reference.py
           if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'password/lz4' ]; then
-            python scripts/package_acceptance.py --run
+            if [ "$RUN_PACKAGE_ACCEPTANCE" = true ]; then
+              python scripts/package_acceptance.py --run
+            fi
             python scripts/pooling_evaluation.py --smoke
             python scripts/pooling_evaluation.py --session --smoke
           fi
           python scripts/tls_matrix.py --backend-port 9042
           python scripts/session_recovery.py --docker-compose
+        env:
+          RUN_PACKAGE_ACCEPTANCE: ${{ steps.package_scope.outputs.required }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
