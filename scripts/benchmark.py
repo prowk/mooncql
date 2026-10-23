@@ -28,10 +28,13 @@ def command(arguments, folder=ROOT):
 
 def build(folder, package='cmd/bench'):
     command(['moon', 'build', '--target', 'native', '--release', package], folder)
-    binary = folder / '_build/native/release/build' / package / Path(package).name
-    if os.name == 'nt': binary = binary.with_suffix('.exe')
-    assert binary.is_file() and binary.resolve().is_relative_to(folder.resolve())
-    return str(binary)
+    output = folder / '_build/native/release/build' / package / Path(package).name
+    # Moon 工具链也可能在 Linux 生成 .exe，按实际产物定位而不由宿主系统猜扩展名。
+    for binary in (output.with_suffix('.exe'), output):
+        if binary.is_file():
+            assert binary.resolve().is_relative_to(folder.resolve())
+            return str(binary)
+    raise RuntimeError('Release benchmark executable was not produced')
 
 
 def generated_c_digest(folder, package='cmd/bench'):
