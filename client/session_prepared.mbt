@@ -11,6 +11,7 @@ pub struct SessionPrepared {
   cql : String
   keyspace : String?
   request_options : @protocol.RequestOptions?
+  profile : ExecutionProfile?
   states : Map[String, SessionPreparedState]
   mut parameters : Array[@protocol.Column]
   mut partition_key_indices : Array[Int]
@@ -24,8 +25,14 @@ pub async fn Session::prepare_with_info(
   keyspace? : String,
   deadline? : Deadline,
   request_options? : @protocol.RequestOptions,
+  profile? : ExecutionProfile,
 ) -> Execution[SessionPrepared] {
-  let deadline = self.operation_deadline(deadline)
+  let profile = self.execution_profile(profile)
+  let deadline = profile_deadline(
+    profile,
+    deadline,
+    self.config.connection.operation_timeout_ms,
+  )
   let request_options = request_options.map(options => options.snapshot())
   let request = @protocol.prepare(cql, keyspace?, request_options?)
   if request.body.length() > self.config.connection.max_frame_bytes {
@@ -42,6 +49,7 @@ pub async fn Session::prepare_with_info(
     cql,
     keyspace,
     request_options,
+    profile,
     states: Map([]),
     parameters: [],
     partition_key_indices: [],
@@ -149,12 +157,20 @@ pub fn SessionPrepared::parameters(
 pub async fn SessionPrepared::execute_with_info(
   self : SessionPrepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options? : @protocol.QueryOptions,
   deadline? : Deadline,
   idempotent? : Bool = false,
-  retry? : RetryPolicy = RetryPolicy::new(),
+  retry? : RetryPolicy,
+  profile? : ExecutionProfile,
 ) -> Execution[@protocol.ResultSet] {
-  let deadline = self.session.operation_deadline(deadline)
+  let profile = self.execution_profile(profile)
+  let options = profile_options(profile, options)
+  let retry = profile_retry(profile, retry)
+  let deadline = profile_deadline(
+    profile,
+    deadline,
+    self.session.config.connection.operation_timeout_ms,
+  )
   // 在选择连接前冻结参数，连接更换及重新准备都使用该快照。
   let values = @types.snapshot(values)
   let options = prepared_options(options, self.keyspace)
@@ -232,22 +248,31 @@ pub async fn SessionPrepared::execute_with_info(
 pub async fn SessionPrepared::execute_conditional(
   self : SessionPrepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options? : @protocol.QueryOptions,
   deadline? : Deadline,
+  profile? : ExecutionProfile,
 ) -> ConditionalResult {
-  conditional_result(self.execute(values, options~, deadline?))
+  conditional_result(self.execute(values, options?, deadline?, profile?))
 }
 
 ///|
 pub async fn SessionPrepared::execute(
   self : SessionPrepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options? : @protocol.QueryOptions,
   deadline? : Deadline,
   idempotent? : Bool = false,
-  retry? : RetryPolicy = RetryPolicy::new(),
+  retry? : RetryPolicy,
+  profile? : ExecutionProfile,
 ) -> @protocol.ResultSet {
-  self.execute_with_info(values, options~, deadline?, idempotent~, retry~).value catch {
+  self.execute_with_info(
+    values,
+    options?,
+    deadline?,
+    idempotent~,
+    retry?,
+    profile?,
+  ).value catch {
     ExecutionError(error, _) => raise error
     error => raise error
   }
@@ -260,8 +285,9 @@ pub async fn Session::prepare(
   keyspace? : String,
   deadline? : Deadline,
   request_options? : @protocol.RequestOptions,
+  profile? : ExecutionProfile,
 ) -> SessionPrepared {
-  self.prepare_with_info(cql, keyspace?, deadline?, request_options?).value catch {
+  self.prepare_with_info(cql, keyspace?, deadline?, request_options?, profile?).value catch {
     ExecutionError(error, _) => raise error
     error => raise error
   }

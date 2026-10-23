@@ -86,6 +86,7 @@ pub(all) struct SessionConfig {
   routing : RoutingConfig?
   discovery : DiscoveryConfig?
   schema_agreement : SchemaAgreementConfig
+  execution_profile : ExecutionProfile?
 }
 
 ///|
@@ -99,6 +100,7 @@ pub fn SessionConfig::new(
   discovery? : DiscoveryConfig,
   routing? : RoutingConfig,
   schema_agreement? : SchemaAgreementConfig = SchemaAgreementConfig::new(),
+  execution_profile? : ExecutionProfile,
 ) -> SessionConfig {
   {
     connection,
@@ -110,6 +112,7 @@ pub fn SessionConfig::new(
     discovery,
     routing,
     schema_agreement,
+    execution_profile,
   }
 }
 
@@ -603,20 +606,22 @@ pub async fn Session::query(
   self : Session,
   cql : String,
   values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options? : @protocol.QueryOptions,
   deadline? : Deadline,
   idempotent? : Bool = false,
-  retry? : RetryPolicy = RetryPolicy::new(),
+  retry? : RetryPolicy,
   routing? : RoutingHint,
+  profile? : ExecutionProfile,
 ) -> @protocol.ResultSet {
   self.query_with_info(
     cql,
     values~,
-    options~,
+    options?,
     deadline?,
     idempotent~,
-    retry~,
+    retry?,
     routing?,
+    profile?,
   ).value catch {
     ExecutionError(error, _) => raise error
     error => raise error

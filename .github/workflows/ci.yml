@@ -78,6 +78,7 @@ jobs:
           fi
           python scripts/short_acceptance.py --auth '${{ matrix.auth }}' --compression '${{ matrix.compression }}'
           moon run cmd/features
+          moon run cmd/profiles
           python scripts/schema_reference.py
           if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'password/lz4' ]; then
             python scripts/package_acceptance.py --run

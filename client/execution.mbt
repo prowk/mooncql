@@ -184,13 +184,21 @@ pub async fn Session::query_with_info(
   self : Session,
   cql : String,
   values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options? : @protocol.QueryOptions,
   deadline? : Deadline,
   idempotent? : Bool = false,
-  retry? : RetryPolicy = RetryPolicy::new(),
+  retry? : RetryPolicy,
   routing? : RoutingHint,
+  profile? : ExecutionProfile,
 ) -> Execution[@protocol.ResultSet] {
-  let deadline = self.operation_deadline(deadline)
+  let profile = self.execution_profile(profile)
+  let options = profile_options(profile, options)
+  let retry = profile_retry(profile, retry)
+  let deadline = profile_deadline(
+    profile,
+    deadline,
+    self.config.connection.operation_timeout_ms,
+  )
   let request = @protocol.query(cql, values~, options~)
   if request.body.length() > self.config.connection.max_frame_bytes {
     raise Configuration("request exceeds frame limit")

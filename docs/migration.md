@@ -33,3 +33,5 @@ moon add --upgrade prowk/mooncql@0.2.0
 `SessionConfig` 增加默认关闭的 schema agreement 配置；`ExecutionInfo` 增加可选的 `schema_agreement` 报告。常规构造器调用及读取既有字段的代码无需修改；手写完整记录字面量时补上新字段。开启等待后，DDL 成功与等待超时仍分别表示，详见 [schema agreement](schema-agreement.md)。
 
 新增按需 `Session.schema_metadata`、`SchemaOptions` 和隔离的 `SchemaSnapshot`，不会自动读取整份目录。穷尽匹配 `TimeoutPhase` 时须增加 `WaitingSchema`；读取错误为 `SchemaMetadataError(stage, cause)`，详见 [Schema 元数据](schema-metadata.md)。
+
+`SessionConfig` 增加可选的 `execution_profile`，省略时保留既有查询默认值。新增的 [ExecutionProfile](execution-profiles.md) 在准备和 Pager 创建时保存选定配置，每次调用仍需显式声明幂等；单次 `options` 替换整份查询选项。手工构造完整 SessionConfig 记录时须补上字段，穷尽匹配 TimeoutPhase 时须增加 `WaitingPage`。游标格式保持兼容；超时和重试预算不写入游标。

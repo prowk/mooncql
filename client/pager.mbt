@@ -15,6 +15,11 @@ pub struct Pager {
   mut busy : Bool
   mut columns : Array[@protocol.Column]
   binding : Bytes
+  timeout_ms : Int
+  traversal_timeout_ms : Int?
+  mut traversal_deadline : Deadline?
+  idempotent : Bool
+  retry : RetryPolicy
 }
 
 ///|
@@ -26,6 +31,7 @@ pub fn Connection::pages(
     page_size=1000,
   ),
   cursor? : PagingCursor,
+  traversal_deadline? : Deadline,
 ) -> Pager raise {
   let values = @types.snapshot(values)
   let options = {
@@ -41,6 +47,7 @@ pub fn Connection::pages(
     options,
     paging_binding(cql, values, options, None),
     cursor,
+    traversal_deadline?,
   )
 }
 
@@ -52,6 +59,7 @@ pub fn Prepared::pages(
     page_size=1000,
   ),
   cursor? : PagingCursor,
+  traversal_deadline? : Deadline,
 ) -> Pager raise {
   let values = @types.snapshot(values)
   let options = prepared_options(options, self.keyspace)
@@ -65,6 +73,7 @@ pub fn Prepared::pages(
     options,
     paging_binding(self.cql, values, options, Some(prepare)),
     cursor,
+    traversal_deadline?,
   )
 }
 
@@ -73,18 +82,25 @@ pub fn Session::pages(
   self : Session,
   cql : String,
   values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
-    page_size=1000,
-  ),
+  options? : @protocol.QueryOptions,
   cursor? : PagingCursor,
+  profile? : ExecutionProfile,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+  traversal_deadline? : Deadline,
 ) -> Pager raise {
   let values = @types.snapshot(values)
-  let options = options.snapshot()
+  let profile = self.execution_profile(profile)
+  let options = profile_options(profile, options, paging=true)
   new_pager(
     SessionQuery(self, cql, values),
     options,
     paging_binding(cql, values, options, None),
     cursor,
+    profile?,
+    idempotent~,
+    retry?,
+    traversal_deadline?,
   )
 }
 
@@ -92,13 +108,19 @@ pub fn Session::pages(
 pub fn SessionPrepared::pages(
   self : SessionPrepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
-    page_size=1000,
-  ),
+  options? : @protocol.QueryOptions,
   cursor? : PagingCursor,
+  profile? : ExecutionProfile,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+  traversal_deadline? : Deadline,
 ) -> Pager raise {
   let values = @types.snapshot(values)
-  let options = prepared_options(options, self.keyspace)
+  let profile = self.execution_profile(profile)
+  let options = prepared_options(
+    profile_options(profile, options, paging=true),
+    self.keyspace,
+  )
   let prepare = @protocol.prepare(
     self.cql,
     keyspace?=self.keyspace,
@@ -109,6 +131,10 @@ pub fn SessionPrepared::pages(
     options,
     paging_binding(self.cql, values, options, Some(prepare)),
     cursor,
+    profile?,
+    idempotent~,
+    retry?,
+    traversal_deadline?,
   )
 }
 
@@ -126,6 +152,30 @@ pub async fn Pager::next_with_info(
   self.busy = true
   defer {
     self.busy = false
+  }
+  // 整次遍历从第一次取页计时，包含调用方处理行及两页之间的等待。
+  if self.traversal_deadline is None &&
+    self.traversal_timeout_ms is Some(timeout) {
+    self.traversal_deadline = Some(Deadline::after(timeout))
+  }
+  let page_deadline = deadline.unwrap_or_else(() => {
+    Deadline::after(self.timeout_ms)
+  })
+  let deadline = match self.traversal_deadline {
+    Some(total) =>
+      if total.at < page_deadline.at {
+        total
+      } else {
+        page_deadline
+      }
+    None => page_deadline
+  }
+  if deadline.remaining_ms() <= 0 {
+    raise TimedOut({
+      phase: WaitingPage,
+      scope: Operation,
+      may_have_been_sent: false,
+    })
   }
   let options = @protocol.QueryOptions::{
     consistency: self.options.consistency,
@@ -150,14 +200,27 @@ pub async fn Pager::next_with_info(
       connection.run_with_info(
         @protocol.query(cql, values~, options~),
         cached=self.columns,
-        deadline?,
+        deadline~,
       )
     PreparedQuery(statement, values) =>
-      statement.execute_with_info(values, options~, deadline?)
+      statement.execute_with_info(values, options~, deadline~)
     SessionQuery(session, cql, values) =>
-      session.query_with_info(cql, values~, options~, deadline?)
+      session.query_with_info(
+        cql,
+        values~,
+        options~,
+        deadline~,
+        idempotent=self.idempotent,
+        retry=self.retry,
+      )
     SessionPreparedQuery(statement, values) =>
-      statement.execute_with_info(values, options~, deadline?)
+      statement.execute_with_info(
+        values,
+        options~,
+        deadline~,
+        idempotent=self.idempotent,
+        retry=self.retry,
+      )
   }
   guard result.value is Rows(page) else {
     raise ExecutionError(Unexpected("pager requires ROWS result"), result.info)

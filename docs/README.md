@@ -38,6 +38,7 @@
 - [开发分支接口](development-api.md)：尚未发布的 Session 批处理、动态认证与优雅排空，以及对应的可运行示例。
 - [Schema agreement](schema-agreement.md)：开发分支的显式检查、DDL 后等待和超时报告。
 - [Schema 元数据](schema-metadata.md)：开发分支的按需目录、不可变快照、缓存失效和独立对照。
+- [请求执行配置](execution-profiles.md)：开发分支的不可变配置、单次覆盖、分页策略和遍历预算。
 
 - [开发指南](development.md)：构建、回归、CI 和发布检查。
 - [申报功能与验收证据](acceptance.md)：功能对应清单、四组合短时验收、故障和类型边界。

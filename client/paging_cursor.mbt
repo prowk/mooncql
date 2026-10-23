@@ -102,6 +102,10 @@ fn new_pager(
   options : @protocol.QueryOptions,
   binding : Bytes,
   cursor : PagingCursor?,
+  profile? : ExecutionProfile,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+  traversal_deadline? : Deadline,
 ) -> Pager raise DriverError {
   if cursor is Some(cursor) {
     if options.paging_state is Some(_) {
@@ -127,6 +131,23 @@ fn new_pager(
     },
     busy: false,
     columns: [],
+    timeout_ms: profile
+    .bind(profile => profile.timeout)
+    .unwrap_or_else(() => {
+      match query {
+        Simple(connection, _, _) => connection.config.operation_timeout_ms
+        PreparedQuery(statement, _) =>
+          statement.connection.config.operation_timeout_ms
+        SessionQuery(session, _, _) =>
+          session.config.connection.operation_timeout_ms
+        SessionPreparedQuery(statement, _) =>
+          statement.session.config.connection.operation_timeout_ms
+      }
+    }),
+    traversal_timeout_ms: profile.bind(profile => profile.traversal_timeout),
+    traversal_deadline,
+    idempotent,
+    retry: profile_retry(profile, retry),
   }
 }
 

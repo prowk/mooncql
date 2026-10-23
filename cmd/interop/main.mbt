@@ -76,11 +76,24 @@ async fn main {
       page.get(0, "tags"),
       @types.Value::SetValue([Text("moon"), Text("中文")]),
     )
+    // Python 客户端与数据库可能使用不同宿主机时钟，后续更新显式晚于已存单元格。
+    guard connection.query(
+        "SELECT writetime(message) AS written_at FROM mooncql_test.interop WHERE id=1",
+      )
+      is Rows(written) else {
+      fail("missing Python cell timestamp")
+    }
+    let timestamp = written.row(0).int64("written_at")
+    assert_true(timestamp < 9223372036854775807L)
     ignore(
-      connection.query("UPDATE mooncql_test.interop SET message=? WHERE id=?", values=[
-        Text("MoonBit verified Python"),
-        Integer(1),
-      ]),
+      connection.query(
+        "UPDATE mooncql_test.interop USING TIMESTAMP ? SET message=? WHERE id=?",
+        values=[
+          BigInteger(timestamp + 1L),
+          Text("MoonBit verified Python"),
+          Integer(1),
+        ],
+      ),
     )
     let payload = Bytes::from_array(
       Array::makei(400000, i => (i % 251).to_byte()),
