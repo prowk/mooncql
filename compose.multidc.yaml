@@ -1,0 +1,15 @@
+name: mooncql-multidc-test
+
+services:
+  cassandra1:
+    environment:
+      CASSANDRA_DC: dc1
+      CQL_AUTHENTICATOR: AllowAllAuthenticator
+  cassandra2:
+    environment:
+      CASSANDRA_DC: dc2
+      CQL_AUTHENTICATOR: AllowAllAuthenticator
+  cassandra3:
+    environment:
+      CASSANDRA_DC: dc2
+      CQL_AUTHENTICATOR: AllowAllAuthenticator

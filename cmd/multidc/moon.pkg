@@ -1,0 +1,13 @@
+import {
+  "prowk/mooncql/client",
+  "prowk/mooncql/types",
+  "prowk/mooncql/routing",
+  "prowk/mooncql/protocol",
+  "moonbitlang/core/encoding/hex",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+pkgtype(kind: "executable")

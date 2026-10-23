@@ -109,6 +109,34 @@ jobs:
         run: docker compose logs --tail=80
       - if: always()
         run: docker compose down --volumes
+  multidc:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/precache_nushell.py
+      - uses: hustcer/setup-moonbit@v1.22
+        with:
+          version: '0.10.14+7d59c7ec9'
+          core-version: '0.10.14+7d59c7ec9'
+      - run: moon update
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r scripts/requirements-reference.txt
+      - run: docker compose -f compose.cluster.yaml -f compose.multidc.yaml up -d --wait --wait-timeout 360
+      - run: python scripts/multidc_acceptance.py --docker-compose
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: multidc-acceptance
+          include-hidden-files: true
+          path: .artifacts/multidc-*/
+      - if: always()
+        run: docker compose -f compose.cluster.yaml -f compose.multidc.yaml logs --tail=80
+      - if: always()
+        run: docker compose -f compose.cluster.yaml -f compose.multidc.yaml down --volumes
   cluster:
     needs: unit
     runs-on: ubuntu-latest

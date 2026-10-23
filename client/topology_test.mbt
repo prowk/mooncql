@@ -7,6 +7,10 @@ fn topology_rows(
   data_center? : String = "dc1",
   wide_tokens? : Bool = false,
   partitioner? : String = "org.apache.cassandra.dht.Murmur3Partitioner",
+  identity? : Int,
+  address? : Bytes,
+  rack? : String,
+  token_values? : Array[String],
 ) -> Bytes raise {
   let w = @codec.Writer::new()
   w.i32(2)
@@ -42,7 +46,7 @@ fn topology_rows(
     let id = Bytes::from_array(
       Array::makei(16, i => {
         if i == 15 {
-          (index + 1).to_byte()
+          identity.unwrap_or(index + 1).to_byte()
         } else {
           b'\x00'
         }
@@ -50,15 +54,25 @@ fn topology_rows(
     )
     let values : Array[@types.Value] = [
       Uuid(id),
-      Inet(if index == 0 { b"\x0a\x00\x00\x01" } else { b"\x0a\x00\x00\x02" }),
+      Inet(
+        address.unwrap_or(
+          if index == 0 {
+            b"\x0a\x00\x00\x01"
+          } else {
+            b"\x0a\x00\x00\x02"
+          },
+        ),
+      ),
       Integer(9042),
       Text(data_center),
-      Text("rack\{index}"),
+      Text(rack.unwrap_or("rack\{index}")),
       if invalid {
         Null
       } else {
         SetValue(
-          if wide_tokens && index == 0 {
+          if token_values is Some(tokens) {
+            tokens.map(token => Text(token))
+          } else if wide_tokens && index == 0 {
             [Text("-4611686018427387904"), Text("0")]
           } else if wide_tokens {
             [Text("4611686018427387904"), Text("9223372036854775807")]
@@ -83,7 +97,7 @@ fn topology_rows(
 }
 
 ///|
-fn replication_rows(simple? : Bool = false) -> Bytes raise {
+fn replication_rows(simple? : Bool = false, factor? : Int = 1) -> Bytes raise {
   let w = @codec.Writer::new()
   w.i32(2)
   w.i32(1)
@@ -104,7 +118,7 @@ fn replication_rows(simple? : Bool = false) -> Bytes raise {
       if simple {
         [
           (Text("class"), Text("org.apache.cassandra.locator.SimpleStrategy")),
-          (Text("replication_factor"), Text("1")),
+          (Text("replication_factor"), Text(factor.to_string())),
         ]
       } else {
         [

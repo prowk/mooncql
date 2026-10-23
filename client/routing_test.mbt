@@ -20,6 +20,7 @@ async fn with_routing_fixture(
         server.close()
       })
       let workers = []
+      let local_unavailable = [false]
       for index in 0..<2 {
         workers.push(
           group.spawn(() => {
@@ -31,6 +32,9 @@ async fn with_routing_fixture(
                   handlers.spawn(() => {
                     let peer = Peer::new(tcp)
                     defer peer.close()
+                    if index == 0 && local_unavailable[0] {
+                      return
+                    }
                     handshake(peer)
                     while true {
                       let request = Some(receive(peer)) catch { _ => None }
@@ -66,6 +70,10 @@ async fn with_routing_fixture(
                         respond(peer, request.header.stream, 8, session_row(7))
                       } else {
                         let cql = @codec.Reader::new(request.body).long_string()
+                        if cql == "disconnect local" && index == 0 {
+                          local_unavailable[0] = true
+                          return
+                        }
                         if cql == "hold candidate" || cql == "next candidate" {
                           let reader = @codec.Reader::new(request.body)
                           ignore(reader.long_string())
@@ -141,6 +149,9 @@ async fn with_routing_fixture(
             allow_remote~,
             max_metadata_age_ms=if expired { 1 } else { 60000 },
           ),
+          backoff_initial_ms=10000,
+          backoff_max_ms=10000,
+          jitter=0.0,
         ),
         session => {
           ignore(wait_topology(session, 2, 1))
@@ -153,6 +164,55 @@ async fn with_routing_fixture(
       )
     })
   })
+}
+
+///|
+async test "disconnected local DC obeys explicit remote fallback without changing LOCAL_QUORUM" {
+  for allow_remote in [false, true] {
+    with_routing_fixture("dc1", allow_remote~, remote_dc=true, (session, _, b) => {
+      let options = @protocol.QueryOptions::new(consistency=LocalQuorum)
+      assert_true(
+        try {
+          ignore(session.query("disconnect local", options~))
+          false
+        } catch {
+          _ => true
+        },
+      )
+      @async.with_timeout(1000, () => {
+        while session
+              .nodes()
+              .filter(node => node.status.state == Ready)
+              .length() !=
+              1 {
+          @async.sleep(1)
+        }
+      })
+      if allow_remote {
+        assert_eq(session.query_plan()[0].port, b)
+        assert_true(
+          session.query("next candidate", options~) is SetKeyspace("node1"),
+        )
+      } else {
+        assert_eq(session.query_plan().length(), 0)
+        assert_true(
+          try {
+            ignore(
+              session.query(
+                "next candidate",
+                options~,
+                deadline=@client.Deadline::after(30),
+              ),
+            )
+            false
+          } catch {
+            @client.TimedOut(info) => !info.may_have_been_sent
+            _ => false
+          },
+        )
+      }
+    })
+  }
 }
 
 ///|

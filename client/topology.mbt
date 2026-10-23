@@ -317,7 +317,7 @@ async fn[G] Session::reconcile(
   snapshot : TopologySnapshot,
   group : @async.TaskGroup[G],
 ) -> Unit {
-  let desired : Map[String, Endpoint] = Map([])
+  let desired : Map[String, (Endpoint, Bytes)] = Map([])
   for node in snapshot.nodes {
     if node.endpoint is Some(endpoint) {
       let config = endpoint_config(self.config.connection, endpoint)
@@ -326,7 +326,7 @@ async fn[G] Session::reconcile(
       if desired.contains(key) {
         raise Configuration("mapped topology endpoints must be unique")
       }
-      desired[key] = endpoint
+      desired[key] = (endpoint, node.host_id)
     }
   }
   // 移除前先取消并等待所属任务，旧成员不会留下后台重连。
@@ -334,8 +334,9 @@ async fn[G] Session::reconcile(
   while index >= 0 {
     let node = self.nodes[index]
     let keep = desired.get("\{node.endpoint.host}:\{node.endpoint.port}")
-      is Some(endpoint) &&
-      endpoint.server_name == node.endpoint.server_name
+      is Some((endpoint, host_id)) &&
+      endpoint.server_name == node.endpoint.server_name &&
+      (node.host_id is None || node.host_id == Some(host_id))
     if !keep {
       node.close_connections()
       if node.worker is Some(worker) {
@@ -349,15 +350,22 @@ async fn[G] Session::reconcile(
   if self.closed || self.draining {
     return
   }
-  for key, endpoint in desired {
-    if !self.nodes.any(node => {
-        "\{node.endpoint.host}:\{node.endpoint.port}" == key
-      }) {
+  for key, identity in desired {
+    let (endpoint, host_id) = identity
+    let existing = self.nodes.filter(node => {
+      "\{node.endpoint.host}:\{node.endpoint.port}" == key
+    })
+    if !existing.is_empty() {
+      let node = existing[0]
+      // 初始 seed 尚无成员身份；首次完整快照绑定身份，后续替换必须重建整个池。
+      node.host_id = Some(host_id)
+    } else {
       let node = session_node(
         self.config.connection,
         endpoint,
         self.config.connections_per_node,
       )
+      node.host_id = Some(host_id)
       self.nodes.push(node)
       node.worker = Some(
         group.spawn(() => self.maintain(node, group), no_wait=true),
@@ -419,13 +427,21 @@ async fn[G] Session::maintain_control(
         metrics.data.control_reconnects += 1L
         metrics.emit(Reconnected(endpoint, control.generation, true))
       }
+      let mut observer_id : Bytes? = None
       while !self.closed && !self.draining {
+        // 周期刷新或事件刷新期间都不使用待核验的旧 token／复制因子。
+        control.stale = true
         let snapshot = read_topology(
           connection,
           endpoint,
           control.config,
           control.refreshes + 1,
         )
+        if observer_id is Some(previous) &&
+          previous != snapshot.nodes[0].host_id {
+          raise Unexpected("control endpoint identity changed")
+        }
+        observer_id = Some(snapshot.nodes[0].host_id)
         if control.snapshot is Some(previous) &&
           previous.cluster_name != snapshot.cluster_name {
           raise Configuration("control endpoint belongs to a different cluster")

@@ -38,6 +38,7 @@ fn session_node(
     next_slot: 0,
     connect_gate: @async.Mutex(),
     connecting: 0,
+    host_id: None,
     worker: None,
     generation: 0,
     attempts: 0,
@@ -147,6 +148,7 @@ struct SessionNode {
   mut next_slot : Int
   connect_gate : @async.Mutex
   mut connecting : Int
+  mut host_id : Bytes?
   mut worker : @async.Task[Unit]?
   mut generation : Int
   mut attempts : Int
