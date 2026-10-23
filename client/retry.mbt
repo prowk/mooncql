@@ -59,8 +59,16 @@ fn retryable(error : Error) -> Bool {
     Closed | HeartbeatFailed | @io.ReaderClosed | @os_error.OSError(_, ..) =>
       true
     TimedOut(info) => info.scope == Execution || info.scope == Queue
-    Overloaded(InFlightLimit | ByteLimit | WaitingQueueFull | WaitingBytesFull) =>
-      true
+    Overloaded(
+      InFlightLimit
+      | ByteLimit
+      | WaitingQueueFull
+      | WaitingBytesFull
+      | SessionInFlightLimit
+      | SessionByteLimit
+      | SessionWaitingQueueFull
+      | SessionWaitingBytesFull
+    ) => true
     Server(server) =>
       match server.detail {
         Unavailable(_, _, _)

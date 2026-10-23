@@ -79,6 +79,7 @@ jobs:
           python scripts/short_acceptance.py --auth '${{ matrix.auth }}' --compression '${{ matrix.compression }}'
           moon run cmd/features
           moon run cmd/profiles
+          moon run cmd/limits
           python scripts/schema_reference.py
           if [ '${{ matrix.auth }}/${{ matrix.compression }}' = 'password/lz4' ]; then
             python scripts/package_acceptance.py --run
@@ -124,6 +125,9 @@ jobs:
       - run: docker compose -f compose.cluster.yaml up -d --wait --wait-timeout 360
       - run: python -m pip install -r scripts/requirements-reference.txt
       - run: python scripts/discovery_recovery.py --docker-compose
+      - run: moon run cmd/limits
+        env:
+          CQL_CONTACT_PORTS: '19052,19053,19054'
       - run: python scripts/cluster_failover.py --docker-compose
       - if: always()
         run: docker compose -f compose.cluster.yaml logs --tail=80

@@ -369,6 +369,11 @@ pub(all) enum OverloadReason {
   WaitingQueueFull
   WaitingBytesFull
   RequestTooLarge
+  SessionInFlightLimit
+  SessionByteLimit
+  SessionWaitingQueueFull
+  SessionWaitingBytesFull
+  SessionRequestTooLarge
 } derive(Eq, @debug.Debug)
 pub fn OverloadReason::equal(Self, Self) -> Bool
 pub fn OverloadReason::not_equal(Self, Self) -> Bool
@@ -620,10 +625,12 @@ pub struct Session {
   mut waiting_bytes : Int64
   control : ControlState?
   schema_cache : SchemaCache
+  admission : Admission
 }
 pub fn Session::active_count(Self) -> Int
 pub async fn Session::batch(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Unit
 pub async fn Session::batch_with_info(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Execution[Unit]
+pub fn Session::budget(Self) -> SessionBudget
 pub async fn Session::check_schema_agreement(Self, deadline? : Deadline) -> SchemaAgreement
 pub async fn Session::close(Self) -> Unit
 pub fn Session::control_status(Self) -> ControlStatus?
@@ -654,6 +661,14 @@ pub struct SessionBatchStatement {
 }
 pub fn SessionBatchStatement::query(String, values? : Array[@types.Value]) -> Self raise
 
+pub(all) struct SessionBudget {
+  in_flight : Int
+  in_flight_bytes : Int64
+  waiting : Int
+  waiting_bytes : Int64
+  limits : SessionLimits
+}
+
 pub(all) struct SessionConfig {
   connection : Config
   contact_points : Array[Endpoint]
@@ -665,8 +680,18 @@ pub(all) struct SessionConfig {
   discovery : DiscoveryConfig?
   schema_agreement : SchemaAgreementConfig
   execution_profile : ExecutionProfile?
+  limits : SessionLimits
 }
-pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig, execution_profile? : ExecutionProfile) -> Self
+pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig, execution_profile? : ExecutionProfile, limits? : SessionLimits) -> Self
+
+pub(all) struct SessionLimits {
+  max_in_flight : Int
+  max_in_flight_bytes : Int
+  max_waiting : Int
+  max_waiting_bytes : Int
+  overload_policy : OverloadPolicy
+}
+pub fn SessionLimits::new(max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy) -> Self
 
 type SessionNode
 

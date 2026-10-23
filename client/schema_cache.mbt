@@ -48,6 +48,7 @@ async fn[T] Session::with_schema_lock(
       mutex.release()
     }
     if waiting {
+      self.admission.leave_wait(bytes)
       self.waiting -= 1
       self.waiting_bytes -= bytes
       if self.config.connection.metrics is Some(metrics) {
@@ -66,6 +67,7 @@ async fn[T] Session::with_schema_lock(
       self.config.connection.max_waiting_bytes.to_int64() - self.waiting_bytes {
       raise Overloaded(WaitingBytesFull)
     }
+    self.admission.enter_wait(bytes)
     self.waiting += 1
     self.waiting_bytes += bytes
     waiting = true
@@ -87,6 +89,7 @@ async fn[T] Session::with_schema_lock(
   }
   if waiting {
     waiting = false
+    self.admission.leave_wait(bytes)
     self.waiting -= 1
     self.waiting_bytes -= bytes
     if self.config.connection.metrics is Some(metrics) {

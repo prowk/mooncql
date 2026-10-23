@@ -512,7 +512,8 @@ async test "session prepared replacement lock bounds waiters cancels cleanly and
         config=@client.SessionConfig::new(
           connection=@client.Config::new(
             port=server.addr.port(),
-            max_in_flight=1,
+            // 保留一个空闲 RPC 槽，专门验证准备互斥等待，而非满载节点选择等待。
+            max_in_flight=2,
             max_waiting=1,
             metrics~,
           ),

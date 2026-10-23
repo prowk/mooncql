@@ -393,9 +393,11 @@ async fn[G] Session::maintain_control(
     next += 1
     let mut connected_at = None
     try {
-      let connection = connect(
+      let connection = connect_observed(
         group,
-        config=endpoint_config(self.config.connection, endpoint),
+        endpoint_config(self.config.connection, endpoint),
+        None,
+        Some(self.admission),
       )
       connected_at = Some(@async.now())
       control.connection = Some(connection)

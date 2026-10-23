@@ -261,6 +261,7 @@ async fn[G] connect_internal(
   group : @async.TaskGroup[G],
   config? : Config = Config::new(),
   deadline? : Deadline,
+  shared? : Admission,
 ) -> Connection {
   if config.connect_timeout_ms <= 0 {
     raise Configuration("invalid connection timeout")
@@ -284,7 +285,7 @@ async fn[G] connect_internal(
   let mut transferred = false
   defer (if !transferred && opened is Some(connection) { connection.close() })
   let connection = timed(duration, scope, context, () => {
-    let connection = open_connection(config)
+    let connection = open_connection(config, parent?=shared)
     opened = Some(connection)
     connection
   })
@@ -305,7 +306,7 @@ async fn[G] connect_internal(
 }
 
 ///|
-async fn open_connection(config : Config) -> Connection {
+async fn open_connection(config : Config, parent? : Admission) -> Connection {
   config.validate()
   let socket = Transport::connect(config)
   let connection = Connection::{
@@ -332,7 +333,7 @@ async fn open_connection(config : Config) -> Connection {
     last_received: @async.now(),
     abandoned: 0,
     pending: Map([]),
-    admission: Admission::new(config),
+    admission: Admission::new(config, parent?),
     next_stream: 0,
     prepared_cache: PreparedCache::new(config),
     preparing: Map([]),

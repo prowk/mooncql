@@ -276,8 +276,18 @@ pub async fn[G] connect(
   config? : Config = Config::new(),
   deadline? : Deadline,
 ) -> Connection {
+  connect_observed(group, config, deadline, None)
+}
+
+///|
+async fn[G] connect_observed(
+  group : @async.TaskGroup[G],
+  config : Config,
+  deadline : Deadline?,
+  shared : Admission?,
+) -> Connection {
   guard config.metrics is Some(metrics) else {
-    return connect_internal(group, config~, deadline?)
+    return connect_internal(group, config~, deadline?, shared?)
   }
   let endpoint = Endpoint::new(host=config.host, port=config.port)
   metrics.data.connect_attempts += 1L
@@ -287,7 +297,7 @@ pub async fn[G] connect(
     metrics.data.connect_cancellations += 1L
     metrics.emit(ConnectionFailed(endpoint, Cancelled))
   })
-  let result = Ok(connect_internal(group, config~, deadline?)) catch {
+  let result = Ok(connect_internal(group, config~, deadline?, shared?)) catch {
     error => Err(error)
   }
   completed = true

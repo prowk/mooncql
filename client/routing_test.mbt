@@ -5,6 +5,9 @@ async fn with_routing_fixture(
   remote_dc? : Bool = false,
   expired? : Bool = false,
   unsupported? : Bool = false,
+  local_in_flight? : Int = 128,
+  held? : @async.Queue[Unit],
+  release? : @async.Queue[Unit],
   body : async (@client.Session, Int, Int) -> Unit,
 ) -> Unit {
   @async.with_timeout(6000, () => {
@@ -63,6 +66,19 @@ async fn with_routing_fixture(
                         respond(peer, request.header.stream, 8, session_row(7))
                       } else {
                         let cql = @codec.Reader::new(request.body).long_string()
+                        if cql == "hold candidate" || cql == "next candidate" {
+                          let reader = @codec.Reader::new(request.body)
+                          ignore(reader.long_string())
+                          assert_eq(reader.u16(), 6)
+                          assert_eq(reader.i32(), 0)
+                          reader.finish()
+                          if cql == "hold candidate" &&
+                            held is Some(held) &&
+                            release is Some(release) {
+                            held.put(())
+                            release.get()
+                          }
+                        }
                         let is_local = cql.contains("FROM system.local")
                         let body = if is_local ||
                           cql.contains("FROM system.peers_v2") {
@@ -110,6 +126,7 @@ async fn with_routing_fixture(
       })
       @client.with_session(
         config=@client.SessionConfig::new(
+          connection=@client.Config::new(max_in_flight=local_in_flight),
           contact_points=[@client.Endpoint::new(port=servers[0].addr.port())],
           discovery=@client.DiscoveryConfig::new(refresh_interval_ms=10000, address_mapper=native => {
             let index = if native.address == b"\x0a\x00\x00\x01" {
@@ -136,6 +153,48 @@ async fn with_routing_fixture(
       )
     })
   })
+}
+
+///|
+async test "saturated local DC obeys explicit remote fallback and preserves LOCAL_QUORUM on the wire" {
+  for allow_remote in [false, true] {
+    let held : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
+    let release : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
+    with_routing_fixture(
+      "dc1",
+      allow_remote~,
+      remote_dc=true,
+      local_in_flight=1,
+      held~,
+      release~,
+      (session, _, _) => {
+        @async.with_task_group(requests => {
+          let options = @protocol.QueryOptions::new(consistency=LocalQuorum)
+          let owner = requests.spawn(() => {
+            session.query("hold candidate", options~)
+          })
+          held.get()
+          if allow_remote {
+            assert_true(
+              session.query("next candidate", options~) is SetKeyspace("node1"),
+            )
+            release.put(())
+          } else {
+            let queued = requests.spawn(() => {
+              session.query("next candidate", options~)
+            })
+            @async.sleep(30)
+            assert_eq(session.waiting_count(), 1)
+            release.put(())
+            assert_true(queued.wait() is SetKeyspace("node0"))
+          }
+          assert_true(owner.wait() is SetKeyspace("node0"))
+          assert_eq(session.budget().in_flight, 0)
+          assert_eq(session.budget().waiting, 0)
+        })
+      },
+    )
+  }
 }
 
 ///|

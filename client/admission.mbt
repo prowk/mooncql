@@ -17,6 +17,11 @@ pub(all) enum OverloadReason {
   WaitingQueueFull
   WaitingBytesFull
   RequestTooLarge
+  SessionInFlightLimit
+  SessionByteLimit
+  SessionWaitingQueueFull
+  SessionWaitingBytesFull
+  SessionRequestTooLarge
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -29,6 +34,8 @@ pub extend OverloadReason with @debug.Debug::{to_repr}
 struct Admission {
   config : Config
   changed : @async.CondVar
+  parent : Admission?
+  session : Bool
   mut closed : Bool
   mut in_flight : Int
   mut bytes : Int64
@@ -45,10 +52,19 @@ priv struct Reservation {
 }
 
 ///|
-fn Admission::new(config : Config) -> Admission {
+fn Admission::new(
+  config : Config,
+  parent? : Admission,
+  changed? : @async.CondVar,
+  session? : Bool = false,
+) -> Admission {
   {
     config,
-    changed: @async.CondVar::Cond(),
+    changed: parent
+    .map(parent => parent.changed)
+    .unwrap_or_else(() => changed.unwrap_or_else(() => @async.CondVar::Cond())),
+    parent,
+    session,
     closed: false,
     in_flight: 0,
     bytes: 0L,
@@ -59,8 +75,101 @@ fn Admission::new(config : Config) -> Admission {
 
 ///|
 fn Admission::fits(self : Admission, bytes : Int64) -> Bool {
-  self.in_flight < self.config.max_in_flight &&
-  self.bytes + bytes <= self.config.max_in_flight_bytes.to_int64()
+  !self.is_closed() && self.block_reason(bytes) is None
+}
+
+///|
+fn Admission::is_closed(self : Admission) -> Bool {
+  self.closed || (self.parent is Some(parent) && parent.is_closed())
+}
+
+///|
+fn Admission::block_reason(self : Admission, bytes : Int64) -> OverloadReason? {
+  if self.parent is Some(parent) && parent.block_reason(bytes) is Some(reason) {
+    return Some(reason)
+  }
+  if self.in_flight >= self.config.max_in_flight {
+    Some(if self.session { SessionInFlightLimit } else { InFlightLimit })
+  } else if bytes > self.config.max_in_flight_bytes.to_int64() - self.bytes {
+    Some(if self.session { SessionByteLimit } else { ByteLimit })
+  } else {
+    None
+  }
+}
+
+///|
+fn Admission::validate_size(
+  self : Admission,
+  bytes : Int64,
+) -> Unit raise DriverError {
+  if self.is_closed() {
+    raise Closed
+  }
+  if self.parent is Some(parent) {
+    parent.validate_size(bytes)
+  }
+  if bytes > self.config.max_in_flight_bytes.to_int64() {
+    raise Overloaded(
+      if self.session {
+        SessionRequestTooLarge
+      } else {
+        RequestTooLarge
+      },
+    )
+  }
+}
+
+///|
+fn Admission::rejects(self : Admission) -> Bool {
+  self.config.overload_policy == Reject ||
+  (self.parent is Some(parent) && parent.rejects())
+}
+
+///|
+fn Admission::waiting_reason(
+  self : Admission,
+  bytes : Int64,
+) -> OverloadReason? {
+  if self.parent is Some(parent) && parent.waiting_reason(bytes) is Some(reason) {
+    return Some(reason)
+  }
+  if self.waiting >= self.config.max_waiting {
+    Some(if self.session { SessionWaitingQueueFull } else { WaitingQueueFull })
+  } else if bytes >
+    self.config.max_waiting_bytes.to_int64() - self.waiting_bytes {
+    Some(if self.session { SessionWaitingBytesFull } else { WaitingBytesFull })
+  } else {
+    None
+  }
+}
+
+///|
+// 子连接与 Session 在同一同步步骤记账，等待、取消及迟到响应使用同一所有权。
+fn Admission::change_wait(self : Admission, bytes : Int64, delta : Int) -> Unit {
+  self.waiting += delta
+  self.waiting_bytes += bytes * delta.to_int64()
+  if self.config.metrics is Some(metrics) {
+    metrics.gauges(0L, 0L, delta.to_int64(), bytes * delta.to_int64())
+  }
+  if self.parent is Some(parent) {
+    parent.change_wait(bytes, delta)
+  }
+}
+
+///|
+fn Admission::change_active(
+  self : Admission,
+  bytes : Int64,
+  delta : Int,
+) -> Unit {
+  self.in_flight += delta
+  self.bytes += bytes * delta.to_int64()
+  if self.config.metrics is Some(metrics) {
+    metrics.gauges(delta.to_int64(), bytes * delta.to_int64(), 0L, 0L)
+  }
+  if self.parent is Some(parent) {
+    parent.change_active(bytes, delta)
+  }
 }
 
 ///|
@@ -68,29 +177,17 @@ fn Admission::enter_wait(
   self : Admission,
   bytes : Int64,
 ) -> Unit raise DriverError {
-  if self.closed {
-    raise Closed
+  self.validate_size(bytes)
+  if self.waiting_reason(bytes) is Some(reason) {
+    raise Overloaded(reason)
   }
-  if self.waiting >= self.config.max_waiting {
-    raise Overloaded(WaitingQueueFull)
-  }
-  if self.waiting_bytes + bytes > self.config.max_waiting_bytes.to_int64() {
-    raise Overloaded(WaitingBytesFull)
-  }
-  self.waiting += 1
-  self.waiting_bytes += bytes
-  if self.config.metrics is Some(metrics) {
-    metrics.gauges(0L, 0L, 1L, bytes)
-  }
+  self.change_wait(bytes, 1)
 }
 
 ///|
 fn Admission::leave_wait(self : Admission, bytes : Int64) -> Unit {
-  self.waiting -= 1
-  self.waiting_bytes -= bytes
-  if self.config.metrics is Some(metrics) {
-    metrics.gauges(0L, 0L, -1L, -bytes)
-  }
+  self.change_wait(bytes, -1)
+  self.changed.broadcast()
 }
 
 ///|
@@ -98,62 +195,32 @@ fn Admission::register(
   self : Admission,
   bytes : Int64,
 ) -> Reservation raise DriverError {
-  if self.closed {
-    raise Closed
-  }
-  if bytes > self.config.max_in_flight_bytes.to_int64() {
-    raise Overloaded(RequestTooLarge)
-  }
-  if !self.fits(bytes) {
-    if self.config.overload_policy == Reject {
-      raise Overloaded(
-        if self.in_flight >= self.config.max_in_flight {
-          InFlightLimit
-        } else {
-          ByteLimit
-        },
-      )
+  self.validate_size(bytes)
+  if self.block_reason(bytes) is Some(reason) {
+    if self.rejects() {
+      raise Overloaded(reason)
     }
-    if self.waiting >= self.config.max_waiting {
-      raise Overloaded(WaitingQueueFull)
-    }
-    if self.waiting_bytes + bytes > self.config.max_waiting_bytes.to_int64() {
-      raise Overloaded(WaitingBytesFull)
-    }
-    self.waiting += 1
-    self.waiting_bytes += bytes
-    if self.config.metrics is Some(metrics) {
-      metrics.gauges(0L, 0L, 1L, bytes)
-    }
+    self.enter_wait(bytes)
     return { bytes, released: false, admitted: false, owned_by_pending: false, }
   }
-  self.in_flight += 1
-  self.bytes += bytes
-  if self.config.metrics is Some(metrics) {
-    metrics.gauges(1L, bytes, 0L, 0L)
-  }
+  self.change_active(bytes, 1)
   { bytes, released: false, admitted: true, owned_by_pending: false, }
 }
 
 ///|
 async fn Admission::admit(self : Admission, reservation : Reservation) -> Unit {
   if !reservation.admitted {
-    while !self.closed && !self.fits(reservation.bytes) {
+    while !self.is_closed() && !self.fits(reservation.bytes) {
       self.changed.wait()
     }
-    if self.closed {
+    if self.is_closed() {
       raise Closed
     }
-    self.waiting -= 1
-    self.waiting_bytes -= reservation.bytes
+    self.change_wait(reservation.bytes, -1)
     reservation.admitted = true
-    self.in_flight += 1
-    self.bytes += reservation.bytes
-    if self.config.metrics is Some(metrics) {
-      metrics.gauges(1L, reservation.bytes, -1L, -reservation.bytes)
-    }
+    self.change_active(reservation.bytes, 1)
   }
-  if self.closed {
+  if self.is_closed() {
     raise Closed
   }
 }
@@ -163,17 +230,9 @@ fn Admission::release(self : Admission, reservation : Reservation) -> Unit {
   if !reservation.released {
     reservation.released = true
     if reservation.admitted {
-      self.in_flight -= 1
-      self.bytes -= reservation.bytes
-      if self.config.metrics is Some(metrics) {
-        metrics.gauges(-1L, -reservation.bytes, 0L, 0L)
-      }
+      self.change_active(reservation.bytes, -1)
     } else {
-      self.waiting -= 1
-      self.waiting_bytes -= reservation.bytes
-      if self.config.metrics is Some(metrics) {
-        metrics.gauges(0L, 0L, -1L, -reservation.bytes)
-      }
+      self.change_wait(reservation.bytes, -1)
     }
     self.changed.broadcast()
   }

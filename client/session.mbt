@@ -87,6 +87,7 @@ pub(all) struct SessionConfig {
   discovery : DiscoveryConfig?
   schema_agreement : SchemaAgreementConfig
   execution_profile : ExecutionProfile?
+  limits : SessionLimits
 }
 
 ///|
@@ -101,6 +102,7 @@ pub fn SessionConfig::new(
   routing? : RoutingConfig,
   schema_agreement? : SchemaAgreementConfig = SchemaAgreementConfig::new(),
   execution_profile? : ExecutionProfile,
+  limits? : SessionLimits = SessionLimits::new(),
 ) -> SessionConfig {
   {
     connection,
@@ -113,6 +115,7 @@ pub fn SessionConfig::new(
     routing,
     schema_agreement,
     execution_profile,
+    limits,
   }
 }
 
@@ -158,6 +161,7 @@ pub struct Session {
   mut waiting_bytes : Int64
   control : ControlState?
   schema_cache : SchemaCache
+  admission : Admission
 }
 
 ///|
@@ -168,6 +172,7 @@ pub async fn[T] with_session(
   let config = { ..config, contact_points: config.contact_points.copy(), }
   config.connection.validate()
   config.schema_agreement.validate()
+  config.limits.validate()
   if config.routing is Some(routing) &&
     (
       config.discovery is None ||
@@ -225,9 +230,15 @@ pub async fn[T] with_session(
     }
   })
   @async.with_task_group(group => {
+    let changed = @async.CondVar::Cond()
+    let admission = Admission::new(
+      config.limits.as_config(config.connection),
+      changed~,
+      session=true,
+    )
     let session = Session::{
       config,
-      changed: @async.CondVar::Cond(),
+      changed,
       nodes,
       closed: false,
       draining: false,
@@ -240,6 +251,7 @@ pub async fn[T] with_session(
       waiting_bytes: 0L,
       control,
       schema_cache: SchemaCache::new(),
+      admission,
     }
     defer session.stop()
     for node in nodes {
@@ -266,6 +278,7 @@ fn Session::stop(self : Session) -> Unit {
       self.drain_outcome = Some(Interrupted(self.active))
     }
     self.closed = true
+    self.admission.close()
     self.schema_cache.entry = None
     if self.control is Some(control) {
       if control.connection is Some(connection) {
@@ -377,7 +390,9 @@ async fn[G] Session::maintain(
     node.state = Connecting
     node.attempts += 1
     self.changed.broadcast()
-    let connection = Some(connect(group, config=node.config)) catch {
+    let connection = Some(
+      connect_observed(group, node.config, None, Some(self.admission)),
+    ) catch {
       error => {
         node.last_error = Some(error)
         self.last_error = Some(error)
@@ -442,14 +457,20 @@ fn Session::choose(
   self : Session,
   hint : RoutingHint?,
   attempted : Array[String],
+  bytes : Int64,
 ) -> Connection? {
   let indices = self.plan_indices(hint, attempted)
   if indices.is_empty() {
     return None
   }
-  let index = indices[0]
-  self.next_node = (index + 1) % self.nodes.length()
-  self.nodes[index].current
+  for index in indices {
+    if self.nodes[index].current is Some(connection) &&
+      connection.admission.fits(bytes) {
+      self.next_node = (index + 1) % self.nodes.length()
+      return Some(connection)
+    }
+  }
+  None
 }
 
 ///|
@@ -463,8 +484,23 @@ async fn Session::select(
   if self.closed {
     raise Closed
   }
-  if self.choose(hint, attempted) is Some(connection) {
+  self.admission.validate_size(bytes)
+  if bytes > self.config.connection.max_in_flight_bytes.to_int64() {
+    raise Overloaded(RequestTooLarge)
+  }
+  if self.choose(hint, attempted, bytes) is Some(connection) {
     return connection
+  }
+  // 有健康候选却无额度时按策略拒绝；节点不可用仍使用原有恢复等待语义。
+  let candidates = self.plan_indices(hint, attempted)
+  if !candidates.is_empty() &&
+    (
+      self.config.limits.overload_policy == Reject ||
+      self.config.connection.overload_policy == Reject
+    ) &&
+    self.nodes[candidates[0]].current is Some(connection) &&
+    connection.admission.block_reason(bytes) is Some(reason) {
+    raise Overloaded(reason)
   }
   let observation = match self.config.connection.metrics {
     Some(metrics) => Some(WaitObservation::new(metrics, Connection, bytes))
@@ -505,12 +541,14 @@ async fn Session::wait_connection(
     self.config.connection.max_waiting_bytes.to_int64() {
     raise Overloaded(WaitingBytesFull)
   }
+  self.admission.enter_wait(bytes)
   self.waiting += 1
   self.waiting_bytes += bytes
   if self.config.connection.metrics is Some(metrics) {
     metrics.gauges(0L, 0L, 1L, bytes)
   }
   defer {
+    self.admission.leave_wait(bytes)
     self.waiting -= 1
     self.waiting_bytes -= bytes
     if self.config.connection.metrics is Some(metrics) {
@@ -518,14 +556,39 @@ async fn Session::wait_connection(
     }
     self.changed.broadcast()
   }
+  let full = !self.plan_indices(hint, attempted).is_empty()
+  let remaining = deadline.remaining_ms()
+  let queue_limited = full &&
+    self.config.connection.queue_timeout_ms < remaining
+  let context = TimeoutContext::{
+    phase: if full {
+      WaitingSlot
+    } else {
+      WaitingConnection
+    },
+    sent: false,
+  }
   timed(
-    deadline.remaining_ms(),
-    Operation,
-    { phase: WaitingConnection, sent: false, },
+    if queue_limited {
+      self.config.connection.queue_timeout_ms
+    } else {
+      remaining
+    },
+    if queue_limited {
+      Queue
+    } else {
+      Operation
+    },
+    context,
     () => {
       while !self.closed {
-        if self.choose(hint, attempted) is Some(connection) {
+        if self.choose(hint, attempted, bytes) is Some(connection) {
           return connection
+        }
+        context.phase = if self.plan_indices(hint, attempted).is_empty() {
+          WaitingConnection
+        } else {
+          WaitingSlot
         }
         self.changed.wait()
       }

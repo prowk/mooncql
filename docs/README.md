@@ -39,6 +39,7 @@
 - [Schema agreement](schema-agreement.md)：开发分支的显式检查、DDL 后等待和超时报告。
 - [Schema 元数据](schema-metadata.md)：开发分支的按需目录、不可变快照、缓存失效和独立对照。
 - [请求执行配置](execution-profiles.md)：开发分支的不可变配置、单次覆盖、分页策略和遍历预算。
+- [节点负载与 Session 总额度](session-limits.md)：开发分支的可用额度选择、跨连接预算与后台 RPC 计费。
 
 - [开发指南](development.md)：构建、回归、CI 和发布检查。
 - [申报功能与验收证据](acceptance.md)：功能对应清单、四组合短时验收、故障和类型边界。
