@@ -1,0 +1,89 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "prowk/mooncql/mapping"
+
+import {
+  "moonbitlang/core/debug",
+  "prowk/mooncql/protocol",
+  "prowk/mooncql/types",
+}
+
+// Values
+pub fn bool_codec() -> ValueCodec[Bool]
+
+pub fn int_codec() -> ValueCodec[Int]
+
+pub fn text_codec() -> ValueCodec[String]
+
+// Errors
+pub(all) suberror MappingError {
+  MappingError(String, MappingReason)
+} derive(@debug.Debug)
+pub fn MappingError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct EncodeContext {
+  path : String
+}
+pub fn[T] EncodeContext::field(Self, String, ValueCodec[T], T) -> @types.Value raise MappingError
+pub fn[T] EncodeContext::item(Self, Int, ValueCodec[T], T) -> @types.Value raise MappingError
+
+pub(all) enum MappingReason {
+  MissingField
+  NullValue
+  TypeMismatch
+  InvalidValue
+  InvalidSchema
+  LimitExceeded
+  CallbackFailed
+} derive(Eq, @debug.Debug)
+pub fn MappingReason::equal(Self, Self) -> Bool
+pub fn MappingReason::not_equal(Self, Self) -> Bool
+pub fn MappingReason::to_repr(Self) -> @debug.Repr
+
+pub(all) enum MissingColumnPolicy {
+  RejectMissing
+  MissingAsNull
+} derive(Eq, @debug.Debug)
+pub fn MissingColumnPolicy::equal(Self, Self) -> Bool
+pub fn MissingColumnPolicy::not_equal(Self, Self) -> Bool
+pub fn MissingColumnPolicy::to_repr(Self) -> @debug.Repr
+
+pub struct RowCodec[T] {
+  decode : (RowReader) -> T raise
+}
+pub fn[T] RowCodec::decode(Self[T], @protocol.Row, missing? : MissingColumnPolicy) -> T raise MappingError
+pub fn[T] RowCodec::new((RowReader) -> T raise) -> Self[T]
+
+pub struct RowReader {
+  columns : Array[@protocol.Column]
+  values : Array[@types.Value]
+  missing : MissingColumnPolicy
+}
+pub fn RowReader::column(Self, String) -> ValueReader raise MappingError
+
+pub struct ValueCodec[T] {
+  typ : @types.CqlType
+  encode : (T, EncodeContext) -> @types.Value raise
+  decode : (ValueReader) -> T raise
+  accepts_null : Bool
+}
+pub fn[T] ValueCodec::cql_type(Self[T]) -> @types.CqlType
+pub fn[T] ValueCodec::decode(Self[T], @types.Value) -> T raise MappingError
+pub fn[T] ValueCodec::encode(Self[T], T) -> @types.Value raise MappingError
+pub fn[T] ValueCodec::new(@types.CqlType, (T, EncodeContext) -> @types.Value raise, (ValueReader) -> T raise) -> Self[T] raise MappingError
+pub fn[T] ValueCodec::optional(Self[T]) -> Self[T?]
+
+pub struct ValueReader {
+  path : String
+  typ : @types.CqlType?
+  value : @types.Value
+}
+pub fn ValueReader::field(Self, String) -> Self raise MappingError
+pub fn ValueReader::is_null(Self) -> Bool
+pub fn ValueReader::item(Self, Int) -> Self raise MappingError
+pub fn[T] ValueReader::read(Self, ValueCodec[T]) -> T raise MappingError
+pub fn ValueReader::value(Self) -> @types.Value raise MappingError
+
+// Type aliases
+
+// Traits

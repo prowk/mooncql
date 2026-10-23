@@ -32,6 +32,10 @@ def main():
     features = (ROOT / 'cmd/features/main.mbt').read_text(encoding='utf-8').strip()
     if features not in development:
         failures.append('development feature example differs from documented runnable source')
+    mapping = (ROOT / 'docs/value-mapping.md').read_text(encoding='utf-8')
+    mapping_source = (ROOT / 'cmd/value-mapping/main.mbt').read_text(encoding='utf-8').split('///|\nasync fn main', 1)[0].strip()
+    if mapping_source not in mapping:
+        failures.append('mapping codec fragment differs from compiled runnable source')
     if failures:
         raise SystemExit('\n'.join(failures))
     print(f'PASS {len(documents)} documents, navigation and runnable tutorial')
