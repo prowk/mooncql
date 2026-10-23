@@ -38,6 +38,15 @@ def certificates(folder):
                    .not_valid_before(now - datetime.timedelta(days=30 if expired else 1))
                    .not_valid_after(now + datetime.timedelta(days=-1 if expired else 30))
                    .add_extension(x509.BasicConstraints(ca=parent is None or intermediate, path_length=None), critical=True))
+        # 严格的 X.509 验证要求签发者／主体标识及 CA 签名用途，不能靠关闭验证绕过。
+        authority = parent is None or intermediate
+        builder = (builder
+                   .add_extension(x509.SubjectKeyIdentifier.from_public_key(key.public_key()), critical=False)
+                   .add_extension(x509.AuthorityKeyIdentifier.from_issuer_public_key(issuer_key.public_key()), critical=False)
+                   .add_extension(x509.KeyUsage(digital_signature=True, content_commitment=False,
+                                               key_encipherment=not authority, data_encipherment=False,
+                                               key_agreement=False, key_cert_sign=authority, crl_sign=authority,
+                                               encipher_only=False, decipher_only=False), critical=True))
         if parent and not intermediate:
             builder = builder.add_extension(x509.ExtendedKeyUsage([
                 ExtendedKeyUsageOID.CLIENT_AUTH if client else ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)

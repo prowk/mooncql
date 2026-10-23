@@ -125,6 +125,31 @@ jobs:
         run: docker compose logs --tail=80
       - if: always()
         run: docker compose down --volumes
+  native-tls:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python scripts/precache_nushell.py
+      - uses: hustcer/setup-moonbit@v1.22
+        with:
+          version: '0.10.14+7d59c7ec9'
+          core-version: '0.10.14+7d59c7ec9'
+      - run: moon update
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r scripts/requirements-reference.txt
+      - run: python scripts/native_tls_acceptance.py --docker-compose
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cassandra-native-tls
+          include-hidden-files: true
+          path: .artifacts/native-tls-*/
   multidc:
     needs: unit
     runs-on: ubuntu-latest

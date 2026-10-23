@@ -2,6 +2,8 @@
 
 ## 未发布
 
+- Cassandra 自身 TLS 监听的单向／双向证书、大消息与最小权限账户验收，并独立回归元数据拒绝时基础业务查询继续工作。
+
 - 区分 Session 逻辑调用、实际 data／control／heartbeat RPC 和重试尝试，提供有界 Prometheus 文本示例、延迟直方图与独立解析验收。
 
 - 显式应用类型与 Value／Row 映射，支持嵌套 UDT／tuple、字段路径错误、独立缺列和 NULL 策略，以及与直接 Value 字节一致的可运行示例。

@@ -44,6 +44,7 @@
 - [多数据中心与拓扑变化](multidc.md)：开发分支的成员身份替换、过期路由保护和双 DC 实库验收。
 - [应用类型映射](value-mapping.md)：开发分支的显式结构编解码、嵌套字段路径及缺列／NULL 策略。
 - [运维诊断与 Prometheus](diagnostics.md)：开发分支的逻辑／RPC 分离、延迟分布、有界标签与排错路径。
+- [原生 TLS 与最小权限验收](native-tls-acceptance.md)：开发分支的 Cassandra 自身 TLS 监听、双向证书和最小业务授权。
 
 - [开发指南](development.md)：构建、回归、CI 和发布检查。
 - [申报功能与验收证据](acceptance.md)：功能对应清单、四组合短时验收、故障和类型边界。

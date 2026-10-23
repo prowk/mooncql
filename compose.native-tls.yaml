@@ -1,0 +1,23 @@
+services:
+  cassandra:
+    image: cassandra:5.0.5
+    environment:
+      MAX_HEAP_SIZE: 768M
+      HEAP_NEWSIZE: 128M
+      JVM_EXTRA_OPTS: -XX:ActiveProcessorCount=2
+      CASSANDRA_CLUSTER_NAME: mooncql-native-tls-test
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - |
+        python3 /opt/mooncql/configure_native_tls.py
+        exec /usr/local/bin/docker-entrypoint.sh cassandra -f
+    volumes:
+      - ./scripts/configure_native_tls.py:/opt/mooncql/configure_native_tls.py:ro
+      - ${CQL_NATIVE_TLS_FIXTURE_DIR:?set by native_tls_acceptance.py}:/opt/mooncql/certs:ro
+    ports: ["127.0.0.1:19064:9042"]
+    healthcheck:
+      test: ["CMD", "nodetool", "statusbinary"]
+      interval: 5s
+      timeout: 10s
+      retries: 40
+      start_period: 30s
