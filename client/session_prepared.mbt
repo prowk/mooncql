@@ -225,6 +225,7 @@ pub async fn SessionPrepared::execute_with_info(
           { ..result, info: { ..result.info, previous, }, }
         }
       },
+      backoff?=profile.bind(profile => profile.backoff),
       complete=(result, failures) => {
         let previous = []
         let mut attempts = result.info.attempt_count

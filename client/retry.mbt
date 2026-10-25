@@ -30,6 +30,20 @@ pub(all) suberror RetryExhausted {
 priv suberror RetryPauseFinished
 
 ///|
+// 仅本地额度或尚未发送的排队失败；不能据此判定 socket 已损坏。
+fn local_admission_failure(error : Error) -> Bool {
+  match error {
+    Overloaded(RequestTooLarge | SessionRequestTooLarge) => false
+    Overloaded(_) => true
+    TimedOut(info) =>
+      !info.may_have_been_sent &&
+      (info.phase == WaitingSlot || info.phase == WaitingWriteLock)
+    ExecutionError(cause, _) => local_admission_failure(cause)
+    _ => false
+  }
+}
+
+///|
 async fn Session::retry_pause(self : Session, milliseconds : Int) -> Unit {
   if self.closed {
     raise Closed
@@ -101,6 +115,7 @@ async fn[T] Session::execute_retry(
   hint : RoutingHint?,
   action : async (Connection) -> T,
   complete? : (T, Array[AttemptFailure]) -> T,
+  backoff? : RetryBackoff,
 ) -> T {
   if policy.max_attempts < 1 || policy.max_attempts > 64 || policy.delay_ms < 0 {
     raise Configuration("invalid retry policy")
@@ -110,6 +125,7 @@ async fn[T] Session::execute_retry(
   let mut any_sent = false
   let attempted = []
   for attempt = 1; ; attempt = attempt + 1 {
+    let mut pause_ms = policy.delay_ms
     let mut endpoint = None
     let outcome = try {
       let connection = self.select(deadline, bytes, hint?, attempted~)
@@ -151,6 +167,9 @@ async fn[T] Session::execute_retry(
         if attempt >= policy.max_attempts || !retryable(cause) || self.closed {
           raise RetryExhausted(failures)
         }
+        if backoff is Some(backoff) {
+          pause_ms = backoff.delay(cause, attempt, self.retry_random.double())
+        }
       }
     }
     // 重试等待本身也消耗原预算，不延长总截止时间。
@@ -164,7 +183,7 @@ async fn[T] Session::execute_retry(
         deadline.remaining_ms(),
         Operation,
         { phase: WaitingRetry, sent: any_sent, },
-        () => self.retry_pause(policy.delay_ms),
+        () => self.retry_pause(pause_ms),
       )
       None
     } catch {

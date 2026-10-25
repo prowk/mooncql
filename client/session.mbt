@@ -159,6 +159,8 @@ struct SessionNode {
 ///|
 pub struct Session {
   config : SessionConfig
+  response_limits : ResponseLimits?
+  retry_random : @random.Rand
   changed : @async.CondVar
   nodes : Array[SessionNode]
   mut closed : Bool
@@ -178,6 +180,7 @@ pub struct Session {
 ///|
 pub async fn[T] with_session(
   config? : SessionConfig = SessionConfig::new(),
+  response_limits? : ResponseLimits,
   body : async (Session) -> T,
 ) -> T {
   let config = { ..config, contact_points: config.contact_points.copy(), }
@@ -252,6 +255,8 @@ pub async fn[T] with_session(
     )
     let session = Session::{
       config,
+      response_limits,
+      retry_random: @random.Rand::new(),
       changed,
       nodes,
       closed: false,
@@ -506,7 +511,8 @@ async fn Session::select(
   if bytes > self.config.connection.max_in_flight_bytes.to_int64() {
     raise Overloaded(RequestTooLarge)
   }
-  if self.choose(hint, attempted, bytes) is Some(connection) {
+  if self.admission.turns.is_empty() &&
+    self.choose(hint, attempted, bytes) is Some(connection) {
     return connection
   }
   // 有健康候选却无额度时按策略拒绝；节点不可用仍使用原有恢复等待语义。
@@ -560,12 +566,14 @@ async fn Session::wait_connection(
     raise Overloaded(WaitingBytesFull)
   }
   self.admission.enter_wait(bytes)
+  let turn = self.admission.enqueue_turn(bytes)
   self.waiting += 1
   self.waiting_bytes += bytes
   if self.config.connection.metrics is Some(metrics) {
     metrics.gauges(0L, 0L, 1L, bytes)
   }
   defer {
+    self.admission.remove_turn(turn)
     self.admission.leave_wait(bytes)
     self.waiting -= 1
     self.waiting_bytes -= bytes
@@ -600,7 +608,8 @@ async fn Session::wait_connection(
     context,
     () => {
       while !self.closed {
-        if self.choose(hint, attempted, bytes) is Some(connection) {
+        if self.admission.owns_turn(turn) &&
+          self.choose(hint, attempted, bytes) is Some(connection) {
           return connection
         }
         context.phase = if self.plan_indices(hint, attempted).is_empty() {
@@ -609,6 +618,7 @@ async fn Session::wait_connection(
           WaitingSlot
         }
         self.changed.wait()
+        self.admission.scheduling.wakeups += 1L
       }
       raise Closed
     },
@@ -641,7 +651,16 @@ pub async fn Session::request(
   }
   self.with_operation(
     RequestOperation,
-    () => self.request_accepted(request, deadline, idempotent, retry, routing),
+    () => {
+      self.request_accepted(
+        request,
+        deadline,
+        idempotent,
+        retry,
+        routing,
+        self.config.execution_profile.bind(profile => profile.backoff),
+      )
+    },
     outcome=reply => {
       match reply.response {
         Failure(error) => ServerError(error.code)
@@ -659,6 +678,7 @@ async fn Session::request_accepted(
   idempotent : Bool,
   retry : RetryPolicy,
   routing : RoutingHint?,
+  backoff : RetryBackoff?,
 ) -> Reply {
   let enabled = idempotent && (request.opcode == 7 || request.opcode == 10)
   self.execute_retry(
@@ -674,6 +694,7 @@ async fn Session::request_accepted(
       }
       reply
     },
+    backoff?,
     complete=(reply, failures) => {
       let previous = []
       for failure in failures {

@@ -411,6 +411,7 @@ async fn[G] Session::maintain_control(
             endpoint_config(self.config.connection, endpoint),
             None,
             Some(self.admission),
+            response_limits?=self.response_limits,
           )
       }
       connected_at = Some(@async.now())
@@ -421,7 +422,22 @@ async fn[G] Session::maintain_control(
         control.connection = None
         control.stale = true
       })
-      connection.register([TopologyChange, StatusChange, SchemaChange])
+      let mut registered = false
+      while !registered && !self.closed && !self.draining {
+        try {
+          connection.register([TopologyChange, StatusChange, SchemaChange])
+          registered = true
+        } catch {
+          error =>
+            if !connection.closed && local_admission_failure(error) {
+              control.last_error = Some(error)
+              control.stale = true
+              self.retry_pause(self.config.backoff_initial_ms)
+            } else {
+              raise error
+            }
+        }
+      }
       control.generation += 1
       if control.generation > 1 &&
         self.config.connection.metrics is Some(metrics) {
@@ -432,12 +448,27 @@ async fn[G] Session::maintain_control(
       while !self.closed && !self.draining {
         // 周期刷新或事件刷新期间都不使用待核验的旧 token／复制因子。
         control.stale = true
-        let snapshot = read_topology(
-          connection,
-          endpoint,
-          control.config,
-          control.refreshes + 1,
-        )
+        let outcome = Ok(
+          read_topology(
+            connection,
+            endpoint,
+            control.config,
+            control.refreshes + 1,
+          ),
+        ) catch {
+          error => Err(error)
+        }
+        let snapshot = match outcome {
+          Ok(snapshot) => snapshot
+          Err(error) => {
+            if !connection.closed && local_admission_failure(error) {
+              control.last_error = Some(error)
+              self.retry_pause(self.config.backoff_initial_ms)
+              continue
+            }
+            raise error
+          }
+        }
         if observer_id is Some(previous) &&
           previous != snapshot.nodes[0].host_id {
           raise Unexpected("control endpoint identity changed")

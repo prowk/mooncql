@@ -19,6 +19,20 @@ pub fn EnvelopeDecoder::new(max_body? : Int = 16777216) -> EnvelopeDecoder {
 }
 
 ///|
+/// 已保存的正文与不足九字节的 envelope 头；不表示 Writer 容量或进程 RSS。
+pub fn EnvelopeDecoder::buffered_bytes(self : EnvelopeDecoder) -> Int64 {
+  self.received.to_int64() + self.prefix.length().to_int64()
+}
+
+///|
+pub fn EnvelopeDecoder::clear(self : EnvelopeDecoder) -> Unit {
+  self.prefix = b""
+  self.header = None
+  self.body = @codec.Writer::new()
+  self.received = 0
+}
+
+///|
 pub fn EnvelopeDecoder::feed(
   self : EnvelopeDecoder,
   frame : @framing.Frame,

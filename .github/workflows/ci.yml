@@ -31,6 +31,10 @@ jobs:
         run: python scripts/package_acceptance.py
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
+      - run: moon test client/state_machine_test.mbt --target native --deny-warn
+        env:
+          CQL_TEST_SEED: '2026102501'
+          CQL_TEST_ROUNDS: '16'
       - run: moon run cmd/value-mapping
       - uses: actions/setup-python@v5
         with:

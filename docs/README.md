@@ -18,6 +18,7 @@
 | [TLS](tls.md) | 信任根、名称验证、证书链和客户端身份 |
 | [超时与取消](timeouts.md) | 请求阶段、Deadline、迟到响应 |
 | [背压](backpressure.md) | 请求数量、字节预算、过载 |
+| [响应限制与接收内存](response-limits.md) | 开发分支的解码限制、响应所有权与废弃正文策略 |
 | [预处理缓存](prepared-cache.md) | LRU、并发准备、元数据 |
 | [行与值](rows.md) | 类型化读取、NULL、UUID、日期和精确数值 |
 | [分页与游标](paging.md) | 自动续页、恢复上下文、失败语义 |

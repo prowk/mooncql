@@ -28,14 +28,20 @@ pub fn SessionLimits::new(
 
 ///|
 fn SessionLimits::validate(self : SessionLimits) -> Unit raise DriverError {
-  if self.max_in_flight < 1 ||
-    self.max_in_flight > 1048576 ||
-    self.max_in_flight_bytes < 9 ||
-    self.max_waiting < 0 ||
-    self.max_waiting > 1048576 ||
-    self.max_waiting_bytes < 0 {
-    raise Configuration("invalid Session total limits")
-  }
+  validate_range("SessionLimits.max_in_flight", self.max_in_flight, 1, 1048576)
+  validate_range(
+    "SessionLimits.max_in_flight_bytes",
+    self.max_in_flight_bytes,
+    9,
+    2147483647,
+  )
+  validate_range("SessionLimits.max_waiting", self.max_waiting, 0, 1048576)
+  validate_range(
+    "SessionLimits.max_waiting_bytes",
+    self.max_waiting_bytes,
+    0,
+    2147483647,
+  )
 }
 
 ///|

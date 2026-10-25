@@ -336,8 +336,9 @@ pub async fn[G] connect(
   group : @async.TaskGroup[G],
   config? : Config = Config::new(),
   deadline? : Deadline,
+  response_limits? : ResponseLimits,
 ) -> Connection {
-  connect_observed(group, config, deadline, None)
+  connect_observed(group, config, deadline, None, response_limits?)
 }
 
 ///|
@@ -346,9 +347,16 @@ async fn[G] connect_observed(
   config : Config,
   deadline : Deadline?,
   shared : Admission?,
+  response_limits? : ResponseLimits,
 ) -> Connection {
   guard config.metrics is Some(metrics) else {
-    return connect_internal(group, config~, deadline?, shared?)
+    return connect_internal(
+      group,
+      config~,
+      deadline?,
+      shared?,
+      response_limits?,
+    )
   }
   let endpoint = Endpoint::new(host=config.host, port=config.port)
   metrics.data.connect_attempts += 1L
@@ -358,7 +366,9 @@ async fn[G] connect_observed(
     metrics.data.connect_cancellations += 1L
     metrics.emit(ConnectionFailed(endpoint, Cancelled))
   })
-  let result = Ok(connect_internal(group, config~, deadline?, shared?)) catch {
+  let result = Ok(
+    connect_internal(group, config~, deadline?, shared?, response_limits?),
+  ) catch {
     error => Err(error)
   }
   completed = true
@@ -599,6 +609,8 @@ pub async fn Connection::request(
   cached? : Array[@protocol.Column] = [],
   deadline? : Deadline,
 ) -> Reply {
+  // 先冻结外部缓存定义，再允许监听器、排队或 socket 等待观察可变输入。
+  let cached = @protocol.checked_columns_snapshot(cached)
   self.request_measured(request, cached, deadline, self.rpc_scope)
 }
 

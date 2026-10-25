@@ -13,7 +13,7 @@ pub fn encode_scalar(Value) -> Bytes raise @codec.CodecError
 
 pub fn encode_value(Value) -> Bytes raise @codec.CodecError
 
-pub fn read_type(@codec.Reader, depth? : Int) -> CqlType raise @codec.CodecError
+pub fn read_type(@codec.Reader, depth? : Int, max_depth? : Int) -> CqlType raise @codec.CodecError
 
 pub fn snapshot(Array[Value]) -> Array[Value] raise @codec.CodecError
 
@@ -134,7 +134,7 @@ pub fn CqlVarInt::to_value(Self) -> Value
 pub struct DecodeBudget {
   // private fields
 }
-pub fn DecodeBudget::new(max_nodes? : Int) -> Self raise @codec.CodecError
+pub fn DecodeBudget::new(max_nodes? : Int, max_depth? : Int) -> Self raise @codec.CodecError
 pub fn DecodeBudget::remaining_nodes(Self) -> Int
 
 pub(all) enum Value {

@@ -7,8 +7,18 @@ fn model_random(state : Array[UInt], bound : Int) -> Int {
 ///|
 async test "fixed seed multiplex model combines reordered TCP fragments cancellation and partial EOF" {
   @async.with_timeout(20000, () => {
-    let random = [2026101819U]
-    for round in 0..<32 {
+    let seed = @string.parse_uint(
+      @env.get_env_var("CQL_TEST_SEED").unwrap_or("2026101819"),
+    )
+    let rounds = @string.parse_int(
+      @env.get_env_var("CQL_TEST_ROUNDS").unwrap_or("32"),
+    )
+    assert_true(rounds >= 1 && rounds <= 256)
+    let random = [seed]
+    for round in 0..<rounds {
+      errdefer println(
+        "replay CQL_TEST_SEED=\{seed} CQL_TEST_ROUNDS=\{round + 1}; phase=multiplex round=\{round}",
+      )
       let compressed = round % 2 == 0
       let order = Array::makei(12, index => index)
       for index in 0..<12 {

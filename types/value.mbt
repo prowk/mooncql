@@ -171,7 +171,7 @@ fn decode_value_at(
   depth : Int,
   budget : DecodeBudget,
 ) -> Value raise @codec.CodecError {
-  if depth >= 32 {
+  if depth >= budget.depth {
     raise @codec.CodecError("value nesting exceeds limit")
   }
   budget.take()

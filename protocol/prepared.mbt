@@ -45,6 +45,8 @@ pub fn execute(
 ///|
 fn read_prepared(
   r : @codec.Reader,
+  max_columns? : Int = 65535,
+  max_depth? : Int = 32,
 ) -> PreparedStatement raise @codec.CodecError {
   let id = r.short_bytes()
   let result_metadata_id = r.short_bytes()
@@ -52,7 +54,7 @@ fn read_prepared(
   let count = r.i32()
   let pk_count = r.i32()
   if count < 0 ||
-    count > 65535 ||
+    count > max_columns ||
     pk_count < 0 ||
     pk_count > count ||
     (flags & 4) != 0 {
@@ -66,8 +68,8 @@ fn read_prepared(
     }
     partition_key_indices.push(index)
   }
-  let parameters = read_columns(r, flags, count)
-  let result = read_metadata(r)
+  let parameters = read_columns(r, flags, count, max_depth~)
+  let result = read_metadata(r, max_columns~, max_depth~)
   {
     id,
     result_metadata_id,

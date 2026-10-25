@@ -120,6 +120,7 @@ fn read_columns(
   r : @codec.Reader,
   flags : Int,
   count : Int,
+  max_depth? : Int = 32,
 ) -> Array[Column] raise @codec.CodecError {
   let shared = if (flags & 1) != 0 {
     Some((r.string(), r.string()))
@@ -133,7 +134,12 @@ fn read_columns(
       None => (r.string(), r.string())
     }
     let name = r.string()
-    columns.push({ keyspace, table, name, typ: @types.read_type(r), })
+    columns.push({
+      keyspace,
+      table,
+      name,
+      typ: @types.read_type(r, max_depth~),
+    })
   }
   columns
 }
@@ -142,10 +148,15 @@ fn read_columns(
 pub fn read_metadata(
   r : @codec.Reader,
   cached? : Array[Column] = [],
+  max_columns? : Int = 65535,
+  max_depth? : Int = 32,
 ) -> Metadata raise @codec.CodecError {
+  if max_depth < 1 || max_depth > 32 {
+    raise @codec.CodecError("max_depth must be 1..32")
+  }
   let flags = r.i32()
   let count = r.i32()
-  if count < 0 || count > 65535 {
+  if max_columns < 0 || max_columns > 65535 || count < 0 || count > max_columns {
     raise @codec.CodecError("invalid column count")
   }
   let paging_state = if (flags & 2) != 0 {
@@ -169,9 +180,13 @@ pub fn read_metadata(
     if cached.length() != count {
       raise @codec.CodecError("missing cached result metadata")
     }
+    let budget = [1000000]
+    for column in cached {
+      type_size(column.typ, 0, budget, max_depth~)
+    }
     cached
   } else {
-    read_columns(r, flags, count)
+    read_columns(r, flags, count, max_depth~)
   }
   { columns, paging_state, new_metadata_id, }
 }
@@ -205,17 +220,39 @@ pub fn decode_result(
   body : Bytes,
   cached? : Array[Column] = [],
   max_value_nodes? : Int = 1000000,
+  max_rows? : Int = 1000000,
+  max_columns? : Int = 65535,
+  max_depth? : Int = 32,
 ) -> ResultSet raise @codec.CodecError {
+  if max_rows < 0 ||
+    max_rows > 1000000 ||
+    max_columns < 0 ||
+    max_columns > 65535 {
+    raise @codec.CodecError(
+      "max_rows must be 0..1000000; max_columns must be 0..65535",
+    )
+  }
+  if max_value_nodes < 1 ||
+    max_value_nodes > 1000000 ||
+    max_depth < 1 ||
+    max_depth > 32 {
+    raise @codec.CodecError(
+      "max_value_nodes must be 1..1000000; max_depth must be 1..32",
+    )
+  }
   let r = @codec.Reader::new(body)
   match r.i32() {
     1 => Void
     2 => {
-      let budget = @types.DecodeBudget::new(max_nodes=max_value_nodes)
-      let meta = read_metadata(r, cached~)
+      let budget = @types.DecodeBudget::new(
+        max_nodes=max_value_nodes,
+        max_depth~,
+      )
+      let meta = read_metadata(r, cached~, max_columns~, max_depth~)
       let count = r.i32()
       let width = meta.columns.length()
       if count < 0 ||
-        count > 1000000 ||
+        count > max_rows ||
         (count > 0 && (width == 0 || count > r.remaining() / 4 / width)) {
         raise @codec.CodecError("invalid row count")
       }
@@ -240,7 +277,7 @@ pub fn decode_result(
       )
     }
     3 => SetKeyspace(r.string())
-    4 => Prepared(read_prepared(r))
+    4 => Prepared(read_prepared(r, max_columns~, max_depth~))
     5 => SchemaChanged(read_schema_change(r))
     _ => raise @codec.CodecError("unknown result kind")
   }
@@ -289,6 +326,10 @@ pub fn decode_response(
   opcode : Int,
   body : Bytes,
   cached? : Array[Column] = [],
+  max_value_nodes? : Int = 1000000,
+  max_rows? : Int = 1000000,
+  max_columns? : Int = 65535,
+  max_depth? : Int = 32,
 ) -> Response raise @codec.CodecError {
   let r = @codec.Reader::new(body)
   match opcode {
@@ -309,7 +350,17 @@ pub fn decode_response(
       }
       Supported(result)
     }
-    8 => Result(decode_result(body, cached~))
+    8 =>
+      Result(
+        decode_result(
+          body,
+          cached~,
+          max_value_nodes~,
+          max_rows~,
+          max_columns~,
+          max_depth~,
+        ),
+      )
     12 => Event(decode_event(body))
     14 => AuthChallenge(r.bytes())
     16 => AuthSuccess(r.bytes())

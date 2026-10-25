@@ -34,7 +34,11 @@ TLS 矩阵包含根 CA 直接签发、中间证书链、缺失中间证书、错
 
 文档检查覆盖本地链接、统一导航，以及 README、入门、开发接口与结构映射片段和可编译源码的一致性。README 原片段位于 `cmd/readme`，无认证实库 CI 会直接运行；独立稳定版消费项目也会编译同一片段。历史 0.1 项目继续使用自身支持的示例，不混入 Session。
 
-`check_api.py` 将七个公开包与固定 v0.2.0 标签对照，并核对 [api-compatibility.json](../fixtures/api-compatibility.json)。检查包括调用签名、公开记录字段、枚举／错误分支与导出实现，不把不透明类型私有字段的变化当作构造接口变化。当前审计为 114 项新增声明、23 项既有声明变化、无删除；变化已在[迁移说明](migration.md)记录。后续修改接口时先审阅 `moon info` 差异及迁移说明，再用 `python scripts/check_api.py --update` 更新合同；未审阅的新差异会使 CI 失败。该检查不能替代默认值、取消、重试或协议行为的回归。
+`check_api.py` 将七个公开包与固定 v0.2.0 标签对照，并核对 [api-compatibility.json](../fixtures/api-compatibility.json)。检查包括调用签名、公开记录字段、枚举／错误分支与导出实现，不把不透明类型私有字段的变化当作构造接口变化。声明数量以合同和检查输出为准；变化在[迁移说明](migration.md)记录。后续修改接口时先审阅 `moon info` 差异及迁移说明，再用 `python scripts/check_api.py --update` 更新合同；未审阅的新差异会使 CI 失败。该检查证明与已审阅差异一致，不等同于旧代码全部源兼容，尤其需检查完整记录构造与穷尽枚举匹配；补丁版本发布前仍须单独完成兼容审查。该检查也不能替代默认值、取消、重试或协议行为的回归。
+
+本地 TCP 模拟组件集中在 `client/test_node_test.mbt`：所有模拟用例复用 Peer、握手及编解帧，FaultBarrier 对 OPTIONS、STARTUP、AUTH_RESPONSE、业务写入、首段响应和关闭提供带阶段名称的有界同步；write_chunks 可逐字节拆分。损坏 CRC、合帧、迟到响应和半帧 EOF 可组合，不以固定 sleep 作为竞争发生的唯一依据。每个用例仍须用外层总超时与任务组收尾本次服务器。
+
+状态机默认种子为 2026101819、32 轮；`CQL_TEST_SEED` 可设置 UInt 种子，`CQL_TEST_ROUNDS` 可设置 1–256 轮。失败会打印种子、轮次及复现此前执行前缀所需的轮数。普通 CI 另外执行 2026102501 的 16 轮固定集合。`client/resource_cycles_test.mbt` 执行 100 轮 Session、准备、分页、发送后取消、排空和关闭，包含应用保留旧 Prepared／Pager；断言每轮额度与任务句柄归零。这是短时逻辑所有权回归，不能据此断言长期 RSS 无增长。
 
 ## 真实数据库集成
 

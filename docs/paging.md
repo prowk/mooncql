@@ -38,4 +38,6 @@ next 成功返回时驱动已经推进到下一页，不知道本页业务处理
 
 测试包含更换 Connection、完成游标、空页、上下文变化、取消与迟到响应、并发限制，以及失败不推进。真实重启验收在专用 Cassandra 5.0.5 上保留普通和预处理 Pager，重启后继续各 84 行，并从持久化游标重新创建两个 Pager；独立 Python 驱动再使用两个原始续读状态核对同样结果。
 
+开发分支额外运行固定种子的 1536 次字节变异、每个截断位置、Int 极端声明长度、尾部多余字节及完成标志冲突。接受的合法变异必须逐字节往返；修改查询绑定的合法容器仍可能通过格式解析，后续恢复时必须匹配实际查询上下文。解析长度超限在复制正文前失败，序列化也在构造大缓冲前检查总长度。这些格式检查不进行网络 I/O。
+
 复现实际重启测试：先启动本仓库专用 Compose 服务，按认证设置 CQL_USERNAME / CQL_PASSWORD 和 CQL_COMPRESSION，再安装 scripts/requirements-reference.txt，运行 `python scripts/session_recovery.py --docker-compose`。该脚本会停止并重启这个 Compose 服务，创建或清空 mooncql_recovery_a / mooncql_recovery_b 下的测试表。普通及预处理查询的入口均在 cmd/recovery/main.mbt。

@@ -1,5 +1,9 @@
 # mooncql
 
+[![Release](https://img.shields.io/github/v/release/prowk/mooncql)](https://github.com/prowk/mooncql/releases/latest)
+[![CI](https://github.com/prowk/mooncql/actions/workflows/ci.yml/badge.svg)](https://github.com/prowk/mooncql/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/prowk/mooncql)](LICENSE)
+
 MoonBit 原生异步 Cassandra 驱动，使用正式 Native Protocol v5，面向 native 后端。
 
 - 参数化查询、预处理、批处理、LWT 和自动分页。

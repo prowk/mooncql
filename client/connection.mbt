@@ -114,6 +114,13 @@ pub fn Config::new(
 pub struct Connection {
   socket : Transport
   config : Config
+  response_limits : ResponseLimits
+  mut delivery_bytes : Int64
+  mut peak_delivery_bytes : Int64
+  mut decoded_responses : Int64
+  mut discarded_responses : Int64
+  mut decode_ms : Int64
+  mut max_decode_ms : Int64
   wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
@@ -265,10 +272,9 @@ async fn[G] connect_internal(
   config? : Config = Config::new(),
   deadline? : Deadline,
   shared? : Admission,
+  response_limits? : ResponseLimits,
 ) -> Connection {
-  if config.connect_timeout_ms <= 0 {
-    raise Configuration("invalid connection timeout")
-  }
+  config.validate()
   let context = TimeoutContext::{ phase: Connecting, sent: false, }
   let remaining = match deadline {
     Some(deadline) => deadline.remaining_ms()
@@ -288,7 +294,7 @@ async fn[G] connect_internal(
   let mut transferred = false
   defer (if !transferred && opened is Some(connection) { connection.close() })
   let connection = timed(duration, scope, context, () => {
-    let connection = open_connection(config, parent?=shared)
+    let connection = open_connection(config, parent?=shared, response_limits?)
     opened = Some(connection)
     connection
   })
@@ -309,15 +315,33 @@ async fn[G] connect_internal(
 }
 
 ///|
-async fn open_connection(config : Config, parent? : Admission) -> Connection {
+async fn open_connection(
+  config : Config,
+  parent? : Admission,
+  response_limits? : ResponseLimits,
+) -> Connection {
   config.validate()
+  let limits = response_limits.unwrap_or_else(() => {
+    ResponseLimits::new(max_body_bytes=config.max_frame_bytes)
+  })
   let socket = Transport::connect(config)
   let connection = Connection::{
     socket,
     config,
+    response_limits: limits,
+    delivery_bytes: 0L,
+    peak_delivery_bytes: 0L,
+    decoded_responses: 0L,
+    discarded_responses: 0L,
+    decode_ms: 0L,
+    max_decode_ms: 0L,
     wire: Wire::new(
       socket,
-      config.max_frame_bytes,
+      if limits.body_bytes < config.max_frame_bytes {
+        limits.body_bytes
+      } else {
+        config.max_frame_bytes
+      },
       config.compression,
       config.metrics,
     ),
@@ -395,40 +419,68 @@ pub fn Connection::abandoned_count(self : Connection) -> Int {
 
 ///|
 fn Config::validate(self : Config) -> Unit raise DriverError {
-  if self.connect_timeout_ms <= 0 {
-    raise Configuration("invalid connection timeout")
+  for
+    (name, value, minimum, maximum) in [
+      ("connect_timeout_ms", self.connect_timeout_ms, 1, 2147483647),
+      ("timeout_ms", self.timeout_ms, 1, 2147483647),
+      ("queue_timeout_ms", self.queue_timeout_ms, 1, 2147483647),
+      ("operation_timeout_ms", self.operation_timeout_ms, 1, 2147483647),
+      ("max_frame_bytes", self.max_frame_bytes, 1, 2147483647),
+      ("port", self.port, 1, 65535),
+      ("max_in_flight", self.max_in_flight, 1, 32768),
+      ("max_in_flight_bytes", self.max_in_flight_bytes, 9, 2147483647),
+      ("max_waiting", self.max_waiting, 0, 1048576),
+      ("max_waiting_bytes", self.max_waiting_bytes, 0, 2147483647),
+      ("max_auth_rounds", self.max_auth_rounds, 1, 128),
+      ("max_auth_token_bytes", self.max_auth_token_bytes, 0, 16777216),
+      ("prepared_cache_capacity", self.prepared_cache_capacity, 0, 65536),
+      ("max_abandoned", self.max_abandoned, 0, 32768),
+      ("event_capacity", self.event_capacity, 1, 65536),
+      ("heartbeat_interval_ms", self.heartbeat_interval_ms, 0, 2147483647),
+      ("heartbeat_timeout_ms", self.heartbeat_timeout_ms, 1, 2147483647),
+      ("abandoned_timeout_ms", self.abandoned_timeout_ms, 1, 2147483647),
+    ] {
+    validate_range(name, value, minimum, maximum)
   }
-  if self.timeout_ms <= 0 ||
-    self.queue_timeout_ms <= 0 ||
-    self.operation_timeout_ms <= 0 ||
-    self.max_frame_bytes <= 0 ||
-    self.port <= 0 ||
-    self.port > 65535 ||
-    self.max_in_flight < 1 ||
-    self.max_in_flight > 32768 ||
-    self.max_in_flight_bytes < 9 ||
-    self.max_waiting < 0 ||
-    self.max_waiting_bytes < 0 ||
-    self.max_auth_rounds < 1 ||
-    self.max_auth_rounds > 128 ||
-    self.max_auth_token_bytes < 0 ||
-    self.max_auth_token_bytes > 16777216 ||
-    self.prepared_cache_capacity < 0 ||
-    self.prepared_cache_capacity > 65536 ||
-    self.max_abandoned < 0 ||
-    self.max_abandoned > 32768 ||
-    self.event_capacity < 1 ||
-    self.event_capacity > 65536 ||
-    self.heartbeat_interval_ms < 0 ||
-    self.heartbeat_timeout_ms <= 0 ||
-    self.abandoned_timeout_ms <= 0 {
-    raise Configuration("invalid timeout, frame limit or port")
+  if self.host.is_empty() {
+    raise Configuration("host must be nonempty and contain no NUL")
+  }
+  for byte in @utf8.encode(self.host) {
+    if byte == b'\x00' {
+      raise Configuration("host must contain no NUL")
+    }
+  }
+  if self.tls is Some(options) {
+    validate_tls_name(options.server_name.unwrap_or(self.host))
+    if options.ca_file is Some(path) {
+      validate_tls_name(path)
+    }
+    match options.identity {
+      Some(Pem(certificate, private_key)) => {
+        validate_tls_name(certificate)
+        validate_tls_name(private_key)
+      }
+      Some(WindowsStore(thumbprint)) => validate_tls_name(thumbprint)
+      None => ()
+    }
   }
   if (self.username is None) != (self.password is None) {
     raise Configuration("username and password must be supplied together")
   }
   if self.auth_provider is Some(_) && self.username is Some(_) {
     raise Configuration("use either auth_provider or username/password")
+  }
+}
+
+///|
+fn validate_range(
+  name : String,
+  value : Int,
+  minimum : Int,
+  maximum : Int,
+) -> Unit raise DriverError {
+  if value < minimum || value > maximum {
+    raise Configuration("\{name} must be \{minimum}..\{maximum}")
   }
 }
 

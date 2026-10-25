@@ -14,3 +14,7 @@ import {
   "moonbitlang/async/socket",
   "moonbitlang/core/debug",
 }
+
+import {
+  "moonbitlang/core/env",
+} for "test"

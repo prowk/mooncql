@@ -26,6 +26,10 @@ moon add --upgrade prowk/mooncql@0.2.0
 
 ## 当前开发分支（尚未发布）
 
+新增可选 `RetryBackoff`，通过 ExecutionProfile 启用分类指数退避与抖动；RetryPolicy 的两个字段及默认固定延迟保留。新增 `checked_columns_snapshot` 检查外部列定义后复制，低层 `Connection.request(cached=...)` 在第一次等待及监听器回调前冻结嵌套元数据。游标在复制上下文或构造序列化缓冲前检查声明长度，容器格式不变。单连接 max_waiting 增加 1048576 的上界，非法配置错误包含参数名与合法范围。
+
+新增 `ResponseLimits` 与作用域的可选 `response_limits` 参数，旧调用省略时沿用原限制。`connect`、`with_connection`、`with_serial_connection` 和 `with_session` 原有位置参数及命名参数继续可用；将这些函数保存为显式完整函数类型的代码需要核对新增可选参数。低层 `decode_result`、`decode_response`、`read_metadata`、`read_type` 和 `DecodeBudget::new` 增加可选限制；原默认调用不变。新增 `SchedulingSnapshot`、`ReceiveMemorySnapshot` 只用于诊断，不改变既有 MetricsSnapshot 字段。额度等待改为 FIFO，可能出现队首阻塞；心跳不越过排队者。超出显式响应限制会关闭物理连接，废弃响应不再解释正文，详见[响应限制](response-limits.md)。
+
 新增 Session 批处理、可插拔认证与优雅排空，参见[开发接口](development-api.md)。使用 `Config::new` 的原有调用保持兼容；手工构造完整 Config 字面量时，须补齐新字段，推荐改为 `{ ..Config::new(), ... }`。穷尽匹配 DriverError／TimeoutPhase 时须增加 `Draining`／`WaitingDrain` 分支。
 
 认证拒绝现在返回脱敏的 `Authentication`，不再把服务端可能回显凭据的原始 ServerError 直接暴露；业务查询的 ServerError 不受此改变影响。默认作用域关闭仍立即取消，只有显式调用 drain 才等待；BATCH 无论低层还是新 Session 接口均不自动重放。

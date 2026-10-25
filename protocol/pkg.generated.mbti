@@ -13,6 +13,8 @@ pub fn auth_response(Bytes?) -> Request
 
 pub fn batch(Array[BatchStatement], kind? : BatchType, options? : QueryOptions) -> Request raise @codec.CodecError
 
+pub fn checked_columns_snapshot(Array[Column]) -> Array[Column] raise @codec.CodecError
+
 pub fn columns_snapshot(Array[Column]) -> Array[Column]
 
 pub fn decode_envelope_header(Bytes, max_body? : Int) -> EnvelopeHeader raise @codec.CodecError
@@ -25,9 +27,9 @@ pub fn decode_message_envelope(Bytes, max_body? : Int) -> MessageEnvelope raise 
 
 pub fn decode_payload(MessageEnvelope) -> MessagePayload raise @codec.CodecError
 
-pub fn decode_response(Int, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError
+pub fn decode_response(Int, Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> Response raise @codec.CodecError
 
-pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int) -> ResultSet raise @codec.CodecError
+pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> ResultSet raise @codec.CodecError
 
 pub fn encode_envelope(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
 
@@ -41,7 +43,7 @@ pub fn prepare(String, keyspace? : String, request_options? : RequestOptions) ->
 
 pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
-pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError
+pub fn read_metadata(@codec.Reader, cached? : Array[Column], max_columns? : Int, max_depth? : Int) -> Metadata raise @codec.CodecError
 
 pub fn register(Array[EventKind]) -> Request raise @codec.CodecError
 
@@ -103,6 +105,8 @@ pub struct EnvelopeDecoder {
   mut body : @codec.Writer
   mut received : Int
 }
+pub fn EnvelopeDecoder::buffered_bytes(Self) -> Int64
+pub fn EnvelopeDecoder::clear(Self) -> Unit
 pub fn EnvelopeDecoder::feed(Self, @framing.Frame) -> Array[MessageEnvelope] raise @codec.CodecError
 pub fn EnvelopeDecoder::new(max_body? : Int) -> Self
 

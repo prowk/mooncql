@@ -206,7 +206,14 @@ pub async fn Session::query_with_info(
   self.with_operation(QueryOperation, () => {
     self.finish_schema(
       result_with_info(
-        self.request_accepted(request, deadline, idempotent, retry, routing),
+        self.request_accepted(
+          request,
+          deadline,
+          idempotent,
+          retry,
+          routing,
+          profile.bind(profile => profile.backoff),
+        ),
       ),
       deadline,
     )

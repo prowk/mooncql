@@ -38,6 +38,16 @@
     },
     {
       "package": "client",
+      "symbol": "fn Connection::receive_memory",
+      "signature_sha256": "77bdd550a8fba4621c49082dd3d8798a5634ce4d4ff8eba7c495595ddd112e71"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Connection::scheduling",
+      "signature_sha256": "7b0b74c3e77db51fdaffe7b6828ef2125451ebea8bbf119bfd7eae3711aa734c"
+    },
+    {
+      "package": "client",
       "symbol": "fn DrainOutcome::equal",
       "signature_sha256": "fbb4f9fe33200deb3b2101f195229cc932a0d4d69b9fa5f8628a21af528e472b"
     },
@@ -54,7 +64,7 @@
     {
       "package": "client",
       "symbol": "fn ExecutionProfile::new",
-      "signature_sha256": "c830062a7beb8c83ae473f17071a1c8f18e5bd2132a30b676cc5168b1dd6a93c"
+      "signature_sha256": "0ff9ef23206273f1aa52bdfd17c473492c166fe6788f679a0cc33deae57bde8e"
     },
     {
       "package": "client",
@@ -95,6 +105,16 @@
       "package": "client",
       "symbol": "fn OperationKind::to_repr",
       "signature_sha256": "f3bf5fbc8911d47b8c21d98b25d5cbbde05b96cc2062a0c8274f6d8d792e7b37"
+    },
+    {
+      "package": "client",
+      "symbol": "fn ResponseLimits::new",
+      "signature_sha256": "d0fad51d127066d876fcf93ceb236605aaeda86a32786c2c32ec579257f1943d"
+    },
+    {
+      "package": "client",
+      "symbol": "fn RetryBackoff::new",
+      "signature_sha256": "0535a709e457049a0bb306664bc65ec172a745064658cc75257b28367e5c1ec2"
     },
     {
       "package": "client",
@@ -263,6 +283,16 @@
     },
     {
       "package": "client",
+      "symbol": "fn Session::receive_memory",
+      "signature_sha256": "9bed07837d5da4e56f0de4f85a96d40f13e1dd044f839e4ad99a8cecf865d426"
+    },
+    {
+      "package": "client",
+      "symbol": "fn Session::scheduling",
+      "signature_sha256": "381450ed3a9e07fff7dfd13c4a8d5799dabf0fab5ef5c2ec7585f9fec9b21ec7"
+    },
+    {
+      "package": "client",
       "symbol": "fn Session::schema_metadata",
       "signature_sha256": "a4f5f7556efdf064b6c9f62ccaa272d02de4460d62c5f58037267995e11dcaaf"
     },
@@ -333,8 +363,28 @@
     },
     {
       "package": "client",
+      "symbol": "type ReceiveMemorySnapshot",
+      "signature_sha256": "118aaa946d7778948b55c63f22f771cea6ed80dba5ccf574f972570dcc4655da"
+    },
+    {
+      "package": "client",
+      "symbol": "type ResponseLimits",
+      "signature_sha256": "be43d94a2c9dc3b11446ef135f0803b0b5e1baa5d783e72898e951854ec7824c"
+    },
+    {
+      "package": "client",
+      "symbol": "type RetryBackoff",
+      "signature_sha256": "6a56533f77fc6b83c81c7aaa135de64d78d71e5858c615feb5175442deb6c395"
+    },
+    {
+      "package": "client",
       "symbol": "type RpcScope",
       "signature_sha256": "dbde0660d14c6e76aa5f5934740519d415de108776b411ca8d1e435a848b53b1"
+    },
+    {
+      "package": "client",
+      "symbol": "type SchedulingSnapshot",
+      "signature_sha256": "8832b52b6181efdbb171b7ee1df8a2928b74bfdb00861d0a334abe4c9d2a80e9"
     },
     {
       "package": "client",
@@ -578,8 +628,23 @@
     },
     {
       "package": "protocol",
+      "symbol": "fn EnvelopeDecoder::buffered_bytes",
+      "signature_sha256": "606d892d6a4398f1e6295925f88666f91d0b829442aba5aa621b21fe9e9715e6"
+    },
+    {
+      "package": "protocol",
+      "symbol": "fn EnvelopeDecoder::clear",
+      "signature_sha256": "970b2dacf295c90f7d1789c54a001c6117c57fed1d2b84f612b322abbddfb3c3"
+    },
+    {
+      "package": "protocol",
       "symbol": "fn auth_response",
       "signature_sha256": "ee18f3bb556e8901be8d293d6e514c0d23d8fe17a5b050f0447b48cfc97501bb"
+    },
+    {
+      "package": "protocol",
+      "symbol": "fn checked_columns_snapshot",
+      "signature_sha256": "df6a3c8330e0b49f6a40f187742f0b8d4edfc791a625cb28a6eb0d68fb0436c9"
     }
   ],
   "changed": [
@@ -676,6 +741,34 @@
     },
     {
       "package": "client",
+      "symbol": "fn connect",
+      "before": "pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadline) -> Connection",
+      "after": "pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadline, response_limits? : ResponseLimits) -> Connection",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn with_connection",
+      "before": "pub async fn[T] with_connection(config? : Config, async (Connection) -> T) -> T",
+      "after": "pub async fn[T] with_connection(config? : Config, response_limits? : ResponseLimits, async (Connection) -> T) -> T",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn with_serial_connection",
+      "before": "pub async fn[T] with_serial_connection(config? : Config, async (Connection) -> T) -> T",
+      "after": "pub async fn[T] with_serial_connection(config? : Config, response_limits? : ResponseLimits, async (Connection) -> T) -> T",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
+      "symbol": "fn with_session",
+      "before": "pub async fn[T] with_session(config? : SessionConfig, async (Session) -> T) -> T",
+      "after": "pub async fn[T] with_session(config? : SessionConfig, response_limits? : ResponseLimits, async (Session) -> T) -> T",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "client",
       "symbol": "type Config",
       "before": "pub(all) struct Config {\n  host : String\n  port : Int\n  username : String?\n  password : String?\n  timeout_ms : Int\n  connect_timeout_ms : Int\n  queue_timeout_ms : Int\n  operation_timeout_ms : Int\n  max_frame_bytes : Int\n  max_in_flight : Int\n  max_in_flight_bytes : Int\n  max_waiting : Int\n  max_waiting_bytes : Int\n  overload_policy : OverloadPolicy\n  throw_on_overload : Bool\n  compression : Bool\n  tls : TlsConfig?\n  prepared_cache_capacity : Int\n  max_abandoned : Int\n  abandoned_timeout_ms : Int\n  event_capacity : Int\n  heartbeat_interval_ms : Int\n  heartbeat_timeout_ms : Int\n  metrics : Metrics?\n}",
       "after": "pub(all) struct Config {\n  host : String\n  port : Int\n  username : String?\n  password : String?\n  auth_provider : AuthProvider?\n  max_auth_rounds : Int\n  max_auth_token_bytes : Int\n  timeout_ms : Int\n  connect_timeout_ms : Int\n  queue_timeout_ms : Int\n  operation_timeout_ms : Int\n  max_frame_bytes : Int\n  max_in_flight : Int\n  max_in_flight_bytes : Int\n  max_waiting : Int\n  max_waiting_bytes : Int\n  overload_policy : OverloadPolicy\n  throw_on_overload : Bool\n  compression : Bool\n  tls : TlsConfig?\n  prepared_cache_capacity : Int\n  max_abandoned : Int\n  abandoned_timeout_ms : Int\n  event_capacity : Int\n  heartbeat_interval_ms : Int\n  heartbeat_timeout_ms : Int\n  metrics : Metrics?\n}",
@@ -742,6 +835,41 @@
       "symbol": "type TimeoutPhase",
       "before": "pub(all) enum TimeoutPhase {\n  Connecting\n  WaitingSlot\n  WaitingWriteLock\n  Sending\n  WaitingResponse\n  WaitingPrepare\n  WaitingConnection\n  WaitingRetry\n} derive(Eq, @debug.Debug)",
       "after": "pub(all) enum TimeoutPhase {\n  Connecting\n  WaitingSlot\n  WaitingWriteLock\n  Sending\n  WaitingResponse\n  WaitingPrepare\n  WaitingConnection\n  WaitingRetry\n  WaitingDrain\n  WaitingSchema\n  WaitingPage\n} derive(Eq, @debug.Debug)",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "protocol",
+      "symbol": "fn decode_response",
+      "before": "pub fn decode_response(Int, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError",
+      "after": "pub fn decode_response(Int, Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> Response raise @codec.CodecError",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "protocol",
+      "symbol": "fn decode_result",
+      "before": "pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int) -> ResultSet raise @codec.CodecError",
+      "after": "pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> ResultSet raise @codec.CodecError",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "protocol",
+      "symbol": "fn read_metadata",
+      "before": "pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError",
+      "after": "pub fn read_metadata(@codec.Reader, cached? : Array[Column], max_columns? : Int, max_depth? : Int) -> Metadata raise @codec.CodecError",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "types",
+      "symbol": "fn DecodeBudget::new",
+      "before": "pub fn DecodeBudget::new(max_nodes? : Int) -> Self raise @codec.CodecError",
+      "after": "pub fn DecodeBudget::new(max_nodes? : Int, max_depth? : Int) -> Self raise @codec.CodecError",
+      "migration": "docs/migration.md"
+    },
+    {
+      "package": "types",
+      "symbol": "fn read_type",
+      "before": "pub fn read_type(@codec.Reader, depth? : Int) -> CqlType raise @codec.CodecError",
+      "after": "pub fn read_type(@codec.Reader, depth? : Int, max_depth? : Int) -> CqlType raise @codec.CodecError",
       "migration": "docs/migration.md"
     }
   ],

@@ -29,6 +29,12 @@ pub fn PagingCursor::is_done(self : PagingCursor) -> Bool {
 pub fn PagingCursor::to_bytes(
   self : PagingCursor,
 ) -> Bytes raise @codec.CodecError {
+  let state_size = self.state
+    .map(state => state.length().to_int64())
+    .unwrap_or(0L)
+  if 17L + self.binding.length().to_int64() + state_size > 33554432L {
+    raise @codec.CodecError("paging cursor exceeds 32 MiB")
+  }
   let writer = @codec.Writer::new()
   writer.raw(b"MCQLPG01")
   writer.bytes(Some(self.binding))
@@ -52,12 +58,15 @@ pub fn PagingCursor::from_bytes(
   if reader.take(8) != b"MCQLPG01" {
     raise @codec.CodecError("unsupported paging cursor format")
   }
-  guard reader.bytes() is Some(binding) else {
+  let binding_size = reader.i32()
+  if binding_size == -1 {
     raise @codec.CodecError("missing cursor binding")
   }
-  if binding.is_empty() || binding.length() > 16777216 {
+  if binding_size < 1 || binding_size > 16777216 {
     raise @codec.CodecError("invalid cursor binding size")
   }
+  // 先验证声明长度，避免为了拒绝大上下文而先复制该上下文。
+  let binding = reader.take(binding_size)
   let flag = reader.u8()
   if flag > 1 {
     raise @codec.CodecError("invalid cursor completion flag")
@@ -148,6 +157,7 @@ fn new_pager(
     traversal_deadline,
     idempotent,
     retry: profile_retry(profile, retry),
+    profile,
   }
 }
 

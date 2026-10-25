@@ -20,6 +20,7 @@ pub struct Pager {
   mut traversal_deadline : Deadline?
   idempotent : Bool
   retry : RetryPolicy
+  profile : ExecutionProfile?
 }
 
 ///|
@@ -212,6 +213,7 @@ pub async fn Pager::next_with_info(
         deadline~,
         idempotent=self.idempotent,
         retry=self.retry,
+        profile?=self.profile,
       )
     SessionPreparedQuery(statement, values) =>
       statement.execute_with_info(
@@ -220,6 +222,7 @@ pub async fn Pager::next_with_info(
         deadline~,
         idempotent=self.idempotent,
         retry=self.retry,
+        profile?=self.profile,
       )
   }
   guard result.value is Rows(page) else {

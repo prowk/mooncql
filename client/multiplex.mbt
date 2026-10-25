@@ -5,6 +5,7 @@ struct Pending {
   mut stage : RequestStage
   reservation : Reservation
   mut abandoned_at : Int64?
+  mut response_bytes : Int64
 }
 
 ///|
@@ -16,6 +17,10 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
     self.drain_outcome = Some(Interrupted(self.drain_remaining()))
   }
   self.closed = true
+  self.wire.messages.clear()
+  self.wire.position = 0
+  self.wire.queued_bytes = 0L
+  self.wire.decoder.clear()
   if self.reader_active && self.config.metrics is Some(metrics) {
     metrics.data.connections_closed += 1L
     metrics.emit(
@@ -56,11 +61,22 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
 
 ///|
 fn Connection::allocate_stream(self : Connection) -> Int raise DriverError {
+  let (id, next) = free_stream(self.pending, self.next_stream)
+  self.next_stream = next
+  id
+}
+
+///|
+fn free_stream(
+  pending : Map[Int, Pending],
+  start : Int,
+) -> (Int, Int) raise DriverError {
+  let mut next = start & 32767
   for i = 0; i < 32768; i = i + 1 {
-    let id = self.next_stream
-    self.next_stream = (id + 1) & 32767
-    if !self.pending.contains(id) {
-      return id
+    let id = next
+    next = (id + 1) & 32767
+    if !pending.contains(id) {
+      return (id, next)
     }
   }
   raise Unexpected("no free stream id")
@@ -89,8 +105,10 @@ async fn Connection::exchange(
     stage: WaitingWriteLock,
     reservation,
     abandoned_at: None,
+    response_bytes: 0L,
   }
   reservation.owned_by_pending = true
+  defer self.release_delivery(pending)
   self.pending[stream] = pending
   let mut completed = false
   defer (if !completed { self.abandon(stream, pending) })
@@ -159,17 +177,41 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
       guard self.pending.get(frame.header.stream) is Some(pending) else {
         raise Unexpected("response for unknown stream")
       }
+      if pending.abandoned_at is Some(_) {
+        // Wire 已验证完整帧 CRC、边界、方向和 stream；废弃正文不再解释。
+        // 元数据、警告和 Value 都不得被迟到结果更新，也不构造调用方不可见的页。
+        if ![0, 2, 3, 6, 8, 14, 16].contains(frame.header.opcode) {
+          raise Unexpected("unexpected abandoned response opcode")
+        }
+        self.retire(frame.header.stream, pending)
+        pending.stage = Received
+        self.discarded_responses += 1L
+        continue
+      }
+      pending.response_bytes = frame.body.length().to_int64()
+      self.delivery_bytes += pending.response_bytes
+      if self.delivery_bytes > self.peak_delivery_bytes {
+        self.peak_delivery_bytes = self.delivery_bytes
+      }
+      let decoding_started = @async.now()
       let envelope = @protocol.decode_payload(frame)
       let response = @protocol.decode_response(
         frame.header.opcode,
         envelope.message,
         cached=pending.cached,
+        max_rows=self.response_limits.rows,
+        max_columns=self.response_limits.columns,
+        max_value_nodes=self.response_limits.value_nodes,
+        max_depth=self.response_limits.depth,
       )
+      let decoding_ms = @async.now() - decoding_started
+      self.decode_ms += decoding_ms
+      if decoding_ms > self.max_decode_ms {
+        self.max_decode_ms = decoding_ms
+      }
+      self.decoded_responses += 1L
       self.retire(frame.header.stream, pending)
       pending.stage = Received
-      if pending.abandoned_at is Some(_) {
-        continue
-      }
       let delivered = pending.reply.try_put({
         response,
         warnings: envelope.warnings,
@@ -191,10 +233,11 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
 ///|
 pub async fn[T] with_connection(
   config? : Config = Config::new(),
+  response_limits? : ResponseLimits,
   body : async (Connection) -> T,
 ) -> T {
   @async.with_task_group(group => {
-    let connection = connect(group, config~)
+    let connection = connect(group, config~, response_limits?)
     defer connection.close()
     body(connection)
   })
@@ -203,9 +246,14 @@ pub async fn[T] with_connection(
 ///|
 pub async fn[T] with_serial_connection(
   config? : Config = Config::new(),
+  response_limits? : ResponseLimits,
   body : async (Connection) -> T,
 ) -> T {
-  with_connection(config={ ..config, max_in_flight: 1, }, body)
+  with_connection(
+    config={ ..config, max_in_flight: 1, },
+    response_limits?,
+    body,
+  )
 }
 
 ///|

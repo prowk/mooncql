@@ -7,6 +7,8 @@ struct Wire {
   decoder : @protocol.EnvelopeDecoder
   mut messages : Array[@protocol.MessageEnvelope]
   mut position : Int
+  mut queued_bytes : Int64
+  mut peak_bytes : Int64
   metrics : Metrics?
 }
 
@@ -25,6 +27,8 @@ fn Wire::new(
     decoder: @protocol.EnvelopeDecoder::new(max_body~),
     messages: [],
     position: 0,
+    queued_bytes: 0L,
+    peak_bytes: 0L,
     metrics,
   }
 }
@@ -105,9 +109,24 @@ async fn Wire::receive(self : Wire) -> @protocol.MessageEnvelope {
       }
       self.messages = self.decoder.feed(frame)
       self.position = 0
+      self.queued_bytes = 0L
+      for message in self.messages {
+        self.queued_bytes += message.body.length().to_int64()
+      }
+      let buffered = self.queued_bytes + self.decoder.buffered_bytes()
+      if buffered > self.peak_bytes {
+        self.peak_bytes = buffered
+      }
     }
     let message = self.messages[self.position]
+    // 已交出的正文不能继续被 messages 的旧槽引用。
+    self.messages[self.position] = { header: message.header, body: b"", }
+    self.queued_bytes -= message.body.length().to_int64()
     self.position += 1
+    if self.position == self.messages.length() {
+      self.messages.clear()
+      self.position = 0
+    }
     message
   }
   if !envelope.header.response {

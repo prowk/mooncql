@@ -6,6 +6,7 @@ import {
   "moonbitlang/async/aqueue",
   "moonbitlang/async/cond_var",
   "moonbitlang/core/debug",
+  "moonbitlang/core/random",
   "prowk/mooncql/codec",
   "prowk/mooncql/protocol",
   "prowk/mooncql/routing",
@@ -13,13 +14,13 @@ import {
 }
 
 // Values
-pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadline) -> Connection
+pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadline, response_limits? : ResponseLimits) -> Connection
 
-pub async fn[T] with_connection(config? : Config, async (Connection) -> T) -> T
+pub async fn[T] with_connection(config? : Config, response_limits? : ResponseLimits, async (Connection) -> T) -> T
 
-pub async fn[T] with_serial_connection(config? : Config, async (Connection) -> T) -> T
+pub async fn[T] with_serial_connection(config? : Config, response_limits? : ResponseLimits, async (Connection) -> T) -> T
 
-pub async fn[T] with_session(config? : SessionConfig, async (Session) -> T) -> T
+pub async fn[T] with_session(config? : SessionConfig, response_limits? : ResponseLimits, async (Session) -> T) -> T
 
 // Errors
 pub(all) suberror DriverError {
@@ -129,6 +130,13 @@ pub fn Config::new(host? : String, port? : Int, username? : String, password? : 
 pub struct Connection {
   socket : Transport
   config : Config
+  response_limits : ResponseLimits
+  mut delivery_bytes : Int64
+  mut peak_delivery_bytes : Int64
+  mut decoded_responses : Int64
+  mut discarded_responses : Int64
+  mut decode_ms : Int64
+  mut max_decode_ms : Int64
   wire : Wire
   mutex : @async.Mutex
   mut closed : Bool
@@ -175,10 +183,12 @@ pub fn Connection::prepared_cache_size(Self) -> Int
 pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
 pub async fn Connection::query_conditional(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn Connection::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> Execution[@protocol.ResultSet]
+pub fn Connection::receive_memory(Self) -> ReceiveMemorySnapshot
 pub async fn Connection::register(Self, Array[@protocol.EventKind], deadline? : Deadline) -> Unit
 pub async fn Connection::request(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> Reply
 pub async fn Connection::run(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> @protocol.ResultSet
 pub async fn Connection::run_with_info(Self, @protocol.Request, cached? : Array[@protocol.Column], deadline? : Deadline) -> Execution[@protocol.ResultSet]
+pub fn Connection::scheduling(Self) -> SchedulingSnapshot
 pub async fn Connection::shutdown(Self) -> Unit
 pub fn Connection::waiting_bytes(Self) -> Int64
 pub fn Connection::waiting_count(Self) -> Int
@@ -248,8 +258,9 @@ pub struct ExecutionProfile {
   timeout : Int?
   traversal_timeout : Int?
   policy : RetryPolicy
+  backoff : RetryBackoff?
 }
-pub fn ExecutionProfile::new(consistency? : @protocol.Consistency, page_size? : Int, serial_consistency? : @protocol.Consistency, timeout_ms? : Int, traversal_timeout_ms? : Int, retry? : RetryPolicy) -> Self raise DriverError
+pub fn ExecutionProfile::new(consistency? : @protocol.Consistency, page_size? : Int, serial_consistency? : @protocol.Consistency, timeout_ms? : Int, traversal_timeout_ms? : Int, retry? : RetryPolicy, backoff? : RetryBackoff) -> Self raise DriverError
 pub fn ExecutionProfile::options(Self) -> @protocol.QueryOptions
 pub fn ExecutionProfile::retry_policy(Self) -> RetryPolicy
 pub fn ExecutionProfile::timeout_ms(Self) -> Int?
@@ -426,6 +437,7 @@ pub struct Pager {
   mut traversal_deadline : Deadline?
   idempotent : Bool
   retry : RetryPolicy
+  profile : ExecutionProfile?
 }
 pub fn Pager::cursor(Self) -> PagingCursor raise DriverError
 pub async fn Pager::for_each_row(Self, async (Array[@protocol.Column], Array[@types.Value]) -> Unit) -> Unit
@@ -487,6 +499,21 @@ pub fn Prepared::parameters(Self) -> Array[@protocol.Column]
 
 type PreparedCache
 
+pub(all) struct ReceiveMemorySnapshot {
+  endpoint : Endpoint
+  pool_slot : Int
+  scope : RpcScope
+  reassembling_bytes : Int64
+  queued_envelope_bytes : Int64
+  delivering_body_bytes : Int64
+  peak_wire_bytes : Int64
+  peak_delivering_body_bytes : Int64
+  decoded_responses : Int64
+  discarded_responses : Int64
+  decode_ms : Int64
+  max_decode_ms : Int64
+}
+
 pub(all) struct Reply {
   response : @protocol.Response
   warnings : Array[String]
@@ -538,6 +565,26 @@ pub fn RequestStage::equal(Self, Self) -> Bool
 pub fn RequestStage::not_equal(Self, Self) -> Bool
 pub fn RequestStage::to_repr(Self) -> @debug.Repr
 
+pub struct ResponseLimits {
+  body_bytes : Int
+  rows : Int
+  columns : Int
+  value_nodes : Int
+  depth : Int
+}
+pub fn ResponseLimits::new(max_body_bytes? : Int, max_rows? : Int, max_columns? : Int, max_value_nodes? : Int, max_depth? : Int) -> Self raise DriverError
+
+pub struct RetryBackoff {
+  local_ms : Int
+  overloaded_ms : Int
+  bootstrapping_ms : Int
+  network_ms : Int
+  read_timeout_ms : Int
+  maximum : Int
+  jitter : Double
+}
+pub fn RetryBackoff::new(local_ms? : Int, overloaded_ms? : Int, bootstrapping_ms? : Int, network_ms? : Int, read_timeout_ms? : Int, max_delay_ms? : Int, jitter? : Double) -> Self raise DriverError
+
 pub(all) struct RetryPolicy {
   max_attempts : Int
   delay_ms : Int
@@ -565,6 +612,12 @@ pub(all) enum RpcScope {
 pub fn RpcScope::equal(Self, Self) -> Bool
 pub fn RpcScope::not_equal(Self, Self) -> Bool
 pub fn RpcScope::to_repr(Self) -> @debug.Repr
+
+pub(all) struct SchedulingSnapshot {
+  broadcasts : Int64
+  wakeups : Int64
+  queued : Int
+}
 
 pub(all) struct SchemaAgreement {
   state : SchemaAgreementState
@@ -679,6 +732,8 @@ pub(all) struct SchemaVersionObservation {
 
 pub struct Session {
   config : SessionConfig
+  response_limits : ResponseLimits?
+  retry_random : @random.Rand
   changed : @cond_var.Cond
   nodes : Array[SessionNode]
   mut closed : Bool
@@ -714,8 +769,10 @@ pub async fn Session::prepare_with_info(Self, String, keyspace? : String, deadli
 pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> @protocol.ResultSet
 pub fn Session::query_plan(Self, hint? : RoutingHint) -> Array[Endpoint]
 pub async fn Session::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> Execution[@protocol.ResultSet]
+pub fn Session::receive_memory(Self) -> Array[ReceiveMemorySnapshot]
 pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Reply
 pub fn Session::resources(Self) -> SessionResources
+pub fn Session::scheduling(Self) -> SchedulingSnapshot
 pub async fn Session::schema_metadata(Self, options? : SchemaOptions, deadline? : Deadline) -> SchemaSnapshot
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::topology(Self) -> TopologySnapshot?

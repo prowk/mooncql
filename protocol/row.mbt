@@ -52,24 +52,25 @@ fn type_size(
   typ : @types.CqlType,
   depth : Int,
   budget : Array[Int],
+  max_depth? : Int = 32,
 ) -> Unit raise @codec.CodecError {
-  if depth >= 32 || budget[0] <= 0 {
+  if depth >= max_depth || budget[0] <= 0 {
     raise @codec.CodecError("row metadata exceeds snapshot limit")
   }
   budget[0] -= 1
   match typ {
-    List(item) | Set(item) => type_size(item, depth + 1, budget)
+    List(item) | Set(item) => type_size(item, depth + 1, budget, max_depth~)
     Map(key, value) => {
-      type_size(key, depth + 1, budget)
-      type_size(value, depth + 1, budget)
+      type_size(key, depth + 1, budget, max_depth~)
+      type_size(value, depth + 1, budget, max_depth~)
     }
     Tuple(items) =>
       for item in items {
-        type_size(item, depth + 1, budget)
+        type_size(item, depth + 1, budget, max_depth~)
       }
     Udt(_, _, fields) =>
       for pair in fields {
-        type_size(pair.1, depth + 1, budget)
+        type_size(pair.1, depth + 1, budget, max_depth~)
       }
     _ => ()
   }
@@ -79,6 +80,21 @@ fn type_size(
 /// 复制列定义和嵌套类型数组，防止公开快照修改内部元数据。
 pub fn columns_snapshot(columns : Array[Column]) -> Array[Column] {
   columns.map(column => { ..column, typ: copy_type(column.typ), })
+}
+
+///|
+/// 对外部提供的嵌套元数据先检查大小与深度，再进行一次隔离复制。
+pub fn checked_columns_snapshot(
+  columns : Array[Column],
+) -> Array[Column] raise @codec.CodecError {
+  if columns.length() > 65535 {
+    raise @codec.CodecError("too many cached columns")
+  }
+  let budget = [1000000]
+  for column in columns {
+    type_size(column.typ, 0, budget)
+  }
+  columns_snapshot(columns)
 }
 
 ///|

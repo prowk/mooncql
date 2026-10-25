@@ -24,3 +24,21 @@ counter、自增、集合追加和条件写入不能据此获得至多一次或�
 普通查询在首次异步等待前编码，预处理执行在选择节点前复制绑定值和必要选项；后续尝试不会读取调用方已修改的数组。测试覆盖跨节点重试与参数快照、节点 / 原因历史、次数上限、SIMPLE 与非 SIMPLE 写错误、总截止时间、迟到响应隔离、取消，以及默认 counter / LWT / 集合追加 / BATCH 在响应丢失后不重复发送。
 
 开启执行信息后，成功重试的前次响应保存在 info.previous；最终 RetryExhausted 的 AttemptFailure.execution_info 保存相应响应，error 保留原始错误原因。见[执行信息](execution-info.md)。
+
+## 开发分支的分类退避
+
+在 `ExecutionProfile::new(backoff=RetryBackoff::new(...))` 显式启用。省略 `backoff` 时仍使用 RetryPolicy.delay_ms 的固定延迟；启用时由分类退避替代固定延迟，次数上限、幂等声明和同一 Deadline 均不改变，RetryPolicy 的公开记录字段保持不变。
+
+| 起始延迟参数 | 默认毫秒 | 选择条件 |
+| --- | --- | --- |
+| `local_ms` | 5 | 本地额度拒绝、尚未发送的排队超时 |
+| `overloaded_ms` | 25 | 服务端 OVERLOADED |
+| `bootstrapping_ms` | 100 | 服务端 IS_BOOTSTRAPPING |
+| `network_ms` | 10 | 可重试的断线、I/O、执行超时或其他既有可重试原因 |
+| `read_timeout_ms` | 25 | 服务端 READ_TIMEOUT |
+
+第一次失败后的上界是起始值，之后每次翻倍，并在 `max_delay_ms`（默认 1000）截断。`jitter` 默认 1，表示在零到本次上界之间均匀取样；0 为无抖动，其他合法值形成 `[上界 × (1-jitter), 上界]` 区间，结果向下取整。每个 Session 使用独立熵源，各逻辑操作共享推进的随机序列，不按错误同时发生的时刻重置种子。没有可用平台熵时随机库使用其固定回退种子，不能提供跨进程的去同步保证。
+
+各类别起始值允许为 0，且不得大于正数 max_delay_ms；jitter 须为 0–1，非法值在构造器报出参数名及范围。倍增前检查上界，极值不会发生 Int 溢出。退避期间取消立即结束，Session 关闭会唤醒等待，不等完整延迟。若共享 Deadline 在退避中到期，保留原失败历史并追加 WaitingRetry 超时，不再发送下一 RPC。原生回归固定种子核对抖动分布和重放，实际 TCP 回归核对分类延迟及一个逻辑操作对应三次 RPC 的计数。
+
+SessionPrepared 和 Pager 保存选定的不可变 profile；单次显式 profile 替换继承配置，其没有 backoff 时回到固定延迟。原始 Session.request 使用 Session 默认 profile 的 backoff。实际放大可由 Metrics 的 requests_started／logical_started 和 retry_attempts 结合观察；前者包含被本地拒绝的 RPC 尝试，并非服务器已执行次数。

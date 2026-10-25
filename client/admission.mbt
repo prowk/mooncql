@@ -36,6 +36,8 @@ struct Admission {
   changed : @async.CondVar
   parent : Admission?
   session : Bool
+  turns : Array[AdmissionTurn]
+  scheduling : SchedulingCounters
   mut closed : Bool
   mut in_flight : Int
   mut bytes : Int64
@@ -44,11 +46,57 @@ struct Admission {
 }
 
 ///|
+priv struct SchedulingCounters {
+  mut broadcasts : Int64
+  mut wakeups : Int64
+}
+
+///|
+/// 仅统计额度队列的通知和唤醒；不含 socket、准备锁或节点发现的唤醒。
+pub(all) struct SchedulingSnapshot {
+  broadcasts : Int64
+  wakeups : Int64
+  queued : Int
+}
+
+///|
+fn Admission::scheduling_snapshot(self : Admission) -> SchedulingSnapshot {
+  {
+    broadcasts: self.scheduling.broadcasts,
+    wakeups: self.scheduling.wakeups,
+    queued: self.turns.length(),
+  }
+}
+
+///|
+pub fn Connection::scheduling(self : Connection) -> SchedulingSnapshot {
+  self.admission.scheduling_snapshot()
+}
+
+///|
+pub fn Session::scheduling(self : Session) -> SchedulingSnapshot {
+  self.admission.scheduling_snapshot()
+}
+
+///|
+fn Admission::signal(self : Admission) -> Unit {
+  self.scheduling.broadcasts += 1L
+  self.changed.broadcast()
+}
+
+///|
+priv struct AdmissionTurn {
+  // 以对象身份标识排队顺序，避免长期运行时序号溢出。
+  bytes : Int64
+}
+
+///|
 priv struct Reservation {
   bytes : Int64
   mut released : Bool
   mut admitted : Bool
   mut owned_by_pending : Bool
+  mut turn : AdmissionTurn?
 }
 
 ///|
@@ -65,6 +113,10 @@ fn Admission::new(
     .unwrap_or_else(() => changed.unwrap_or_else(() => @async.CondVar::Cond())),
     parent,
     session,
+    turns: parent.map(parent => parent.turns).unwrap_or_else(() => []),
+    scheduling: parent
+    .map(parent => parent.scheduling)
+    .unwrap_or_else(() => { broadcasts: 0L, wakeups: 0L, }),
     closed: false,
     in_flight: 0,
     bytes: 0L,
@@ -102,6 +154,9 @@ fn Admission::validate_size(
   self : Admission,
   bytes : Int64,
 ) -> Unit raise DriverError {
+  if bytes < 0L {
+    raise Configuration("request bytes must be nonnegative")
+  }
   if self.is_closed() {
     raise Closed
   }
@@ -187,7 +242,7 @@ fn Admission::enter_wait(
 ///|
 fn Admission::leave_wait(self : Admission, bytes : Int64) -> Unit {
   self.change_wait(bytes, -1)
-  self.changed.broadcast()
+  self.signal()
 }
 
 ///|
@@ -196,27 +251,82 @@ fn Admission::register(
   bytes : Int64,
 ) -> Reservation raise DriverError {
   self.validate_size(bytes)
-  if self.block_reason(bytes) is Some(reason) {
+  if self.block_reason(bytes) is Some(_) || !self.turns.is_empty() {
     if self.rejects() {
-      raise Overloaded(reason)
+      raise Overloaded(
+        self
+        .block_reason(bytes)
+        .unwrap_or(
+          if self.session {
+            SessionInFlightLimit
+          } else {
+            InFlightLimit
+          },
+        ),
+      )
     }
     self.enter_wait(bytes)
-    return { bytes, released: false, admitted: false, owned_by_pending: false, }
+    let turn = self.enqueue_turn(bytes)
+    return {
+      bytes,
+      released: false,
+      admitted: false,
+      owned_by_pending: false,
+      turn: Some(turn),
+    }
   }
   self.change_active(bytes, 1)
-  { bytes, released: false, admitted: true, owned_by_pending: false, }
+  {
+    bytes,
+    released: false,
+    admitted: true,
+    owned_by_pending: false,
+    turn: None,
+  }
+}
+
+///|
+fn Admission::enqueue_turn(self : Admission, bytes : Int64) -> AdmissionTurn {
+  let turn = AdmissionTurn::{ bytes, }
+  self.turns.push(turn)
+  turn
+}
+
+///|
+fn Admission::owns_turn(self : Admission, turn : AdmissionTurn) -> Bool {
+  !self.turns.is_empty() && physical_equal(self.turns[0], turn)
+}
+
+///|
+fn Admission::remove_turn(self : Admission, turn : AdmissionTurn) -> Unit {
+  for index in 0..<self.turns.length() {
+    if physical_equal(self.turns[index], turn) {
+      self.turns.remove(index) |> ignore
+      self.signal()
+      return
+    }
+  }
 }
 
 ///|
 async fn Admission::admit(self : Admission, reservation : Reservation) -> Unit {
   if !reservation.admitted {
-    while !self.is_closed() && !self.fits(reservation.bytes) {
+    while !self.is_closed() &&
+          (match reservation.turn {
+            Some(turn) => !self.owns_turn(turn) || !self.fits(turn.bytes)
+            None => !self.fits(reservation.bytes)
+          }) {
       self.changed.wait()
+      self.scheduling.wakeups += 1L
     }
     if self.is_closed() {
       raise Closed
     }
     self.change_wait(reservation.bytes, -1)
+    if reservation.turn is Some(turn) {
+      self.remove_turn(turn)
+      reservation.turn = None
+    }
     reservation.admitted = true
     self.change_active(reservation.bytes, 1)
   }
@@ -233,15 +343,19 @@ fn Admission::release(self : Admission, reservation : Reservation) -> Unit {
       self.change_active(reservation.bytes, -1)
     } else {
       self.change_wait(reservation.bytes, -1)
+      if reservation.turn is Some(turn) {
+        self.remove_turn(turn)
+        reservation.turn = None
+      }
     }
-    self.changed.broadcast()
+    self.signal()
   }
 }
 
 ///|
 fn Admission::close(self : Admission) -> Unit {
   self.closed = true
-  self.changed.broadcast()
+  self.signal()
 }
 
 ///|

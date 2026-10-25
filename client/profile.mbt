@@ -5,6 +5,7 @@ pub struct ExecutionProfile {
   timeout : Int?
   traversal_timeout : Int?
   policy : RetryPolicy
+  backoff : RetryBackoff?
 }
 
 ///|
@@ -16,6 +17,7 @@ pub fn ExecutionProfile::new(
   timeout_ms? : Int,
   traversal_timeout_ms? : Int,
   retry? : RetryPolicy = RetryPolicy::new(),
+  backoff? : RetryBackoff,
 ) -> ExecutionProfile raise DriverError {
   if (page_size is Some(size) && size <= 0) ||
     (timeout_ms is Some(timeout) && timeout <= 0) ||
@@ -39,6 +41,7 @@ pub fn ExecutionProfile::new(
     timeout: timeout_ms,
     traversal_timeout: traversal_timeout_ms,
     policy: retry,
+    backoff,
   }
 }
 

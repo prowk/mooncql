@@ -115,7 +115,13 @@ async fn[G] Session::connect_pool_node(
     node.attempts += 1
     slot.attempts += 1
   }
-  connect_observed(group, node.config, None, Some(self.admission))
+  connect_observed(
+    group,
+    node.config,
+    None,
+    Some(self.admission),
+    response_limits?=self.response_limits,
+  )
 }
 
 ///|
