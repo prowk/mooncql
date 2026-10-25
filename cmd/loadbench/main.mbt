@@ -23,14 +23,13 @@ fn rank(sorted : Array[Int64], percent : Int) -> Int64 {
 
 ///|
 async fn await_arrival(started : Int64, planned : Int64) -> Int64 {
-  while true {
-    let elapsed = now_ns() - started
-    if elapsed >= planned {
-      return elapsed
-    }
+  let mut elapsed = now_ns() - started
+  while elapsed < planned {
     // 毫秒事件循环可能提前唤醒；始终以同一个纳秒时钟确认计划已到达。
     @async.sleep(((planned - elapsed + 999999L) / 1000000L).to_int())
+    elapsed = now_ns() - started
   }
+  elapsed
 }
 
 ///|
