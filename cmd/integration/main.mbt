@@ -12,7 +12,7 @@ async fn main {
   if count < 1 || count > 100000 {
     fail("CQL_ROWS must be between 1 and 100000")
   }
-  let config = @client.Config::new(
+  let config = @client.ConnectionBuilder::new(
     host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
     port=integer_env("CQL_PORT", 9042),
     username?=@env.get_env_var("CQL_USERNAME"),
@@ -22,7 +22,7 @@ async fn main {
     throw_on_overload=true,
   )
   let mut report = ""
-  let connection = @client.with_connection(config~, connection => {
+  let connection = @client.with_connection_builder(config~, connection => {
     guard connection.query("SELECT release_version FROM system.local")
       is Rows(version) else {
       fail("missing server version")

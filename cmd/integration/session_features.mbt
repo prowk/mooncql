@@ -1,12 +1,12 @@
 ///|
-async fn verify_session_batches(config : @client.Config) -> Unit {
+async fn verify_session_batches(config : @client.ConnectionBuilder) -> Unit {
   let provider = match (config.username, config.password) {
     (Some(username), Some(password)) =>
       Some(@client.AuthProvider::password(_ => (username, password)))
     _ => None
   }
-  @client.with_session(
-    config=@client.SessionConfig::new(
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(
       connection={
         ..config,
         username: None,

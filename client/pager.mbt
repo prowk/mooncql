@@ -24,7 +24,7 @@ pub struct Pager {
 }
 
 ///|
-pub fn Connection::pages(
+pub fn Connection::pages_with_options(
   self : Connection,
   cql : String,
   values? : Array[@types.Value] = [],
@@ -53,7 +53,7 @@ pub fn Connection::pages(
 }
 
 ///|
-pub fn Prepared::pages(
+pub fn Prepared::pages_with_options(
   self : Prepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
@@ -79,7 +79,7 @@ pub fn Prepared::pages(
 }
 
 ///|
-pub fn Session::pages(
+pub fn Session::pages_with_options(
   self : Session,
   cql : String,
   values? : Array[@types.Value] = [],
@@ -106,7 +106,7 @@ pub fn Session::pages(
 }
 
 ///|
-pub fn SessionPrepared::pages(
+pub fn SessionPrepared::pages_with_options(
   self : SessionPrepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
@@ -172,8 +172,15 @@ pub async fn Pager::next_with_info(
     None => page_deadline
   }
   if deadline.remaining_ms() <= 0 {
+    if self.traversal_deadline is Some(total) && total.at <= deadline.at {
+      raise OperationTimedOut(WaitingPage, {
+        phase: WaitingSlot,
+        scope: Operation,
+        may_have_been_sent: false,
+      })
+    }
     raise TimedOut({
-      phase: WaitingPage,
+      phase: WaitingSlot,
       scope: Operation,
       may_have_been_sent: false,
     })
@@ -206,7 +213,7 @@ pub async fn Pager::next_with_info(
     PreparedQuery(statement, values) =>
       statement.execute_with_info(values, options~, deadline~)
     SessionQuery(session, cql, values) =>
-      session.query_with_info(
+      session.query_with_profile_info(
         cql,
         values~,
         options~,
@@ -216,7 +223,7 @@ pub async fn Pager::next_with_info(
         profile?=self.profile,
       )
     SessionPreparedQuery(statement, values) =>
-      statement.execute_with_info(
+      statement.execute_with_profile_info(
         values,
         options~,
         deadline~,
@@ -258,4 +265,50 @@ pub async fn Pager::next(self : Pager, deadline? : Deadline) -> @protocol.Page? 
     ExecutionError(error, _) => raise error
     error => raise error
   }
+}
+
+///|
+pub fn Connection::pages(
+  self : Connection,
+  cql : String,
+  values? : Array[@types.Value] = [],
+  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+    page_size=1000,
+  ),
+  cursor? : PagingCursor,
+) -> Pager raise {
+  self.pages_with_options(cql, values~, options~, cursor?)
+}
+
+///|
+pub fn Prepared::pages(
+  self : Prepared,
+  values : Array[@types.Value],
+  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+    page_size=1000,
+  ),
+  cursor? : PagingCursor,
+) -> Pager raise {
+  self.pages_with_options(values, options~, cursor?)
+}
+
+///|
+pub fn Session::pages(
+  self : Session,
+  cql : String,
+  values? : Array[@types.Value] = [],
+  options? : @protocol.QueryOptions,
+  cursor? : PagingCursor,
+) -> Pager raise {
+  self.pages_with_options(cql, values~, options?, cursor?)
+}
+
+///|
+pub fn SessionPrepared::pages(
+  self : SessionPrepared,
+  values : Array[@types.Value],
+  options? : @protocol.QueryOptions,
+  cursor? : PagingCursor,
+) -> Pager raise {
+  self.pages_with_options(values, options?, cursor?)
 }

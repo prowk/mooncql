@@ -195,7 +195,7 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
       }
       let decoding_started = @async.now()
       let envelope = @protocol.decode_payload(frame)
-      let response = @protocol.decode_response(
+      let response = @protocol.decode_response_limited(
         frame.header.opcode,
         envelope.message,
         cached=pending.cached,
@@ -231,25 +231,25 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
 }
 
 ///|
-pub async fn[T] with_connection(
-  config? : Config = Config::new(),
+pub async fn[T] with_connection_builder(
+  config? : ConnectionBuilder = ConnectionBuilder::new(),
   response_limits? : ResponseLimits,
   body : async (Connection) -> T,
 ) -> T {
   @async.with_task_group(group => {
-    let connection = connect(group, config~, response_limits?)
+    let connection = connect_builder(group, config~, response_limits?)
     defer connection.close()
     body(connection)
   })
 }
 
 ///|
-pub async fn[T] with_serial_connection(
-  config? : Config = Config::new(),
+pub async fn[T] with_serial_connection_builder(
+  config? : ConnectionBuilder = ConnectionBuilder::new(),
   response_limits? : ResponseLimits,
   body : async (Connection) -> T,
 ) -> T {
-  with_connection(
+  with_connection_builder(
     config={ ..config, max_in_flight: 1, },
     response_limits?,
     body,

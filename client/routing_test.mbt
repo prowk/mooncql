@@ -132,9 +132,11 @@ async fn with_routing_fixture(
           }
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(max_in_flight=local_in_flight),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
+            max_in_flight=local_in_flight,
+          ),
           contact_points=[@client.Endpoint::new(port=servers[0].addr.port())],
           discovery=@client.DiscoveryConfig::new(refresh_interval_ms=10000, address_mapper=native => {
             let index = if native.address == b"\x0a\x00\x00\x01" {

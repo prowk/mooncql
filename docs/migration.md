@@ -26,24 +26,24 @@ moon add --upgrade prowk/mooncql@0.2.0
 
 ## 当前开发分支（尚未发布）
 
-新增可选 `RetryBackoff`，通过 ExecutionProfile 启用分类指数退避与抖动；RetryPolicy 的两个字段及默认固定延迟保留。新增 `checked_columns_snapshot` 检查外部列定义后复制，低层 `Connection.request(cached=...)` 在第一次等待及监听器回调前冻结嵌套元数据。游标在复制上下文或构造序列化缓冲前检查声明长度，容器格式不变。单连接 max_waiting 增加 1048576 的上界，非法配置错误包含参数名与合法范围。
+稳定版公开声明相对 0.2.0 保持不变：完整 Config／SessionConfig／ExecutionInfo／RequestEvent／MetricsSnapshot 记录仍可构造，DriverError／TimeoutPhase／OverloadReason／RequestOutcome／MetricEvent 的穷尽匹配保持有效，原函数参数列表也不增加可选参数。扩展能力使用独立新类型和函数名；源码检查同时禁止修改或删除旧声明，不把更新差异合同当作放行破坏性改动。
 
-新增 `ResponseLimits` 与作用域的可选 `response_limits` 参数，旧调用省略时沿用原限制。`connect`、`with_connection`、`with_serial_connection` 和 `with_session` 原有位置参数及命名参数继续可用；将这些函数保存为显式完整函数类型的代码需要核对新增可选参数。低层 `decode_result`、`decode_response`、`read_metadata`、`read_type` 和 `DecodeBudget::new` 增加可选限制；原默认调用不变。新增 `SchedulingSnapshot`、`ReceiveMemorySnapshot` 只用于诊断，不改变既有 MetricsSnapshot 字段。额度等待改为 FIFO，可能出现队首阻塞；心跳不越过排队者。超出显式响应限制会关闭物理连接，废弃响应不再解释正文，详见[响应限制](response-limits.md)。
+原 Config／SessionConfig 与 with_connection／with_session 继续保留。动态认证、固定 Session 总预算、每节点多连接、默认执行配置和 DDL 等待使用 ConnectionBuilder／SessionBuilder，配合 connect_builder、with_connection_builder、with_serial_connection_builder 和 with_session_builder。Config.builder() 转换连接值；SessionConfig.builder() 保留旧的逐连接预算语义，Session.budget().limits 为 None。直接创建 SessionBuilder::new() 默认启用固定总预算，limits 为 Some；也可显式调整 enforce_limits。旧入口不会自动从多个逐连接预算变成总计 128 个 RPC 的新限制。
 
-新增 Session 批处理、可插拔认证与优雅排空，参见[开发接口](development-api.md)。使用 `Config::new` 的原有调用保持兼容；手工构造完整 Config 字面量时，须补齐新字段，推荐改为 `{ ..Config::new(), ... }`。穷尽匹配 DriverError／TimeoutPhase 时须增加 `Draining`／`WaitingDrain` 分支。
+新增 Session 批处理、可插拔认证与优雅排空，参见[开发接口](development-api.md)。排空拒绝是独立的 Draining 错误。总额度错误是独立的 SessionOverloaded(reason)，单连接仍返回 Overloaded(reason)，原因使用已有 OverloadReason。目录锁等待和两页间遍历预算超时是 OperationTimedOut(stage, info)，阶段属于新的 OperationStage；原 TimedOut 和 TimeoutPhase 仍表示原有请求等待阶段。排空到期仍返回 DrainOutcome，不能据此推断业务成功或服务端撤销。
 
-认证拒绝现在返回脱敏的 `Authentication`，不再把服务端可能回显凭据的原始 ServerError 直接暴露；业务查询的 ServerError 不受此改变影响。默认作用域关闭仍立即取消，只有显式调用 drain 才等待；BATCH 无论低层还是新 Session 接口均不自动重放。
+认证拒绝现在返回脱敏的 Authentication，不把服务端可能回显凭据的认证原文直接暴露；业务查询的 ServerError 不受此改变影响。默认作用域关闭仍立即取消，只有显式调用 drain 才等待；BATCH 无论低层还是新 Session 接口均不自动重放。认证回调每个连接独立创建，重连和额外池槽不会复用上一会话。
 
-`SessionConfig` 增加默认关闭的 schema agreement 配置；`ExecutionInfo` 增加可选的 `schema_agreement` 报告。常规构造器调用及读取既有字段的代码无需修改；手写完整记录字面量时补上新字段。开启等待后，DDL 成功与等待超时仍分别表示，详见 [schema agreement](schema-agreement.md)。
+DDL 等待报告由 query_with_schema_info 返回 SchemaExecution.schema_agreement，原信息仍在 info。旧 query_with_info 返回原 Execution；在 Builder 显式启用等待时仍执行等待，但需要报告的应用使用新接口。按需目录 API 使用独立 SchemaOptions／SchemaSnapshot，读取失败为 SchemaMetadataError(stage, cause)，不会自动加载整份目录，详见[Schema 元数据](schema-metadata.md)。
 
-新增按需 `Session.schema_metadata`、`SchemaOptions` 和隔离的 `SchemaSnapshot`，不会自动读取整份目录。穷尽匹配 `TimeoutPhase` 时须增加 `WaitingSchema`；读取错误为 `SchemaMetadataError(stage, cause)`，详见 [Schema 元数据](schema-metadata.md)。
+单次选择执行配置使用新的 query_with_profile／query_with_profile_info、prepare_with_profile／prepare_with_profile_info；SessionPrepared 使用 execute_with_profile／execute_with_profile_info／execute_conditional_with_profile。扩展分页使用 pages_with_options，接受所支持的 profile、显式幂等、重试和遍历期限。原 query、prepare、execute、pages 等签名保持 0.2.0 不变；它们在 Builder 设置了默认 profile 时可继承该默认值。单次 options 仍替换整份选项，准备和 Pager 保存选定配置，详见[执行配置](execution-profiles.md)。
 
-`SessionConfig` 增加可选的 `execution_profile`，省略时保留既有查询默认值。新增的 [ExecutionProfile](execution-profiles.md) 在准备和 Pager 创建时保存选定配置，每次调用仍需显式声明幂等；单次 `options` 替换整份查询选项。手工构造完整 SessionConfig 记录时须补上字段，穷尽匹配 TimeoutPhase 时须增加 `WaitingPage`。游标格式保持兼容；超时和重试预算不写入游标。
+分类指数退避与抖动通过 ExecutionProfile 的 RetryBackoff 显式启用；RetryPolicy 两字段及默认固定延迟保留。无论是否使用退避，仍需要每次调用声明幂等，保留次数上限及同一 Deadline。游标容器格式不变，超时和重试预算不写入游标；解析和序列化先校验长度再分配，合法游标不是防篡改凭证。
 
-开发分支的 Session 新增 `limits` 字段及固定总预算，默认 128 个 RPC／64 MiB 在途和 64 个等待者／64 MiB 等待字节；多个节点及控制连接合计受限，原单连接限制也继续生效。穷尽匹配 OverloadReason 时须增加五个 `Session*` 原因；满载时可能在 Session 选择阶段等待，相关观测归入 Session 等待，参见[总额度](session-limits.md)。低层独立 Connection 不自动加入其他 Session 的预算。
+响应限制由独立 ResponseLimits 配合 Builder 作用域的 response_limits 参数启用；省略时沿用原正文上限。低层需要自定义限制时使用 decode_result_limited、decode_response_limited、read_metadata_limited、read_type_limited 和 DecodeBudget::new_limited；旧函数参数列表不变。超限关闭物理连接，废弃响应在校验帧与编号后跳过正文语义，详见[响应限制](response-limits.md)。
 
-`SessionConfig` 增加 `connections_per_node`，默认 1，可配置 1–8；手写完整记录字面量时须补齐。多连接下 `NodeStatus.generation` 是该节点累计接受的连接代次，初次建池也会增长；按槽诊断使用 `Session.pools()`，参见[连接池](pooling.md)。已有构造器调用及默认单连接的行为保持兼容。
+额度等待改为 FIFO，可能出现队首阻塞；心跳不越过排队者，本地额度压力不触发健康控制连接重建。单连接 max_waiting 增加 1048576 的边界上限，非法配置说明参数名与范围。外部缓存列定义通过 checked_columns_snapshot 在等待和监听器前冻结。调度与接收观测使用新增 SchedulingSnapshot／ReceiveMemorySnapshot，不把调用方保留的结果计为驱动交付缓冲。
 
-开发分支的 `MetricEvent` 新增 OperationStarted／OperationFinished／RetryStarted，`RequestOutcome` 新增 AuthenticationError；穷尽匹配时补齐这些分支。手写 RequestEvent 须增加 `scope: RpcScope`，手写完整 MetricsSnapshot 须补上 logical_* 和 retry_attempts。原有请求、超时和取消总数保持 RPC／阶段口径，逻辑调用数独立读取；详见[运维诊断](diagnostics.md)。
+MetricEvent、RequestOutcome、RequestEvent 和 MetricsSnapshot 保留 0.2.0 形状。扩展事件使用独立 DiagnosticEvent，通过 Metrics::with_diagnostics 订阅；RPC 分类读取 RpcFinished(scope, event, session_budget)，逻辑计数读取 Metrics::operations_snapshot()。认证失败在扩展 ConnectionFailure 中单独标识，旧 RequestOutcome 仍为 OtherFailure；详见[运维诊断](diagnostics.md)。
 
-`Connection.pages` 和 `Prepared.pages` 新增可选 traversal_deadline；`Session.pages` 与 `SessionPrepared.pages` 还接受 profile、idempotent 和 retry。SessionPrepared 的 execute／execute_with_info／execute_conditional 新增可选 profile，并继承准备时选定的配置。常规旧调用继续可编译；使用完整函数类型或手写签名的适配层，应按新公开接口重新编译核对。分页预算与覆盖规则见[请求执行配置](execution-profiles.md)。
+Builder 的每节点连接池默认仍为 1，可选 1–8。NodeStatus.generation／Session.status().generation 继续计接受的连接代次，初次建池也会增长；按槽诊断使用 Session.pools()。尚未发布开发分支的旧写法需要迁移到上述新名称，已发布 0.2.0 的业务接口保留。

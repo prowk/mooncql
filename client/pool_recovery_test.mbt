@@ -82,9 +82,9 @@ async test "pool connection recovery is serialized while sibling serves and sche
           }
         })
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             heartbeat_interval_ms=0,
             connect_timeout_ms=2000,
@@ -166,9 +166,9 @@ async test "draining an establishing pool cancels queued handshakes without star
         seen.put(())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             connect_timeout_ms=10000,
           ),

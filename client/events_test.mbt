@@ -45,8 +45,11 @@ async test "REGISTER events and out of order replies use independent bounded del
         )
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), event_capacity=2),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          event_capacity=2,
+        ),
         connection => {
           connection.register([StatusChange])
           assert_true(
@@ -118,8 +121,8 @@ async test "only valid EVENT on stream minus one can bypass normal response asso
           }
           assert_eq(peer.read_some(), None)
         })
-        @client.with_connection(
-          config=@client.Config::new(port=server.addr.port()),
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(port=server.addr.port()),
           connection => {
             assert_true(
               try {
@@ -161,8 +164,11 @@ async test "event burst cannot block query progress when consumer is stalled" {
         respond(peer, query.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), event_capacity=1),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          event_capacity=1,
+        ),
         connection => {
           connection.register([StatusChange])
           assert_true(connection.query("consumer stalled") is Void)

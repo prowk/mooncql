@@ -69,24 +69,32 @@ async test "execution profile precedence is shared by queries and prepared state
         }
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           execution_profile=defaults,
         ),
         session => {
           assert_true(session.query("default") is Void)
-          assert_true(session.query("profile", profile=other) is Void)
           assert_true(
-            session.query("options", profile=other, options=explicit) is Void,
+            session.query_with_profile("profile", profile=other) is Void,
           )
-          let statement = session.prepare(
+          assert_true(
+            session.query_with_profile(
+              "options",
+              profile=other,
+              options=explicit,
+            )
+            is Void,
+          )
+          let statement = session.prepare_with_profile(
             "SELECT id FROM t WHERE id=?",
             profile=other,
           )
           assert_true(statement.execute([Integer(42)]) is Rows(_))
           assert_true(
-            statement.execute([Integer(42)], profile=defaults) is Rows(_),
+            statement.execute_with_profile([Integer(42)], profile=defaults)
+            is Rows(_),
           )
           assert_true(
             statement.execute([Integer(42)], options=explicit) is Rows(_),
@@ -154,9 +162,9 @@ async test "profile operation timeout and explicit deadline have distinct preced
         respond(peer, prepare.header.stream, 8, prepared_result(b"late"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             operation_timeout_ms=10000,
           ),
@@ -179,7 +187,7 @@ async test "profile operation timeout and explicit deadline have distinct preced
             @async.pause()
           }
           assert_true(
-            session.query(
+            session.query_with_profile(
               "override",
               profile=@client.ExecutionProfile::new(timeout_ms=1),
               deadline=@client.Deadline::after(2000),
@@ -263,14 +271,14 @@ async test "every simple page inherits retry policy while failed pages retain cu
         respond(peer, resumed.header.stream, 8, rows_result([42], None))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           execution_profile=profile,
         ),
         session => {
           wait_session_nodes(session, 1)
-          let pager = session.pages("pages", idempotent=true)
+          let pager = session.pages_with_options("pages", idempotent=true)
           assert_eq(pager.next().unwrap().row(0).int("id"), 42)
           assert_eq(pager.next_with_info().unwrap().info.attempt_count, 2)
           let before = pager.cursor().to_bytes()
@@ -293,7 +301,7 @@ async test "every simple page inherits retry policy while failed pages retain cu
           assert_true(
             try {
               ignore(
-                session.pages(
+                session.pages_with_options(
                   "pages",
                   cursor~,
                   profile=@client.ExecutionProfile::new(
@@ -311,7 +319,7 @@ async test "every simple page inherits retry policy while failed pages retain cu
           assert_true(
             try {
               ignore(
-                session.pages(
+                session.pages_with_options(
                   "pages",
                   cursor~,
                   profile=@client.ExecutionProfile::new(
@@ -326,7 +334,7 @@ async test "every simple page inherits retry policy while failed pages retain cu
               _ => false
             },
           )
-          let resumed = session.pages(
+          let resumed = session.pages_with_options(
             "pages",
             cursor~,
             profile=@client.ExecutionProfile::new(
@@ -397,16 +405,19 @@ async test "prepared pages keep the selected profile and retry policy for each c
         }
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
-          let statement = session.prepare(
+          let statement = session.prepare_with_profile(
             "SELECT id FROM t WHERE id=?",
             profile~,
           )
-          let pager = statement.pages([Integer(42)], idempotent=true)
+          let pager = statement.pages_with_options(
+            [Integer(42)],
+            idempotent=true,
+          )
           for _ in 0..<2 {
             let page = pager.next_with_info().unwrap()
             assert_eq(page.info.attempt_count, 2)
@@ -455,12 +466,12 @@ async test "traversal budget starts on first page includes consumer time and can
         }
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
-          let pager = session.pages("traversal", profile~)
+          let pager = session.pages_with_options("traversal", profile~)
           @async.sleep(600)
           assert_eq(pager.next().unwrap().row(0).int("id"), 1)
           let before = pager.cursor().to_bytes()
@@ -470,13 +481,13 @@ async test "traversal budget starts on first page includes consumer time and can
               ignore(pager.next(deadline=@client.Deadline::after(10000)))
               false
             } catch {
-              @client.TimedOut(info) =>
-                info.phase == WaitingPage && !info.may_have_been_sent
+              @client.OperationTimedOut(WaitingPage, info) =>
+                !info.may_have_been_sent
               _ => false
             },
           )
           assert_eq(pager.cursor().to_bytes(), before)
-          let resumed = session.pages(
+          let resumed = session.pages_with_options(
             "traversal",
             cursor=@client.PagingCursor::from_bytes(before),
             profile~,
@@ -513,16 +524,16 @@ async test "explicit traversal deadlines also bound connection and prepared page
         respond(peer, usable.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let statement = connection.prepare("SELECT id FROM t WHERE id=?")
           let deadline = @client.Deadline::after(1)
-          let simple = connection.pages(
+          let simple = connection.pages_with_options(
             "expired query",
             traversal_deadline=deadline,
           )
-          let prepared = statement.pages(
+          let prepared = statement.pages_with_options(
             [Integer(42)],
             traversal_deadline=deadline,
           )
@@ -534,8 +545,8 @@ async test "explicit traversal deadlines also bound connection and prepared page
                 ignore(pager.next())
                 false
               } catch {
-                @client.TimedOut(info) =>
-                  info.phase == WaitingPage && !info.may_have_been_sent
+                @client.OperationTimedOut(WaitingPage, info) =>
+                  !info.may_have_been_sent
                 _ => false
               },
             )

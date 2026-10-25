@@ -13,7 +13,7 @@ async fn main {
         None => None
       }
   }
-  let config = @client.Config::new(
+  let config = @client.ConnectionBuilder::new(
     port=@string.parse_int(@env.get_env_var("CQL_PORT").unwrap_or("19044")),
     username?=@env.get_env_var("CQL_USERNAME"),
     password?=@env.get_env_var("CQL_PASSWORD"),
@@ -26,7 +26,7 @@ async fn main {
   )
   let expected_failure = @env.get_env_var("CQL_TLS_EXPECT_FAIL") == Some("1")
   let connected = try {
-    @client.with_connection(config~, connection => {
+    @client.with_connection_builder(config~, connection => {
       if @env.get_env_var("CQL_TLS_CANCEL") == Some("1") {
         @async.with_task_group(requests => {
           let task = requests.spawn(() => {

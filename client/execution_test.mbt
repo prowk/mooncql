@@ -53,9 +53,9 @@ async test "session prepared preserves initial and UNPREPARED recovery response 
           }
           assert_eq(peer.read_some(), None)
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=server.addr.port()),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           ),
           session => {
             let request_options = @protocol.RequestOptions::new(
@@ -205,8 +205,8 @@ async test "query prepare execute batch and both pagers retain every response ex
         respond_info(peer, error.header.stream, 0, overload_error(), 8)
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let request_options = @protocol.RequestOptions::new(
             tracing=true,
@@ -323,8 +323,8 @@ async test "successful and exhausted retries retain each coordinator and respons
             }),
           )
         }
-        @client.with_session(
-          config=@client.SessionConfig::new(
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
             contact_points=servers.map(server => {
               @client.Endpoint::new(port=server.addr.port())
             }),

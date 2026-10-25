@@ -61,13 +61,14 @@ pub fn SchemaAgreementConfig::new(
 fn SchemaAgreementConfig::validate(
   self : SchemaAgreementConfig,
 ) -> Unit raise DriverError {
-  if self.timeout_ms < 1 ||
-    self.poll_interval_ms < 1 ||
-    self.poll_interval_ms > 60000 ||
-    self.max_nodes < 1 ||
-    self.max_nodes > 65536 {
-    raise Configuration("invalid schema agreement limits")
-  }
+  validate_range("schema_agreement.timeout_ms", self.timeout_ms, 1, 2147483647)
+  validate_range(
+    "schema_agreement.poll_interval_ms",
+    self.poll_interval_ms,
+    1,
+    60000,
+  )
+  validate_range("schema_agreement.max_nodes", self.max_nodes, 1, 65536)
 }
 
 ///|
@@ -254,7 +255,7 @@ async fn Session::finish_schema(
   self : Session,
   execution : Execution[@protocol.ResultSet],
   deadline : Deadline,
-) -> Execution[@protocol.ResultSet] {
+) -> SchemaExecution[@protocol.ResultSet] {
   if execution.value is SchemaChanged(_) &&
     self.config.schema_agreement.wait_after_ddl {
     let agreement = self.wait_schema_internal(deadline) catch {
@@ -262,10 +263,11 @@ async fn Session::finish_schema(
     }
     // DDL 响应已经成功，等待失败仅写入独立报告，不修改执行结果、不进入重试。
     {
-      ..execution,
-      info: { ..execution.info, schema_agreement: Some(agreement), },
+      value: execution.value,
+      info: execution.info,
+      schema_agreement: Some(agreement.snapshot()),
     }
   } else {
-    execution
+    { value: execution.value, info: execution.info, schema_agreement: None, }
   }
 }

@@ -28,7 +28,7 @@ async fn main {
       }
   }
   let port = @string.parse_int(@env.get_env_var("CQL_PORT").unwrap_or("19064"))
-  let connection = @client.Config::new(
+  let connection = @client.ConnectionBuilder::new(
     port~,
     username=@env.get_env_var("CQL_USERNAME").unwrap(),
     password=@env.get_env_var("CQL_PASSWORD").unwrap(),
@@ -39,43 +39,46 @@ async fn main {
       identity?,
     ),
   )
-  @client.with_session(config=@client.SessionConfig::new(connection~), session => {
-    let insert = session.prepare(
-      "INSERT INTO mooncql_permissions.business (id,value) VALUES (?,?)",
-    )
-    ignore(insert.execute([Integer(42), Text("least privilege")]))
-    guard session.query(
-        "SELECT id,value FROM mooncql_permissions.business WHERE id=42",
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(connection~),
+    session => {
+      let insert = session.prepare(
+        "INSERT INTO mooncql_permissions.business (id,value) VALUES (?,?)",
       )
-      is Rows(page) else {
-      fail("missing business row")
-    }
-    assert_eq(page.row(0).int("id"), 42)
-    assert_eq(page.row(0).text("value"), "least privilege")
-    unauthorized(() => {
-      ignore(session.query("SELECT * FROM mooncql_permissions.private_data"))
-    })
-    unauthorized(() => {
-      ignore(
-        session.query(
-          "CREATE TABLE mooncql_permissions.forbidden (id int PRIMARY KEY)",
-        ),
+      ignore(insert.execute([Integer(42), Text("least privilege")]))
+      guard session.query(
+          "SELECT id,value FROM mooncql_permissions.business WHERE id=42",
+        )
+        is Rows(page) else {
+        fail("missing business row")
+      }
+      assert_eq(page.row(0).int("id"), 42)
+      assert_eq(page.row(0).text("value"), "least privilege")
+      unauthorized(() => {
+        ignore(session.query("SELECT * FROM mooncql_permissions.private_data"))
+      })
+      unauthorized(() => {
+        ignore(
+          session.query(
+            "CREATE TABLE mooncql_permissions.forbidden (id int PRIMARY KEY)",
+          ),
+        )
+      })
+      // Cassandra 5.0.5 把这些系统资源固定为认证后可读，不能把 REVOKE 当成拒绝读取。
+      let schema = session.schema_metadata(
+        options=@client.SchemaOptions::new(keyspaces=["mooncql_permissions"]),
       )
-    })
-    // Cassandra 5.0.5 把这些系统资源固定为认证后可读，不能把 REVOKE 当成拒绝读取。
-    let schema = session.schema_metadata(
-      options=@client.SchemaOptions::new(keyspaces=["mooncql_permissions"]),
-    )
-    assert_true(schema.tables().any(table => table.name == "business"))
-    assert_true(
-      session.query("SELECT release_version FROM system.local") is Rows(_),
-    )
-    ignore(session.drain(@client.Deadline::after(5000)))
-    assert_eq(session.resources().background_task_handles, 0)
-    assert_eq(session.budget().in_flight, 0)
-  })
-  @client.with_session(
-    config=@client.SessionConfig::new(
+      assert_true(schema.tables().any(table => table.name == "business"))
+      assert_true(
+        session.query("SELECT release_version FROM system.local") is Rows(_),
+      )
+      ignore(session.drain(@client.Deadline::after(5000)))
+      assert_eq(session.resources().background_task_handles, 0)
+      assert_eq(session.budget().in_flight, 0)
+    },
+  )
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(
       connection~,
       discovery=@client.DiscoveryConfig::new(address_mapper=_ => {
         Some(@client.Endpoint::new(port~))

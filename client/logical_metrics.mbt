@@ -4,6 +4,7 @@ priv struct OperationObservation {
   kind : OperationKind
   started : Int64
   mut outcome : RequestOutcome
+  mut session_budget : Bool
 }
 
 ///|
@@ -11,23 +12,34 @@ fn OperationObservation::new(
   metrics : Metrics,
   kind : OperationKind,
 ) -> OperationObservation {
-  metrics.data.logical_started += 1L
-  metrics.emit(OperationStarted(kind))
-  { metrics, kind, started: @async.now(), outcome: Cancelled, }
+  metrics.operations.logical_started += 1L
+  metrics.emit_diagnostic(OperationStarted(kind))
+  {
+    metrics,
+    kind,
+    started: @async.now(),
+    outcome: Cancelled,
+    session_budget: false,
+  }
 }
 
 ///|
 fn OperationObservation::finish(self : OperationObservation) -> Unit {
   let elapsed_ms = @async.now() - self.started
-  let data = self.metrics.data
+  let data = self.metrics.operations
   data.logical_ms += elapsed_ms
   match self.outcome {
     Succeeded => data.logical_succeeded += 1L
     Cancelled => data.logical_cancelled += 1L
     _ => data.logical_failed += 1L
   }
-  self.metrics.emit(
-    OperationFinished({ kind: self.kind, outcome: self.outcome, elapsed_ms, }),
+  self.metrics.emit_diagnostic(
+    OperationFinished({
+      kind: self.kind,
+      outcome: self.outcome,
+      elapsed_ms,
+      session_budget: self.session_budget,
+    }),
   )
 }
 
@@ -64,6 +76,7 @@ async fn[T] Session::with_operation(
     Err(error) => {
       if observation is Some(observation) {
         observation.outcome = request_outcome(error)
+        observation.session_budget = is_session_budget_error(error)
       }
       raise error
     }

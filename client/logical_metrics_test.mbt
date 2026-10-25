@@ -5,7 +5,9 @@ async test "one accepted logical query counts both retry RPCs while raw ERROR re
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
       defer server.close()
       let events = []
-      let metrics = @client.Metrics::new(listener=event => events.push(event))
+      let metrics = @client.Metrics::with_diagnostics(event => {
+        events.push(event)
+      })
       let worker = group.spawn(() => {
         let (tcp, _) = server.accept()
         let peer = Peer::new(tcp)
@@ -19,9 +21,9 @@ async test "one accepted logical query counts both retry RPCs while raw ERROR re
         respond(peer, raw.header.stream, 0, overload_error())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             metrics~,
             heartbeat_interval_ms=0,
@@ -45,14 +47,14 @@ async test "one accepted logical query counts both retry RPCs while raw ERROR re
       )
       worker.wait()
       let snapshot = metrics.snapshot()
-      assert_eq(snapshot.logical_started, 2L)
-      assert_eq(snapshot.logical_succeeded, 1L)
-      assert_eq(snapshot.logical_failed, 1L)
-      assert_eq(snapshot.logical_cancelled, 0L)
+      assert_eq(metrics.operations_snapshot().logical_started, 2L)
+      assert_eq(metrics.operations_snapshot().logical_succeeded, 1L)
+      assert_eq(metrics.operations_snapshot().logical_failed, 1L)
+      assert_eq(metrics.operations_snapshot().logical_cancelled, 0L)
       assert_eq(snapshot.requests_started, 3L)
       assert_eq(snapshot.requests_succeeded, 1L)
       assert_eq(snapshot.requests_failed, 2L)
-      assert_eq(snapshot.retry_attempts, 1L)
+      assert_eq(metrics.operations_snapshot().retry_attempts, 1L)
       assert_true(events.any(event => event is RetryStarted(_, 2)))
       assert_true(
         events.any(event => {
@@ -69,9 +71,7 @@ async test "one accepted logical query counts both retry RPCs while raw ERROR re
         }),
       )
       assert_eq(
-        events
-        .filter(event => event is RequestFinished({ scope: Data, .. }))
-        .length(),
+        events.filter(event => event is RpcFinished(Data, _, _)).length(),
         3,
       )
     })
@@ -85,7 +85,9 @@ async test "manual OPTIONS is data RPC while idle heartbeat creates no logical o
       let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
       defer server.close()
       let events = []
-      let metrics = @client.Metrics::new(listener=event => events.push(event))
+      let metrics = @client.Metrics::with_diagnostics(event => {
+        events.push(event)
+      })
       let worker = group.spawn(() => {
         let (tcp, _) = server.accept()
         let peer = Peer::new(tcp)
@@ -98,9 +100,9 @@ async test "manual OPTIONS is data RPC while idle heartbeat creates no logical o
           respond(peer, request.header.stream, 6, heartbeat_supported())
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             metrics~,
             heartbeat_interval_ms=20,
@@ -111,17 +113,13 @@ async test "manual OPTIONS is data RPC while idle heartbeat creates no logical o
           assert_true(
             session.request(@protocol.options()).response is Supported(_),
           )
-          while !events.any(event => {
-                  event is RequestFinished({ scope: Heartbeat, .. })
-                }) {
+          while !events.any(event => event is RpcFinished(Heartbeat, _, _)) {
             @async.sleep(1)
           }
-          assert_eq(metrics.snapshot().logical_started, 1L)
-          assert_eq(metrics.snapshot().logical_succeeded, 1L)
+          assert_eq(metrics.operations_snapshot().logical_started, 1L)
+          assert_eq(metrics.operations_snapshot().logical_succeeded, 1L)
           assert_true(
-            events.any(event => {
-              event is RequestFinished({ scope: Data, opcode: 5, .. })
-            }),
+            events.any(event => event is RpcFinished(Data, { opcode: 5, .. }, _)),
           )
           session.close()
         },
@@ -151,9 +149,9 @@ async test "cancelled logical operation finishes once while its abandoned RPC st
         respond(peer, request.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             metrics~,
             heartbeat_interval_ms=0,
@@ -167,14 +165,14 @@ async test "cancelled logical operation finishes once while its abandoned RPC st
             ignore(task.wait()) catch {
               _ => ()
             }
-            assert_eq(metrics.snapshot().logical_started, 1L)
-            assert_eq(metrics.snapshot().logical_cancelled, 1L)
-            assert_eq(metrics.snapshot().logical_succeeded, 0L)
+            assert_eq(metrics.operations_snapshot().logical_started, 1L)
+            assert_eq(metrics.operations_snapshot().logical_cancelled, 1L)
+            assert_eq(metrics.operations_snapshot().logical_succeeded, 0L)
             assert_eq(session.pools()[0].connections[0].abandoned, 1)
             assert_eq(session.budget().in_flight, 1)
             release.put(())
             ignore(session.drain(@client.Deadline::after(1000)))
-            assert_eq(metrics.snapshot().logical_cancelled, 1L)
+            assert_eq(metrics.operations_snapshot().logical_cancelled, 1L)
             assert_eq(session.budget().in_flight, 0)
           })
         },

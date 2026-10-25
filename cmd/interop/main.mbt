@@ -4,14 +4,14 @@ async fn main {
     Some(s) => @string.parse_int(s)
     None => 9042
   }
-  let config = @client.Config::new(
+  let config = @client.ConnectionBuilder::new(
     host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
     port~,
     username?=@env.get_env_var("CQL_USERNAME"),
     password?=@env.get_env_var("CQL_PASSWORD"),
     compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
   )
-  @client.with_connection(config~, connection => {
+  @client.with_connection_builder(config~, connection => {
     guard connection.query("SELECT * FROM mooncql_test.interop WHERE id=1")
       is Rows(page) else {
       fail("expected Python row")

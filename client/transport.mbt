@@ -40,7 +40,7 @@ fn validate_tls_name(value : String) -> Unit raise DriverError {
 }
 
 ///|
-async fn Transport::connect(config : Config) -> Transport {
+async fn Transport::connect(config : ConnectionBuilder) -> Transport {
   let tcp = @socket.Tcp::connect_to_host(config.host, port=config.port)
   let mut ready = false
   defer (if !ready { tcp.close() })

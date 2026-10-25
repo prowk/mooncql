@@ -1,5 +1,5 @@
 ///|
-pub fn read_type(
+pub fn read_type_limited(
   r : @codec.Reader,
   depth? : Int = 0,
   max_depth? : Int = 32,
@@ -29,12 +29,12 @@ pub fn read_type(
     19 => SmallInt
     20 => TinyInt
     21 => Duration
-    32 => List(read_type(r, depth=depth + 1, max_depth~))
+    32 => List(read_type_limited(r, depth=depth + 1, max_depth~))
     33 => {
-      let key = read_type(r, depth=depth + 1, max_depth~)
-      Map(key, read_type(r, depth=depth + 1, max_depth~))
+      let key = read_type_limited(r, depth=depth + 1, max_depth~)
+      Map(key, read_type_limited(r, depth=depth + 1, max_depth~))
     }
-    34 => Set(read_type(r, depth=depth + 1, max_depth~))
+    34 => Set(read_type_limited(r, depth=depth + 1, max_depth~))
     48 => {
       let keyspace = r.string()
       let name = r.string()
@@ -42,7 +42,7 @@ pub fn read_type(
       let fields = []
       for i = 0; i < count; i = i + 1 {
         let field = r.string()
-        fields.push((field, read_type(r, depth=depth + 1, max_depth~)))
+        fields.push((field, read_type_limited(r, depth=depth + 1, max_depth~)))
       }
       Udt(keyspace, name, fields)
     }
@@ -50,10 +50,18 @@ pub fn read_type(
       let count = r.u16()
       let fields = []
       for i = 0; i < count; i = i + 1 {
-        fields.push(read_type(r, depth=depth + 1, max_depth~))
+        fields.push(read_type_limited(r, depth=depth + 1, max_depth~))
       }
       Tuple(fields)
     }
     _ => raise @codec.CodecError("unknown CQL type id")
   }
+}
+
+///|
+pub fn read_type(
+  r : @codec.Reader,
+  depth? : Int = 0,
+) -> CqlType raise @codec.CodecError {
+  read_type_limited(r, depth~)
 }

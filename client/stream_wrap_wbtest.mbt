@@ -2,7 +2,7 @@
 fn occupied_stream(
   admission : Admission,
   abandoned? : Bool = false,
-) -> Pending raise DriverError {
+) -> Pending raise {
   {
     reply: @async.Queue(kind=Blocking(1)),
     cached: [],
@@ -19,7 +19,7 @@ fn occupied_stream(
 
 ///|
 test "stream allocation wraps 32767 skips active and abandoned IDs and only reuses retired IDs" {
-  let admission = Admission::new(Config::new())
+  let admission = Admission::new(ConnectionBuilder::new())
   let pending : Map[Int, Pending] = Map([])
   pending[32766] = occupied_stream(admission)
   pending[32767] = occupied_stream(admission, abandoned=true)
@@ -49,7 +49,7 @@ test "stream allocation wraps 32767 skips active and abandoned IDs and only reus
 
 ///|
 test "all occupied stream IDs fail without opening real connections" {
-  let admission = Admission::new(Config::new())
+  let admission = Admission::new(ConnectionBuilder::new())
   let item = occupied_stream(admission)
   let pending : Map[Int, Pending] = Map([])
   for id in 0..<32768 {

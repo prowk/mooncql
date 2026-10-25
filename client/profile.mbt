@@ -19,18 +19,22 @@ pub fn ExecutionProfile::new(
   retry? : RetryPolicy = RetryPolicy::new(),
   backoff? : RetryBackoff,
 ) -> ExecutionProfile raise DriverError {
-  if (page_size is Some(size) && size <= 0) ||
-    (timeout_ms is Some(timeout) && timeout <= 0) ||
-    (traversal_timeout_ms is Some(timeout) && timeout <= 0) ||
-    retry.max_attempts < 1 ||
-    retry.max_attempts > 64 ||
-    retry.delay_ms < 0 {
-    raise Configuration("invalid execution profile")
+  if page_size is Some(value) {
+    validate_range("profile.page_size", value, 1, 2147483647)
   }
+  if timeout_ms is Some(value) {
+    validate_range("profile.timeout_ms", value, 1, 2147483647)
+  }
+  if traversal_timeout_ms is Some(value) {
+    validate_range("profile.traversal_timeout_ms", value, 1, 2147483647)
+  }
+  retry.validate()
   if serial_consistency is Some(level) &&
     level != Serial &&
     level != LocalSerial {
-    raise Configuration("invalid profile serial consistency")
+    raise Configuration(
+      "profile.serial_consistency must be Serial or LocalSerial",
+    )
   }
   {
     settings: @protocol.QueryOptions::new(

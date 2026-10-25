@@ -17,11 +17,6 @@ pub(all) enum OverloadReason {
   WaitingQueueFull
   WaitingBytesFull
   RequestTooLarge
-  SessionInFlightLimit
-  SessionByteLimit
-  SessionWaitingQueueFull
-  SessionWaitingBytesFull
-  SessionRequestTooLarge
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -31,11 +26,48 @@ pub extend OverloadReason with Eq::{equal, not_equal}
 pub extend OverloadReason with @debug.Debug::{to_repr}
 
 ///|
+/// Session 总预算使用独立错误，保留稳定版 OverloadReason 的封闭分支。
+pub(all) suberror SessionOverloaded {
+  SessionOverloaded(OverloadReason)
+} derive(@debug.Debug)
+
+///|
+pub extend SessionOverloaded with @debug.Debug::{to_repr}
+
+///|
+fn is_session_budget_error(error : Error) -> Bool {
+  match error {
+    SessionOverloaded(_) => true
+    ExecutionError(cause, _) | SchemaMetadataError(_, cause) =>
+      is_session_budget_error(cause)
+    RetryExhausted(history) =>
+      history
+      .last()
+      .map(item => is_session_budget_error(item.error))
+      .unwrap_or(false)
+    _ => false
+  }
+}
+
+///|
+fn Admission::overload_error(
+  self : Admission,
+  reason : OverloadReason,
+) -> Error {
+  if self.session {
+    SessionOverloaded(reason)
+  } else {
+    Overloaded(reason)
+  }
+}
+
+///|
 struct Admission {
-  config : Config
+  config : ConnectionBuilder
   changed : @async.CondVar
   parent : Admission?
   session : Bool
+  enforce : Bool
   turns : Array[AdmissionTurn]
   scheduling : SchedulingCounters
   mut closed : Bool
@@ -101,10 +133,11 @@ priv struct Reservation {
 
 ///|
 fn Admission::new(
-  config : Config,
+  config : ConnectionBuilder,
   parent? : Admission,
   changed? : @async.CondVar,
   session? : Bool = false,
+  enforce? : Bool = true,
 ) -> Admission {
   {
     config,
@@ -113,6 +146,7 @@ fn Admission::new(
     .unwrap_or_else(() => changed.unwrap_or_else(() => @async.CondVar::Cond())),
     parent,
     session,
+    enforce,
     turns: parent.map(parent => parent.turns).unwrap_or_else(() => []),
     scheduling: parent
     .map(parent => parent.scheduling)
@@ -136,24 +170,24 @@ fn Admission::is_closed(self : Admission) -> Bool {
 }
 
 ///|
-fn Admission::block_reason(self : Admission, bytes : Int64) -> OverloadReason? {
+fn Admission::block_reason(self : Admission, bytes : Int64) -> Error? {
   if self.parent is Some(parent) && parent.block_reason(bytes) is Some(reason) {
     return Some(reason)
   }
+  if !self.enforce {
+    return None
+  }
   if self.in_flight >= self.config.max_in_flight {
-    Some(if self.session { SessionInFlightLimit } else { InFlightLimit })
+    Some(self.overload_error(InFlightLimit))
   } else if bytes > self.config.max_in_flight_bytes.to_int64() - self.bytes {
-    Some(if self.session { SessionByteLimit } else { ByteLimit })
+    Some(self.overload_error(ByteLimit))
   } else {
     None
   }
 }
 
 ///|
-fn Admission::validate_size(
-  self : Admission,
-  bytes : Int64,
-) -> Unit raise DriverError {
+fn Admission::validate_size(self : Admission, bytes : Int64) -> Unit raise {
   if bytes < 0L {
     raise Configuration("request bytes must be nonnegative")
   }
@@ -163,36 +197,30 @@ fn Admission::validate_size(
   if self.parent is Some(parent) {
     parent.validate_size(bytes)
   }
-  if bytes > self.config.max_in_flight_bytes.to_int64() {
-    raise Overloaded(
-      if self.session {
-        SessionRequestTooLarge
-      } else {
-        RequestTooLarge
-      },
-    )
+  if self.enforce && bytes > self.config.max_in_flight_bytes.to_int64() {
+    raise self.overload_error(RequestTooLarge)
   }
 }
 
 ///|
 fn Admission::rejects(self : Admission) -> Bool {
-  self.config.overload_policy == Reject ||
+  (self.enforce && self.config.overload_policy == Reject) ||
   (self.parent is Some(parent) && parent.rejects())
 }
 
 ///|
-fn Admission::waiting_reason(
-  self : Admission,
-  bytes : Int64,
-) -> OverloadReason? {
+fn Admission::waiting_reason(self : Admission, bytes : Int64) -> Error? {
   if self.parent is Some(parent) && parent.waiting_reason(bytes) is Some(reason) {
     return Some(reason)
   }
+  if !self.enforce {
+    return None
+  }
   if self.waiting >= self.config.max_waiting {
-    Some(if self.session { SessionWaitingQueueFull } else { WaitingQueueFull })
+    Some(self.overload_error(WaitingQueueFull))
   } else if bytes >
     self.config.max_waiting_bytes.to_int64() - self.waiting_bytes {
-    Some(if self.session { SessionWaitingBytesFull } else { WaitingBytesFull })
+    Some(self.overload_error(WaitingBytesFull))
   } else {
     None
   }
@@ -228,13 +256,10 @@ fn Admission::change_active(
 }
 
 ///|
-fn Admission::enter_wait(
-  self : Admission,
-  bytes : Int64,
-) -> Unit raise DriverError {
+fn Admission::enter_wait(self : Admission, bytes : Int64) -> Unit raise {
   self.validate_size(bytes)
   if self.waiting_reason(bytes) is Some(reason) {
-    raise Overloaded(reason)
+    raise reason
   }
   self.change_wait(bytes, 1)
 }
@@ -246,24 +271,13 @@ fn Admission::leave_wait(self : Admission, bytes : Int64) -> Unit {
 }
 
 ///|
-fn Admission::register(
-  self : Admission,
-  bytes : Int64,
-) -> Reservation raise DriverError {
+fn Admission::register(self : Admission, bytes : Int64) -> Reservation raise {
   self.validate_size(bytes)
   if self.block_reason(bytes) is Some(_) || !self.turns.is_empty() {
     if self.rejects() {
-      raise Overloaded(
-        self
+      raise self
         .block_reason(bytes)
-        .unwrap_or(
-          if self.session {
-            SessionInFlightLimit
-          } else {
-            InFlightLimit
-          },
-        ),
-      )
+        .unwrap_or_else(() => self.overload_error(InFlightLimit))
     }
     self.enter_wait(bytes)
     let turn = self.enqueue_turn(bytes)

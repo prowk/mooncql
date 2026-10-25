@@ -75,8 +75,8 @@ async test "schema agreement distinguishes agreed divergent missing and replaced
         // 最后一次检查期间断开该代连接，旧观察结果不得计作收敛。
         ignore(receive(peer))
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(contact_points=[
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(contact_points=[
           @client.Endpoint::new(port=a.addr.port()),
           @client.Endpoint::new(port=b.addr.port()),
         ]),
@@ -169,8 +169,8 @@ async test "DDL waits for every live coordinator to converge before preparing a 
         )
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
           contact_points=[
             @client.Endpoint::new(port=a.addr.port()),
             @client.Endpoint::new(port=b.addr.port()),
@@ -182,12 +182,12 @@ async test "DDL waits for every live coordinator to converge before preparing a 
         ),
         session => {
           wait_session_nodes(session, 2)
-          let execution = session.query_with_info(
+          let execution = session.query_with_schema_info(
             "CREATE TYPE ks.address(street text)",
           )
           assert_true(execution.value is SchemaChanged(_))
           assert_true(
-            execution.info.schema_agreement is Some(report) &&
+            execution.schema_agreement is Some(report) &&
             report.state == Agreed &&
             !report.timed_out,
           )
@@ -247,8 +247,8 @@ async test "schema wait shares total deadline and keeps successful DDL successfu
           }),
         )
       }
-      @client.with_session(
-        config=@client.SessionConfig::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
           contact_points=[
             @client.Endpoint::new(port=a.addr.port()),
             @client.Endpoint::new(port=b.addr.port()),
@@ -262,7 +262,7 @@ async test "schema wait shares total deadline and keeps successful DDL successfu
         session => {
           wait_session_nodes(session, 2)
           let started = @async.now()
-          let execution = session.query_with_info(
+          let execution = session.query_with_schema_info(
             "CREATE TYPE ks.address(street text)",
             deadline=@client.Deadline::after(200),
             idempotent=true,
@@ -270,7 +270,7 @@ async test "schema wait shares total deadline and keeps successful DDL successfu
           assert_true(execution.value is SchemaChanged(_))
           assert_eq(execution.info.attempt_count, 1)
           assert_true(
-            execution.info.schema_agreement is Some(report) &&
+            execution.schema_agreement is Some(report) &&
             report.state != Agreed &&
             report.timed_out,
           )
@@ -290,8 +290,10 @@ async test "schema wait shares total deadline and keeps successful DDL successfu
 ///|
 async test "schema agreement reports unavailable empty membership and permission denial instead of pretending success" {
   @async.with_timeout(5000, () => {
-    @client.with_session(
-      config=@client.SessionConfig::new(connection=@client.Config::new(port=1)),
+    @client.with_session_builder(
+      config=@client.SessionBuilder::new(
+        connection=@client.ConnectionBuilder::new(port=1),
+      ),
       session => {
         let report = session.check_schema_agreement()
         assert_eq(report.state, @client.SchemaAgreementState::Unknown)
@@ -320,9 +322,9 @@ async test "schema agreement reports unavailable empty membership and permission
         respond(peer, marker.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           wait_session_nodes(session, 1)
@@ -353,8 +355,8 @@ async test "schema agreement automatic waiting is opt in and bounds fail before 
     ] {
     assert_true(
       try {
-        @client.with_session(
-          config=@client.SessionConfig::new(schema_agreement~),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(schema_agreement~),
           _ => (),
         )
         false
@@ -382,15 +384,15 @@ async test "schema agreement automatic waiting is opt in and bounds fail before 
       respond(peer, marker.header.stream, 8, b"\x00\x00\x00\x01")
       assert_eq(peer.read_some(), None)
     })
-    @client.with_session(
-      config=@client.SessionConfig::new(
-        connection=@client.Config::new(port=server.addr.port()),
+    @client.with_session_builder(
+      config=@client.SessionBuilder::new(
+        connection=@client.ConnectionBuilder::new(port=server.addr.port()),
       ),
       session => {
-        let execution = session.query_with_info(
+        let execution = session.query_with_schema_info(
           "CREATE TYPE ks.address(street text)",
         )
-        assert_true(execution.info.schema_agreement is None)
+        assert_true(execution.schema_agreement is None)
         assert_true(session.query("no implicit metadata query") is Void)
       },
     )

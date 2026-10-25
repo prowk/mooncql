@@ -43,9 +43,9 @@ async test "100 Session prepare page cancel drain close cycles return every owne
             assert_eq(peer.read_some(), None)
           }
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               compression=cycle % 2 == 0,
               prepared_cache_capacity=1,

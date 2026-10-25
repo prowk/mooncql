@@ -25,8 +25,8 @@ async test "coalesced duplicate responses fail after live delivery or abandoned 
           peer.write(@framing.encode(w.to_bytes(), self_contained=true))
           assert_eq(peer.read_some(), None)
         })
-        @client.with_connection(
-          config=@client.Config::new(port=server.addr.port()),
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(port=server.addr.port()),
           connection => {
             @async.with_task_group(requests => {
               let request = requests.spawn(() => connection.query("one"))

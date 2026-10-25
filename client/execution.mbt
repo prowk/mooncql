@@ -7,13 +7,20 @@ pub(all) struct ExecutionInfo {
   custom_payload : Map[String, Bytes?]
   previous : Array[ExecutionInfo]
   cached : Bool
-  schema_agreement : SchemaAgreement?
 }
 
 ///|
 pub(all) struct Execution[T] {
   value : T
   info : ExecutionInfo
+}
+
+///|
+/// DDL 等待报告与旧 ExecutionInfo 分离，避免破坏稳定版完整记录构造。
+pub(all) struct SchemaExecution[T] {
+  value : T
+  info : ExecutionInfo
+  schema_agreement : SchemaAgreement?
 }
 
 ///|
@@ -32,9 +39,6 @@ fn copy_execution_info(info : ExecutionInfo) -> ExecutionInfo {
     warnings: info.warnings.copy(),
     custom_payload: payload,
     previous: info.previous.map(copy_execution_info),
-    schema_agreement: info.schema_agreement.map(agreement => {
-      agreement.snapshot()
-    }),
   }
 }
 
@@ -68,7 +72,6 @@ pub fn Reply::execution_info(self : Reply) -> ExecutionInfo {
     custom_payload: self.custom_payload,
     previous: self.previous,
     cached: false,
-    schema_agreement: None,
   }
 }
 
@@ -180,7 +183,7 @@ pub async fn Connection::batch_with_info(
 }
 
 ///|
-pub async fn Session::query_with_info(
+pub async fn Session::query_with_profile_info(
   self : Session,
   cql : String,
   values? : Array[@types.Value] = [],
@@ -191,6 +194,31 @@ pub async fn Session::query_with_info(
   routing? : RoutingHint,
   profile? : ExecutionProfile,
 ) -> Execution[@protocol.ResultSet] {
+  let execution = self.query_with_schema_info(
+    cql,
+    values~,
+    options?,
+    deadline?,
+    idempotent~,
+    retry?,
+    routing?,
+    profile?,
+  )
+  { value: execution.value, info: execution.info, }
+}
+
+///|
+pub async fn Session::query_with_schema_info(
+  self : Session,
+  cql : String,
+  values? : Array[@types.Value] = [],
+  options? : @protocol.QueryOptions,
+  deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+  routing? : RoutingHint,
+  profile? : ExecutionProfile,
+) -> SchemaExecution[@protocol.ResultSet] {
   let profile = self.execution_profile(profile)
   let options = profile_options(profile, options)
   let retry = profile_retry(profile, retry)
@@ -218,4 +246,26 @@ pub async fn Session::query_with_info(
       deadline,
     )
   })
+}
+
+///|
+pub async fn Session::query_with_info(
+  self : Session,
+  cql : String,
+  values? : Array[@types.Value] = [],
+  options? : @protocol.QueryOptions,
+  deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+  routing? : RoutingHint,
+) -> Execution[@protocol.ResultSet] {
+  self.query_with_profile_info(
+    cql,
+    values~,
+    options?,
+    deadline?,
+    idempotent~,
+    retry?,
+    routing?,
+  )
 }

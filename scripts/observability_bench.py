@@ -13,6 +13,7 @@ import re
 import statistics
 import subprocess
 import zipfile
+from benchmark_api import for_baseline
 
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE = "2acd8d07a50a206816635e052b74672a8ee29643"
@@ -70,10 +71,12 @@ def baseline(ref):
     assert (folder / ".source-commit").read_text(encoding="utf-8") == commit
     target = folder / "cmd/observebench"
     target.mkdir(parents=True, exist_ok=True)
+    client_api = (folder / 'client/pkg.generated.mbti').read_text(encoding='utf-8')
     for name in ("main.mbt", "moon.pkg"):
-        (target / name).write_text((ROOT / "cmd/observebench" / name).read_text(encoding="utf-8"), encoding="utf-8")
+        source = (ROOT / "cmd/observebench" / name).read_text(encoding="utf-8")
+        (target / name).write_text(for_baseline(source, client_api), encoding="utf-8")
     # 基准主程序完全相同；旧版本只替换配置工厂，不引用尚不存在的指标 API。
-    config = (ROOT / "cmd/observebench/config.mbt").read_text(encoding="utf-8")
+    config = for_baseline((ROOT / "cmd/observebench/config.mbt").read_text(encoding="utf-8"), client_api)
     start = config.index("  let metrics = match mode {")
     constructor = config.index("  let config =", start)
     constructor_end = config.index("\n  )", constructor) + len("\n  )")

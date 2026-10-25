@@ -46,8 +46,8 @@ async test "multiplex correlates reversed responses across fragmented and coales
       socket.write(bytes[2:7].to_owned())
       socket.write(bytes[7:].to_owned())
     })
-    @client.with_connection(
-      config=@client.Config::new(port=server.addr.port()),
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         let results = @async.all([
           () => connection.query("first"),
@@ -74,8 +74,8 @@ async test "password authentication sends correct PLAIN exchange" {
       let query = receive(socket)
       respond(socket, query.header.stream, 8, b"\x00\x00\x00\x01")
     })
-    @client.with_connection(
-      config=@client.Config::new(
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(
         port=server.addr.port(),
         username="user",
         password="secret",
@@ -100,8 +100,8 @@ async test "EOF completes every pending request without hanging" {
         ignore(receive(socket))
         ignore(receive(socket))
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let failed = @async.all([
             () => {
@@ -146,8 +146,8 @@ async test "scope exit cancels idle reader before closing socket handle" {
         // 保持服务端连接打开，确保客户端自行取消仍在等待的读任务。
         assert_eq(socket.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => assert_true(connection.query("query") is Void),
       )
       worker.wait()
@@ -169,8 +169,8 @@ async test "zero abandoned budget closes on sent timeout without replaying write
         ignore(receive(socket))
         assert_eq(socket.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           timeout_ms=200,
           max_abandoned=0,

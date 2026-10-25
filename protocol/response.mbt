@@ -138,14 +138,14 @@ fn read_columns(
       keyspace,
       table,
       name,
-      typ: @types.read_type(r, max_depth~),
+      typ: @types.read_type_limited(r, max_depth~),
     })
   }
   columns
 }
 
 ///|
-pub fn read_metadata(
+pub fn read_metadata_limited(
   r : @codec.Reader,
   cached? : Array[Column] = [],
   max_columns? : Int = 65535,
@@ -216,7 +216,7 @@ fn read_schema_change(
 }
 
 ///|
-pub fn decode_result(
+pub fn decode_result_limited(
   body : Bytes,
   cached? : Array[Column] = [],
   max_value_nodes? : Int = 1000000,
@@ -244,11 +244,11 @@ pub fn decode_result(
   match r.i32() {
     1 => Void
     2 => {
-      let budget = @types.DecodeBudget::new(
+      let budget = @types.DecodeBudget::new_limited(
         max_nodes=max_value_nodes,
         max_depth~,
       )
-      let meta = read_metadata(r, cached~, max_columns~, max_depth~)
+      let meta = read_metadata_limited(r, cached~, max_columns~, max_depth~)
       let count = r.i32()
       let width = meta.columns.length()
       if count < 0 ||
@@ -322,7 +322,7 @@ pub fn decode_error(body : Bytes) -> ServerError raise @codec.CodecError {
 }
 
 ///|
-pub fn decode_response(
+pub fn decode_response_limited(
   opcode : Int,
   body : Bytes,
   cached? : Array[Column] = [],
@@ -352,7 +352,7 @@ pub fn decode_response(
     }
     8 =>
       Result(
-        decode_result(
+        decode_result_limited(
           body,
           cached~,
           max_value_nodes~,
@@ -394,4 +394,30 @@ fn read_reasons(
     reasons.push({ endpoint: r.take(length), code: r.u16(), })
   }
   reasons
+}
+
+///|
+pub fn decode_response(
+  opcode : Int,
+  body : Bytes,
+  cached? : Array[Column] = [],
+) -> Response raise @codec.CodecError {
+  decode_response_limited(opcode, body, cached~)
+}
+
+///|
+pub fn decode_result(
+  body : Bytes,
+  cached? : Array[Column] = [],
+  max_value_nodes? : Int = 1000000,
+) -> ResultSet raise @codec.CodecError {
+  decode_result_limited(body, cached~, max_value_nodes~)
+}
+
+///|
+pub fn read_metadata(
+  r : @codec.Reader,
+  cached? : Array[Column] = [],
+) -> Metadata raise @codec.CodecError {
+  read_metadata_limited(r, cached~)
 }

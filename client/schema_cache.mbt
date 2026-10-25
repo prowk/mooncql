@@ -74,10 +74,11 @@ async fn[T] Session::with_schema_lock(
     if self.config.connection.metrics is Some(metrics) {
       metrics.gauges(0L, 0L, 1L, bytes)
     }
-    timed(
+    timed_stage(
       deadline.remaining_ms(),
+      WaitingSchema,
       Operation,
-      { phase: WaitingSchema, sent: false, },
+      { phase: WaitingPrepare, sent: false, },
       () => {
         mutex.acquire()
         acquired = true

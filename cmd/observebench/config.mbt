@@ -1,12 +1,14 @@
 ///|
-fn benchmark_config(mode : String) -> (@client.Config, () -> Int64) raise {
+fn benchmark_config(
+  mode : String,
+) -> (@client.ConnectionBuilder, () -> Int64) raise {
   let metrics = match mode {
     "off" => None
     "counters" => Some(@client.Metrics::new())
     "listener" => Some(@client.Metrics::new(listener=fn(_event) { () }))
     _ => fail("invalid observation mode")
   }
-  let config = @client.Config::new(
+  let config = @client.ConnectionBuilder::new(
     host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
     port=@string.parse_int(@env.get_env_var("CQL_PORT").unwrap_or("9042")),
     username?=@env.get_env_var("CQL_USERNAME"),

@@ -20,8 +20,11 @@ async test "Connection concurrent drain admits existing queue rejects new RPCs a
         respond(peer, second.header.stream, 8, named_result("second"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), max_in_flight=1),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          max_in_flight=1,
+        ),
         connection => {
           @async.with_task_group(requests => {
             let first = requests.spawn(() => connection.query("first"))
@@ -96,9 +99,9 @@ async test "Session drain permits accepted UNPREPARED recovery but rejects new q
         respond(peer, execute.header.stream, 8, rows_result([7], None))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           let prepared = session.prepare("statement")
@@ -186,9 +189,9 @@ async test "Session concurrent drain deadline cancels pending and queued operati
         seen.put(())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             max_in_flight=1,
           ),
@@ -265,8 +268,8 @@ async test "Connection drain waits for an abandoned late response instead of reu
         respond(peer, request.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           @async.with_task_group(requests => {
             let task = requests.spawn(() => connection.query("cancel"))
@@ -312,9 +315,9 @@ async test "cancelled Session drain and immediate close interrupt accepted work 
           seen.put(())
           assert_eq(peer.read_some(), None)
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=server.addr.port()),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           ),
           session => {
             @async.with_task_group(requests => {

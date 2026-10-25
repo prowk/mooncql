@@ -23,8 +23,8 @@ async test "waiting request count and encoded bytes remain bounded under repeate
         })
         let values : Array[@types.Value] = [Bytes(Bytes::make(400000, b'a'))]
         let bytes = @protocol.query("write", values~).body.length() + 9
-        @client.with_connection(
-          config=@client.Config::new(
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             max_in_flight=if byte_limit { 128 } else { 1 },
             max_in_flight_bytes=bytes,
@@ -105,8 +105,8 @@ async test "reject policy distinguishes count and byte pressure without sending 
           assert_eq(peer.read_some(), None)
         })
         let bytes = @protocol.query("write").body.length() + 9
-        @client.with_connection(
-          config=@client.Config::new(
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             max_in_flight=if byte_limit { 128 } else { 1 },
             max_in_flight_bytes=if byte_limit { bytes } else { 10000 },
@@ -152,8 +152,8 @@ async test "single request larger than byte budget fails before any application 
       handshake(peer)
       assert_eq(peer.read_some(), None)
     })
-    @client.with_connection(
-      config=@client.Config::new(
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(
         port=server.addr.port(),
         max_in_flight_bytes=32,
       ),
@@ -195,8 +195,11 @@ async test "EOF wakes byte waiters and returns all admission budgets" {
         seen.put(())
         disconnect.get()
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), max_in_flight=1),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          max_in_flight=1,
+        ),
         connection => {
           @async.with_task_group(requests => {
             async fn send() {
@@ -249,8 +252,8 @@ async test "THROW_ON_OVERLOAD uses value one and server overload never replays a
         respond(peer, second.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           throw_on_overload=enabled,
         ),

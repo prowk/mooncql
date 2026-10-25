@@ -8,7 +8,7 @@ struct PreparedCache {
 }
 
 ///|
-fn PreparedCache::new(config : Config) -> PreparedCache {
+fn PreparedCache::new(config : ConnectionBuilder) -> PreparedCache {
   {
     capacity: config.prepared_cache_capacity,
     entries: Map([]),

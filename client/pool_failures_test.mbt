@@ -1,7 +1,7 @@
 ///|
 async fn with_pool_fixture(
   size : Int,
-  config? : @client.SessionConfig = @client.SessionConfig::new(),
+  config? : @client.SessionBuilder = @client.SessionBuilder::new(),
   serve : async (Peer, Int) -> Unit,
   body : async (@client.Session) -> Unit,
 ) -> Unit {
@@ -24,7 +24,7 @@ async fn with_pool_fixture(
           }
         })
       })
-      @client.with_session(
+      @client.with_session_builder(
         config={
           ..config,
           connection: {
@@ -62,8 +62,8 @@ async test "abandoned response stays in its pool slot and one connection fault c
   let metrics = @client.Metrics::new()
   with_pool_fixture(
     2,
-    config=@client.SessionConfig::new(
-      connection=@client.Config::new(max_in_flight=1, metrics~),
+    config=@client.SessionBuilder::new(
+      connection=@client.ConnectionBuilder::new(max_in_flight=1, metrics~),
       limits=@client.SessionLimits::new(max_in_flight=2),
       backoff_initial_ms=1000,
       backoff_max_ms=1000,
@@ -171,8 +171,8 @@ async test "adding pool connections cannot expand Session request bytes or cance
     let metrics = @client.Metrics::new()
     with_pool_fixture(
       3,
-      config=@client.SessionConfig::new(
-        connection=@client.Config::new(metrics~),
+      config=@client.SessionBuilder::new(
+        connection=@client.ConnectionBuilder::new(metrics~),
         limits=@client.SessionLimits::new(
           max_in_flight=if byte_limit { 128 } else { 1 },
           max_in_flight_bytes=if byte_limit { charge } else { 67108864 },
@@ -216,7 +216,7 @@ async test "adding pool connections cannot expand Session request bytes or cance
                 ignore(session.query("held"))
                 false
               } catch {
-                @client.Overloaded(SessionWaitingQueueFull) => true
+                @client.SessionOverloaded(WaitingQueueFull) => true
                 _ => false
               },
             )

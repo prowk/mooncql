@@ -55,9 +55,9 @@ async fn with_budget_fixture(
         )
       }
       let metrics = @client.Metrics::new()
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             max_in_flight=local_limit,
             timeout_ms=request_timeout_ms,
             operation_timeout_ms=10000,
@@ -165,13 +165,9 @@ async test "Session count and byte ceilings hold across three nodes queued cance
                 ignore(session.query("held"))
                 false
               } catch {
-                @client.Overloaded(reason) =>
+                @client.SessionOverloaded(reason) =>
                   reason ==
-                  (if byte_limit {
-                    SessionWaitingBytesFull
-                  } else {
-                    SessionWaitingQueueFull
-                  })
+                  (if byte_limit { WaitingBytesFull } else { WaitingQueueFull })
                 _ => false
               },
             )
@@ -231,13 +227,8 @@ async test "Session Reject reports global count and byte limits without selectin
               ignore(session.query("held"))
               false
             } catch {
-              @client.Overloaded(reason) =>
-                reason ==
-                (if byte_limit {
-                  SessionByteLimit
-                } else {
-                  SessionInFlightLimit
-                })
+              @client.SessionOverloaded(reason) =>
+                reason == (if byte_limit { ByteLimit } else { InFlightLimit })
               _ => false
             },
           )
@@ -249,7 +240,7 @@ async test "Session Reject reports global count and byte limits without selectin
                 )
                 false
               } catch {
-                @client.Overloaded(SessionRequestTooLarge) => true
+                @client.SessionOverloaded(RequestTooLarge) => true
                 _ => false
               },
             )
@@ -312,9 +303,9 @@ async test "invalid Session limits are rejected before any connection attempt" {
     ] {
     assert_true(
       try {
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=1),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(port=1),
             limits~,
           ),
           _ => (),

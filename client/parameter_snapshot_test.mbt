@@ -60,14 +60,14 @@ async test "Connection and Session prepared parameter snapshots isolate nested t
           respond(peer, execute.header.stream, 8, b"\x00\x00\x00\x01")
           assert_eq(peer.read_some(), None)
         })
-        let config = @client.Config::new(port=server.addr.port())
+        let config = @client.ConnectionBuilder::new(port=server.addr.port())
         let values : Array[@types.Value] = [
           TupleValue([Integer(7)]),
           UdtValue([("field", ListValue([TupleValue([Integer(9)])]))]),
         ]
         if session_level {
-          @client.with_session(
-            config=@client.SessionConfig::new(connection=config),
+          @client.with_session_builder(
+            config=@client.SessionBuilder::new(connection=config),
             session => {
               let statement = session.prepare(
                 "INSERT INTO ks.t (a,b) VALUES (?,?)",
@@ -77,7 +77,7 @@ async test "Connection and Session prepared parameter snapshots isolate nested t
             },
           )
         } else {
-          @client.with_connection(config~, connection => {
+          @client.with_connection_builder(config~, connection => {
             let statement = connection.prepare(
               "INSERT INTO ks.t (a,b) VALUES (?,?)",
             )

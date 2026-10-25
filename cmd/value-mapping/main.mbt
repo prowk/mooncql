@@ -69,7 +69,7 @@ async fn main {
   assert_eq(row_codec.decode(page.row(0)), (42, place))
   println("PASS explicit mapping, nested UDT/tuple and identical Value bytes")
   if @env.get_env_var("CQL_MAPPING_INTEGRATION") == Some("1") {
-    let connection = @client.Config::new(
+    let connection = @client.ConnectionBuilder::new(
       host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
       port=@env.get_env_var("CQL_PORT")
         .map(port => @string.parse_int(port))
@@ -78,42 +78,45 @@ async fn main {
       password?=@env.get_env_var("CQL_PASSWORD"),
       compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
     )
-    @client.with_session(config=@client.SessionConfig::new(connection~), session => {
-      ignore(
-        session.query(
-          "CREATE KEYSPACE IF NOT EXISTS mooncql_mapping WITH replication={'class':'SimpleStrategy','replication_factor':1}",
-        ),
-      )
-      ignore(
-        session.query(
-          "CREATE TYPE IF NOT EXISTS mooncql_mapping.place (street text, coordinate tuple<int,text>)",
-        ),
-      )
-      ignore(
-        session.query(
-          "CREATE TABLE IF NOT EXISTS mooncql_mapping.events (id int PRIMARY KEY,home frozen<place>)",
-        ),
-      )
-      let insert = session.prepare(
-        "INSERT INTO mooncql_mapping.events (id,home) VALUES (?,?)",
-      )
-      ignore(insert.execute([Integer(42), value]))
-      guard session.query(
-          "SELECT id,home FROM mooncql_mapping.events WHERE id=42",
+    @client.with_session_builder(
+      config=@client.SessionBuilder::new(connection~),
+      session => {
+        ignore(
+          session.query(
+            "CREATE KEYSPACE IF NOT EXISTS mooncql_mapping WITH replication={'class':'SimpleStrategy','replication_factor':1}",
+          ),
         )
-        is Rows(read) else {
-        fail("missing mapped row")
-      }
-      assert_eq(row_codec.decode(read.row(0)), (42, place))
-      assert_eq(
-        @types.encode_value(read.row(0).value("home")),
-        @types.encode_value(direct),
-      )
-      ignore(session.drain(@client.Deadline::after(5000)))
-      assert_eq(session.resources().background_task_handles, 0)
-      println(
-        "PASS mapped prepared binding, native UDT/tuple result and drained Session",
-      )
-    })
+        ignore(
+          session.query(
+            "CREATE TYPE IF NOT EXISTS mooncql_mapping.place (street text, coordinate tuple<int,text>)",
+          ),
+        )
+        ignore(
+          session.query(
+            "CREATE TABLE IF NOT EXISTS mooncql_mapping.events (id int PRIMARY KEY,home frozen<place>)",
+          ),
+        )
+        let insert = session.prepare(
+          "INSERT INTO mooncql_mapping.events (id,home) VALUES (?,?)",
+        )
+        ignore(insert.execute([Integer(42), value]))
+        guard session.query(
+            "SELECT id,home FROM mooncql_mapping.events WHERE id=42",
+          )
+          is Rows(read) else {
+          fail("missing mapped row")
+        }
+        assert_eq(row_codec.decode(read.row(0)), (42, place))
+        assert_eq(
+          @types.encode_value(read.row(0).value("home")),
+          @types.encode_value(direct),
+        )
+        ignore(session.drain(@client.Deadline::after(5000)))
+        assert_eq(session.resources().background_task_handles, 0)
+        println(
+          "PASS mapped prepared binding, native UDT/tuple result and drained Session",
+        )
+      },
+    )
   }
 }

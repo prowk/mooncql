@@ -15,8 +15,11 @@ async test "in-flight limit applies backpressure before a second request is sent
         let second = receive(socket)
         respond(socket, second.header.stream, 8, b"\x00\x00\x00\x01")
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), max_in_flight=1),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          max_in_flight=1,
+        ),
         connection => {
           let results = @async.all([
             () => connection.query("one"),
@@ -53,8 +56,8 @@ async test "sent cancellation reserves its stream and absorbs a late response" {
         respond(socket, last.header.stream, 8, named_result("last"))
         assert_eq(socket.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           @async.with_task_group(requests => {
             let task = requests.spawn(() => connection.query("write"))
@@ -96,8 +99,8 @@ async test "invalid stream truncated frame and oversize frame fail waiting reque
           ignore(receive(socket))
           socket.write(@framing.encode(malformed))
         })
-        @client.with_connection(
-          config=@client.Config::new(port=server.addr.port()),
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(port=server.addr.port()),
           connection => {
             assert_true(
               try {
@@ -142,8 +145,8 @@ async test "UNPREPARED recovery is bounded and leaves connection usable" {
       assert_eq(query.header.opcode, 7)
       respond(socket, query.header.stream, 8, b"\x00\x00\x00\x01")
     })
-    @client.with_connection(
-      config=@client.Config::new(port=server.addr.port()),
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         let prepared = connection.prepare("query")
         assert_true(
@@ -186,9 +189,9 @@ async test "missing credentials close the handshake without sending an auth toke
     })
     assert_true(
       try {
-        let connection = @client.connect(
+        let connection = @client.connect_builder(
           group,
-          config=@client.Config::new(port=server.addr.port()),
+          config=@client.ConnectionBuilder::new(port=server.addr.port()),
         )
         connection.close()
         false

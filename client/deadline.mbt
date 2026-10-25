@@ -8,9 +8,6 @@ pub(all) enum TimeoutPhase {
   WaitingPrepare
   WaitingConnection
   WaitingRetry
-  WaitingDrain
-  WaitingSchema
-  WaitingPage
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -44,6 +41,28 @@ pub(all) struct TimeoutInfo {
 pub extend TimeoutInfo with @debug.Debug::{to_repr}
 
 ///|
+/// 新操作的期限阶段单独演进，不增加稳定版 TimeoutPhase 的分支。
+pub(all) enum OperationStage {
+  WaitingDrain
+  WaitingSchema
+  WaitingPage
+} derive(Eq, @debug.Debug)
+
+///|
+pub extend OperationStage with Eq::{equal, not_equal}
+
+///|
+pub extend OperationStage with @debug.Debug::{to_repr}
+
+///|
+pub(all) suberror OperationTimedOut {
+  OperationTimedOut(OperationStage, TimeoutInfo)
+} derive(@debug.Debug)
+
+///|
+pub extend OperationTimedOut with @debug.Debug::{to_repr}
+
+///|
 pub struct Deadline {
   at : Int64
 }
@@ -51,7 +70,7 @@ pub struct Deadline {
 ///|
 pub fn Deadline::after(milliseconds : Int) -> Deadline raise DriverError {
   if milliseconds <= 0 {
-    raise Configuration("deadline must be positive")
+    raise Configuration("deadline_ms must be 1..2147483647")
   }
   { at: @async.now() + milliseconds.to_int64(), }
 }
@@ -98,6 +117,20 @@ async fn[T] timed(
         scope,
         may_have_been_sent: context.sent,
       })
+    error => raise error
+  }
+}
+
+///|
+async fn[T] timed_stage(
+  milliseconds : Int,
+  stage : OperationStage,
+  scope : TimeoutScope,
+  context : TimeoutContext,
+  action : async () -> T,
+) -> T {
+  timed(milliseconds, scope, context, action) catch {
+    TimedOut(info) => raise OperationTimedOut(stage, info)
     error => raise error
   }
 }

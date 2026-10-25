@@ -12,9 +12,9 @@ async fn main {
   let pool_size = @string.parse_int(
     @env.get_env_var("CQL_POOL_SIZE").unwrap_or("1"),
   )
-  @client.with_session(
-    config=@client.SessionConfig::new(
-      connection=@client.Config::new(
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(
+      connection=@client.ConnectionBuilder::new(
         host~,
         username?=@env.get_env_var("CQL_USERNAME"),
         password?=@env.get_env_var("CQL_PASSWORD"),

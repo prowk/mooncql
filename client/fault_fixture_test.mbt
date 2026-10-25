@@ -49,8 +49,8 @@ async test "reusable protocol barriers coordinate handshake authentication write
           }
         })
         let caller = group.spawn(() => {
-          @client.with_connection(
-            config=@client.Config::new(
+          @client.with_connection_builder(
+            config=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               username="user",
               password="secret",

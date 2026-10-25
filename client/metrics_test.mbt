@@ -40,8 +40,8 @@ async test "UNPREPARED recovery lock has a bounded byte charged waiter and cance
         respond(peer, execute.header.stream, 8, session_row(1))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           max_in_flight=2,
           max_waiting=1,
@@ -110,9 +110,9 @@ async test "session connection wait timeout and cancelled handshake remain obser
         seen.put(())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             connect_timeout_ms=4000,
             metrics~,
@@ -182,9 +182,12 @@ async test "retry backoff timeout is distinct from request execution timeout" {
         respond(peer, request.header.stream, 0, overload_error())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port(), metrics~),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
+            port=server.addr.port(),
+            metrics~,
+          ),
         ),
         session => {
           wait_session_nodes(session, 1)
@@ -246,8 +249,8 @@ async test "throwing listener cannot break requests timeout cancellation or boun
         respond(peer, last.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           max_in_flight=1,
           max_waiting=1,
@@ -371,8 +374,8 @@ async test "frame counters measure raw and compressed large payloads without exp
           respond(peer, request.header.stream, 8, metric_blob_rows(payload))
           assert_eq(peer.read_some(), None)
         })
-        @client.with_connection(
-          config=@client.Config::new(
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             compression~,
             metrics~,
@@ -438,8 +441,8 @@ async test "cache metrics distinguish hit miss coalescing and eviction" {
         respond(peer, next.header.stream, 8, prepared_result(b"two"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           prepared_cache_capacity=1,
           metrics~,
@@ -508,9 +511,9 @@ async test "session prepared replacement lock bounds waiters cancels cleanly and
         respond(peer, execute.header.stream, 8, session_row(7))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             // 保留一个空闲 RPC 槽，专门验证准备互斥等待，而非满载节点选择等待。
             max_in_flight=2,
@@ -597,8 +600,8 @@ async test "cancelled sent request keeps observed quota until late response is c
         respond(peer, next.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), metrics~),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port(), metrics~),
         connection => {
           @async.with_task_group(requests => {
             let task = requests.spawn(() => {

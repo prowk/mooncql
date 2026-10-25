@@ -53,8 +53,8 @@ async fn run_probe() -> Unit {
   assert_eq(ports.length(), 3)
   assert_eq(hosts.length(), 3)
   let metrics = @client.Metrics::new()
-  let config = @client.SessionConfig::new(
-    connection=@client.Config::new(
+  let config = @client.SessionBuilder::new(
+    connection=@client.ConnectionBuilder::new(
       username?=@env.get_env_var("CQL_USERNAME"),
       password?=@env.get_env_var("CQL_PASSWORD"),
       compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
@@ -81,7 +81,7 @@ async fn run_probe() -> Unit {
     ),
     routing=@client.RoutingConfig::new("dc1"),
   )
-  @client.with_session(config~, session => {
+  @client.with_session_builder(config~, session => {
     wait_ready(session, 3)
     let initial = session.topology().unwrap()
     assert_eq(initial.nodes.length(), 3)

@@ -17,7 +17,7 @@
 | `traversal_timeout_ms` | 未指定 | Pager 整次遍历预算，未指定时无额外遍历上限 |
 | `retry` | `RetryPolicy::new()` | 最多三次、延迟 10ms；仍需调用方显式声明幂等 |
 
-`SessionConfig::new(execution_profile=...)` 设置 Session 的默认配置。`Session.query`／`query_with_info`、`prepare`／`prepare_with_info` 和 `pages` 可用 `profile=...` 选择另一组配置。准备得到的 `SessionPrepared` 保存当时选定的配置，其 `execute`／`execute_with_info`、`execute_conditional` 和 `pages` 可以再显式选择另一组。
+`SessionBuilder::new(execution_profile=...)` 设置 Session 的默认配置。`Session.query_with_profile`／`query_with_profile_info`、`prepare_with_profile`／`prepare_with_profile_info` 和 `pages_with_options` 可用 `profile=...` 选择另一组配置。准备得到的 `SessionPrepared` 保存当时选定的配置，其 `execute_with_profile`／`execute_with_profile_info`、`execute_conditional_with_profile` 和 `pages_with_options` 可以再显式选择另一组。
 
 优先级如下，均在操作或 Pager 创建时确定：
 
@@ -37,7 +37,7 @@ Pager 在创建时冻结查询选项、参数、幂等声明和重试策略，�
 
 `traversal_timeout_ms` 从第一次取页开始计时，包含重试、调用方处理每页的时间和两页之间的等待。`pages(traversal_deadline=...)` 可在创建时指定整次遍历的绝对期限；它优先于配置中的相对遍历预算，Connection 和 Prepared 的低层 Pager 也支持它。最终取页期限始终是单页与遍历两者中较早的一个，给下一页更长的 Deadline 不能延长已经开始的遍历。
 
-遍历预算在页与页之间用尽时，下一次取页返回 `TimedOut`，阶段为 `WaitingPage`、`may_have_been_sent=false`；在请求过程中用尽则保留真实请求阶段。预算不强制中断调用方正在执行的行处理回调。失败和取消均不推进游标，已经返回的页仍归调用方所有。
+遍历预算在页与页之间用尽时，下一次取页返回独立的 `OperationTimedOut(WaitingPage, info)`，`may_have_been_sent=false`；在请求过程中用尽则保留原 `TimedOut` 和真实请求阶段。新阶段属于 OperationStage，不扩展稳定版 TimeoutPhase 的封闭分支。显式传入已经过期的单页 Deadline 仍是原 TimedOut／WaitingSlot。预算不强制中断调用方正在执行的行处理回调。失败和取消均不推进游标，已经返回的页仍归调用方所有。
 
 恢复游标时比较已解析配置生成的查询语义，包括一致性、页大小、串行一致性、keyspace、绑定值等。改变这些设置会在发请求前返回 `Configuration`。超时、重试策略和幂等声明可以重新选择；恢复会开始新的遍历预算，游标不保存进程单调时钟的绝对期限。游标可能包含 CQL 和绑定值，不应写入普通日志或接受未受信任的外部游标。
 

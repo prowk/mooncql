@@ -8,15 +8,15 @@ async fn main {
     traversal_timeout_ms=10000,
     retry=@client.RetryPolicy::new(max_attempts=2),
   )
-  let connection = @client.Config::new(
+  let connection = @client.ConnectionBuilder::new(
     host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
     port=@string.parse_int(@env.get_env_var("CQL_PORT").unwrap_or("9042")),
     username?=@env.get_env_var("CQL_USERNAME"),
     password?=@env.get_env_var("CQL_PASSWORD"),
     compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
   )
-  @client.with_session(
-    config=@client.SessionConfig::new(connection~, execution_profile=defaults),
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(connection~, execution_profile=defaults),
     session => {
       ignore(
         session.query(
@@ -38,10 +38,14 @@ async fn main {
         ignore(insert.execute([Integer(42), Integer(id), Text("item-\{id}")]))
       }
       let cql = "SELECT id,note FROM mooncql_profiles.items WHERE device=?"
-      let simple = session.pages(cql, values=[Integer(42)], idempotent=true)
+      let simple = session.pages_with_options(
+        cql,
+        values=[Integer(42)],
+        idempotent=true,
+      )
       assert_eq(simple.next().unwrap().rows.length(), 2)
       let cursor = @client.PagingCursor::from_bytes(simple.cursor().to_bytes())
-      let resumed = session.pages(
+      let resumed = session.pages_with_options(
         cql,
         values=[Integer(42)],
         cursor~,
@@ -55,8 +59,8 @@ async fn main {
         }
       }
       assert_eq(remaining, 3)
-      let select = session.prepare(cql, profile=reads)
-      let pages = select.pages([Integer(42)], idempotent=true)
+      let select = session.prepare_with_profile(cql, profile=reads)
+      let pages = select.pages_with_options([Integer(42)], idempotent=true)
       let mut rows = 0
       let mut page_count = 0
       while pages.next() is Some(page) {

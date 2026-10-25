@@ -25,9 +25,12 @@ async test "classified exponential backoff changes real retries and retains logi
         assert_eq(peer.read_some(), None)
       })
       let metrics = @client.Metrics::new()
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port(), metrics~),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
+            port=server.addr.port(),
+            metrics~,
+          ),
           execution_profile=@client.ExecutionProfile::new(
             retry=@client.RetryPolicy::new(max_attempts=3, delay_ms=1000),
             backoff=@client.RetryBackoff::new(
@@ -50,9 +53,9 @@ async test "classified exponential backoff changes real retries and retains logi
           assert_true(times[1] - times[0] >= 10L)
           assert_true(times[2] - times[1] >= 14L)
           let snapshot = metrics.snapshot()
-          assert_eq(snapshot.logical_started, 1L)
+          assert_eq(metrics.operations_snapshot().logical_started, 1L)
           assert_eq(snapshot.requests_started, 3L)
-          assert_eq(snapshot.retry_attempts, 2L)
+          assert_eq(metrics.operations_snapshot().retry_attempts, 2L)
           session.close()
           assert_eq(session.resources().background_task_handles, 0)
         },
@@ -79,9 +82,12 @@ async test "classified backoff shares operation deadline and Session close wakes
           assert_eq(peer.read_some(), None)
         })
         let metrics = @client.Metrics::new()
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=server.addr.port(), metrics~),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(
+              port=server.addr.port(),
+              metrics~,
+            ),
             execution_profile=@client.ExecutionProfile::new(
               backoff=@client.RetryBackoff::new(
                 overloaded_ms=100000,
@@ -132,8 +138,8 @@ async test "classified backoff shares operation deadline and Session close wakes
             })
             session.close()
             assert_eq(metrics.snapshot().requests_started, 1L)
-            assert_eq(metrics.snapshot().logical_failed, 1L)
-            assert_eq(metrics.snapshot().retry_attempts, 0L)
+            assert_eq(metrics.operations_snapshot().logical_failed, 1L)
+            assert_eq(metrics.operations_snapshot().retry_attempts, 0L)
             assert_eq(session.resources().background_task_handles, 0)
             assert_eq(session.budget().in_flight_bytes, 0L)
           },

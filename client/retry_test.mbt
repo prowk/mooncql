@@ -23,9 +23,9 @@ async test "closing session interrupts retry backoff and joins active caller pro
         seen.put(())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           @async.with_task_group(requests => {
@@ -114,9 +114,9 @@ async test "later retry response uses remaining deadline and late reply cannot p
         respond(peer, next.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(timeout_ms=3000),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(timeout_ms=3000),
           contact_points=[
             @client.Endpoint::new(port=a.addr.port()),
             @client.Endpoint::new(port=b.addr.port()),
@@ -183,9 +183,9 @@ async test "cancellation during retry delay stops replay and releases logical op
         respond(peer, next.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           @async.with_task_group(requests => {
@@ -251,8 +251,8 @@ async test "idempotent query retries another node with immutable named bindings"
         respond(peer, request.header.stream, 8, rows_result([7], None))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(contact_points=[
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(contact_points=[
           @client.Endpoint::new(port=a.addr.port()),
           @client.Endpoint::new(port=b.addr.port()),
         ]),
@@ -300,8 +300,8 @@ async test "retry budget records each coordinator and original server failure" {
           assert_eq(peer.read_some(), None)
         })
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
           contact_points=servers.map(server => {
             @client.Endpoint::new(port=server.addr.port())
           }),
@@ -392,9 +392,9 @@ async test "counter conditional append and batch unknown outcomes are never repl
           respond(peer, sent.header.stream, 8, b"\x00\x00\x00\x01")
           assert_eq(peer.read_some(), None)
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=server.addr.port()),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           ),
           session => {
             assert_true(
@@ -438,9 +438,9 @@ async test "non simple write failures remain terminal even with explicit idempot
         respond(peer, retry.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           for kind in ["COUNTER", "CAS", "BATCH"] {
@@ -483,9 +483,9 @@ async test "retry delay consumes original deadline and preserves unknown outcome
         respond(peer, request.header.stream, 0, overload_error())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           wait_session_nodes(session, 1)
@@ -568,8 +568,8 @@ async test "session prepared retry freezes bindings and uses each nodes prepared
         respond(peer, execute.header.stream, 0, overload_error())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(contact_points=[
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(contact_points=[
           @client.Endpoint::new(port=a.addr.port()),
           @client.Endpoint::new(port=b.addr.port()),
         ]),

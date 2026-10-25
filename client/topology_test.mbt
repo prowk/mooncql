@@ -229,9 +229,9 @@ async test "control snapshot converges across burst missing events removal mappe
           }
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(event_capacity=4),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(event_capacity=4),
           contact_points=[@client.Endpoint::new(port=servers[0].addr.port())],
           discovery=@client.DiscoveryConfig::new(
             refresh_interval_ms=300,

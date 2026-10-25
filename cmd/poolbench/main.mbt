@@ -62,9 +62,9 @@ async fn main {
     fail("invalid Session pool benchmark configuration")
   }
   let data = payload(size, entropy)
-  @client.with_session(
-    config=@client.SessionConfig::new(
-      connection=@client.Config::new(
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(
+      connection=@client.ConnectionBuilder::new(
         host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
         port=integer_env("CQL_PORT", "9042"),
         username?=@env.get_env_var("CQL_USERNAME"),

@@ -15,21 +15,36 @@ test "Prometheus histogram buckets are cumulative with finite sum and an explici
 }
 
 ///|
+test "legacy forwarded failure and explicit authentication diagnostic count one connection failure" {
+  let meter = Meter::new()
+  let endpoint = @client.Endpoint::new()
+  meter.observe(Legacy(ConnectionFailed(endpoint, OtherFailure)))
+  meter.observe(ConnectionFailure(endpoint, OtherFailure, true))
+  let node = meter.nodes["127.0.0.1:9042"]
+  assert_eq(node.connects[2], 1L)
+  assert_eq(node.connect_failures[11], 0L)
+  assert_eq(node.connect_failures[12], 1L)
+}
+
+///|
 test "changing endpoints cannot create unbounded series and unknown opcodes have one fixed label" {
   let meter = Meter::new(max_nodes=2)
   for index in 0..<100 {
     meter.observe(
-      RequestFinished({
-        endpoint: @client.Endpoint::new(port=10000 + index),
-        scope: Data,
-        opcode: 99 + index,
-        request_bytes: 9L,
-        outcome: Succeeded,
-        phase: WaitingResponse,
-        may_have_been_sent: true,
-        queue_ms: 1L,
-        execution_ms: 25L,
-      }),
+      RpcFinished(
+        Data,
+        {
+          endpoint: @client.Endpoint::new(port=10000 + index),
+          opcode: 99 + index,
+          request_bytes: 9L,
+          outcome: Succeeded,
+          phase: WaitingResponse,
+          may_have_been_sent: true,
+          queue_ms: 1L,
+          execution_ms: 25L,
+        },
+        false,
+      ),
     )
   }
   assert_eq(meter.nodes.length(), 3)
@@ -49,24 +64,28 @@ test "logical overload and retry counters remain separate from heartbeat and con
   meter.observe(
     OperationFinished({
       kind: QueryOperation,
-      outcome: LocalOverload(SessionInFlightLimit),
+      outcome: LocalOverload(InFlightLimit),
       elapsed_ms: 10L,
+      session_budget: true,
     }),
   )
   meter.observe(RetryStarted(endpoint, 2))
   for scope in [@client.RpcScope::Control, Heartbeat] {
     meter.observe(
-      RequestFinished({
-        endpoint,
+      RpcFinished(
         scope,
-        opcode: 5,
-        request_bytes: 9L,
-        outcome: Succeeded,
-        phase: WaitingResponse,
-        may_have_been_sent: true,
-        queue_ms: 0L,
-        execution_ms: 1L,
-      }),
+        {
+          endpoint,
+          opcode: 5,
+          request_bytes: 9L,
+          outcome: Succeeded,
+          phase: WaitingResponse,
+          may_have_been_sent: true,
+          queue_ms: 0L,
+          execution_ms: 1L,
+        },
+        false,
+      ),
     )
   }
   assert_eq(meter.started[0], 1L)

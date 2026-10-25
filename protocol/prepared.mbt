@@ -69,7 +69,7 @@ fn read_prepared(
     partition_key_indices.push(index)
   }
   let parameters = read_columns(r, flags, count, max_depth~)
-  let result = read_metadata(r, max_columns~, max_depth~)
+  let result = read_metadata_limited(r, max_columns~, max_depth~)
   {
     id,
     result_metadata_id,

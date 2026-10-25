@@ -1,8 +1,8 @@
 ///|
 fn endpoint_config(
-  base : Config,
+  base : ConnectionBuilder,
   endpoint : Endpoint,
-) -> Config raise DriverError {
+) -> ConnectionBuilder raise DriverError {
   let tls = match base.tls {
     Some(tls) =>
       Some({
@@ -27,7 +27,7 @@ fn endpoint_config(
 
 ///|
 fn session_node(
-  base : Config,
+  base : ConnectionBuilder,
   endpoint : Endpoint,
   connections_per_node : Int,
 ) -> SessionNode raise DriverError {
@@ -80,8 +80,9 @@ pub fn Endpoint::new(
 }
 
 ///|
-pub(all) struct SessionConfig {
-  connection : Config
+pub(all) struct SessionBuilder {
+  enforce_limits : Bool
+  connection : ConnectionBuilder
   contact_points : Array[Endpoint]
   backoff_initial_ms : Int
   backoff_max_ms : Int
@@ -97,8 +98,8 @@ pub(all) struct SessionConfig {
 
 ///|
 /// 默认每节点单连接并共享固定 limits；发现与 DDL 后等待须显式启用。
-pub fn SessionConfig::new(
-  connection? : Config = Config::new(),
+pub fn SessionBuilder::new(
+  connection? : ConnectionBuilder = ConnectionBuilder::new(),
   contact_points? : Array[Endpoint] = [],
   backoff_initial_ms? : Int = 25,
   backoff_max_ms? : Int = 2000,
@@ -110,8 +111,9 @@ pub fn SessionConfig::new(
   execution_profile? : ExecutionProfile,
   limits? : SessionLimits = SessionLimits::new(),
   connections_per_node? : Int = 1,
-) -> SessionConfig {
+) -> SessionBuilder {
   {
+    enforce_limits: true,
     connection,
     contact_points: contact_points.copy(),
     backoff_initial_ms,
@@ -144,7 +146,7 @@ pub(all) struct NodeInfo {
 ///|
 struct SessionNode {
   endpoint : Endpoint
-  config : Config
+  config : ConnectionBuilder
   slots : Array[PoolSlot]
   mut next_slot : Int
   connect_gate : @async.Mutex
@@ -158,7 +160,7 @@ struct SessionNode {
 
 ///|
 pub struct Session {
-  config : SessionConfig
+  config : SessionBuilder
   response_limits : ResponseLimits?
   retry_random : @random.Rand
   changed : @async.CondVar
@@ -178,34 +180,13 @@ pub struct Session {
 }
 
 ///|
-pub async fn[T] with_session(
-  config? : SessionConfig = SessionConfig::new(),
+pub async fn[T] with_session_builder(
+  config? : SessionBuilder = SessionBuilder::new(),
   response_limits? : ResponseLimits,
   body : async (Session) -> T,
 ) -> T {
+  config.validate()
   let config = { ..config, contact_points: config.contact_points.copy(), }
-  config.connection.validate()
-  config.schema_agreement.validate()
-  config.limits.validate()
-  if config.connections_per_node < 1 || config.connections_per_node > 8 {
-    raise Configuration("connections_per_node must be 1-8")
-  }
-  if config.routing is Some(routing) &&
-    (
-      config.discovery is None ||
-      routing.local_dc.is_empty() ||
-      routing.max_metadata_age_ms < 1
-    ) {
-    raise Configuration(
-      "routing requires discovery, local_dc and positive metadata age",
-    )
-  }
-  if config.backoff_initial_ms < 1 ||
-    config.backoff_max_ms < config.backoff_initial_ms ||
-    config.stable_reset_ms < 0 ||
-    !(config.jitter >= 0.0 && config.jitter <= 1.0) {
-    raise Configuration("invalid session backoff configuration")
-  }
   let endpoints = if config.contact_points.is_empty() {
     [Endpoint::new(host=config.connection.host, port=config.connection.port)]
   } else {
@@ -215,36 +196,23 @@ pub async fn[T] with_session(
   let nodes = endpoints.map(endpoint => {
     let key = "\{endpoint.host}:\{endpoint.port}"
     if seen.contains(key) {
-      raise Configuration("duplicate contact point")
+      raise Configuration("contact_points must be unique by host and port")
     }
     seen[key] = true
     session_node(config.connection, endpoint, config.connections_per_node)
   })
-  let control = config.discovery.map(discovery => {
-    if discovery.refresh_interval_ms < 1 ||
-      discovery.debounce_ms < 0 ||
-      discovery.debounce_ms > 60000 ||
-      discovery.max_nodes < 1 ||
-      discovery.max_nodes > 65536 ||
-      discovery.max_tokens_per_node < 1 ||
-      discovery.max_tokens_per_node > 65536 ||
-      discovery.max_keyspaces < 1 ||
-      discovery.max_keyspaces > 65536 {
-      raise Configuration("invalid discovery limits")
-    }
-    ControlState::{
-      config: discovery,
-      worker: None,
-      connection: None,
-      snapshot: None,
-      stale: true,
-      generation: 0,
-      refreshes: 0,
-      schema_epoch: 0,
-      last_error: None,
-      ring: None,
-      locations: Map([]),
-    }
+  let control = config.discovery.map(discovery => ControlState::{
+    config: discovery,
+    worker: None,
+    connection: None,
+    snapshot: None,
+    stale: true,
+    generation: 0,
+    refreshes: 0,
+    schema_epoch: 0,
+    last_error: None,
+    ring: None,
+    locations: Map([]),
   })
   @async.with_task_group(group => {
     let changed = @async.CondVar::Cond()
@@ -252,6 +220,7 @@ pub async fn[T] with_session(
       config.limits.as_config(config.connection),
       changed~,
       session=true,
+      enforce=config.enforce_limits,
     )
     let session = Session::{
       config,
@@ -288,6 +257,56 @@ pub async fn[T] with_session(
     }
     body(session)
   })
+}
+
+///|
+fn SessionBuilder::validate(self : SessionBuilder) -> Unit raise DriverError {
+  self.connection.validate()
+  self.schema_agreement.validate()
+  self.limits.validate()
+  validate_range("connections_per_node", self.connections_per_node, 1, 8)
+  validate_range("backoff_initial_ms", self.backoff_initial_ms, 1, 2147483647)
+  validate_range(
+    "backoff_max_ms",
+    self.backoff_max_ms,
+    self.backoff_initial_ms,
+    2147483647,
+  )
+  validate_range("stable_reset_ms", self.stable_reset_ms, 0, 2147483647)
+  if !(self.jitter >= 0.0 && self.jitter <= 1.0) {
+    raise Configuration("jitter must be 0..1")
+  }
+  if self.routing is Some(routing) {
+    if self.discovery is None {
+      raise Configuration("routing requires discovery=Some")
+    }
+    if routing.local_dc.is_empty() {
+      raise Configuration("routing.local_dc must be nonempty")
+    }
+    validate_range(
+      "routing.max_metadata_age_ms",
+      routing.max_metadata_age_ms,
+      1,
+      2147483647,
+    )
+  }
+  if self.discovery is Some(discovery) {
+    validate_range(
+      "discovery.refresh_interval_ms",
+      discovery.refresh_interval_ms,
+      1,
+      2147483647,
+    )
+    validate_range("discovery.debounce_ms", discovery.debounce_ms, 0, 60000)
+    validate_range("discovery.max_nodes", discovery.max_nodes, 1, 65536)
+    validate_range(
+      "discovery.max_tokens_per_node",
+      discovery.max_tokens_per_node,
+      1,
+      65536,
+    )
+    validate_range("discovery.max_keyspaces", discovery.max_keyspaces, 1, 65536)
+  }
 }
 
 ///|
@@ -519,12 +538,15 @@ async fn Session::select(
   let candidates = self.plan_indices(hint, attempted)
   if !candidates.is_empty() &&
     (
-      self.config.limits.overload_policy == Reject ||
+      (
+        self.config.enforce_limits &&
+        self.config.limits.overload_policy == Reject
+      ) ||
       self.config.connection.overload_policy == Reject
     ) &&
     self.nodes[candidates[0]].representative() is Some(connection) &&
     connection.admission.block_reason(bytes) is Some(reason) {
-    raise Overloaded(reason)
+    raise reason
   }
   let observation = match self.config.connection.metrics {
     Some(metrics) => Some(WaitObservation::new(metrics, Connection, bytes))
@@ -709,7 +731,7 @@ async fn Session::request_accepted(
 
 ///|
 /// 执行一次逻辑查询；默认不重放，只有显式幂等且策略允许时才重试。
-pub async fn Session::query(
+pub async fn Session::query_with_profile(
   self : Session,
   cql : String,
   values? : Array[@types.Value] = [],
@@ -720,7 +742,7 @@ pub async fn Session::query(
   routing? : RoutingHint,
   profile? : ExecutionProfile,
 ) -> @protocol.ResultSet {
-  self.query_with_info(
+  self.query_with_profile_info(
     cql,
     values~,
     options?,
@@ -733,4 +755,26 @@ pub async fn Session::query(
     ExecutionError(error, _) => raise error
     error => raise error
   }
+}
+
+///|
+pub async fn Session::query(
+  self : Session,
+  cql : String,
+  values? : Array[@types.Value] = [],
+  options? : @protocol.QueryOptions,
+  deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+  routing? : RoutingHint,
+) -> @protocol.ResultSet {
+  self.query_with_profile(
+    cql,
+    values~,
+    options?,
+    deadline?,
+    idempotent~,
+    retry?,
+    routing?,
+  )
 }

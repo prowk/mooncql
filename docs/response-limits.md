@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [背压](backpressure.md) · [取消](timeouts.md)
 
-本页接口适用于当前开发分支。通过 `ResponseLimits::new` 构造不可变限制，在 `with_connection`、`with_serial_connection`、`connect` 或 `with_session` 传入 `response_limits~`。Session 的所有数据槽、重连和控制连接继承该限制；原有 Config 记录无需添加字段。
+本页接口适用于当前开发分支。通过 `ResponseLimits::new` 构造不可变限制，在 `with_connection_builder`、`with_serial_connection_builder`、`connect_builder` 或 `with_session_builder` 传入 `response_limits~`。Session 的所有数据槽、重连和控制连接继承该限制；原有 ConnectionBuilder 记录无需添加字段。
 
 | 参数 | 默认值 | 合法范围 |
 | --- | --- | --- |
@@ -12,7 +12,7 @@
 | `max_value_nodes` | 1000000 | 1–1000000 |
 | `max_depth` | 32 | 1–32 |
 
-未传入限制时，正文沿用 `Config.max_frame_bytes`，其他维度沿用既有协议上限。显式正文限制与 `max_frame_bytes` 取较小者，作用于解压后的整个响应 envelope 正文，并在读取或重组超长正文之前失败。行数、列数、每页所有单元格共用的 Value 节点数分别检查，嵌套类型和 Value 深度均受约束。预处理参数和结果元数据同样检查列数与类型深度。零行／零列上限可拒绝相应结果；VOID 不受行数限制。
+未传入限制时，正文沿用 `ConnectionBuilder.max_frame_bytes`，其他维度沿用既有协议上限。显式正文限制与 `max_frame_bytes` 取较小者，作用于解压后的整个响应 envelope 正文，并在读取或重组超长正文之前失败。行数、列数、每页所有单元格共用的 Value 节点数分别检查，嵌套类型和 Value 深度均受约束。预处理参数和结果元数据同样检查列数与类型深度。零行／零列上限可拒绝相应结果；VOID 不受行数限制。
 
 非法限制由构造器在建连前返回带参数名与范围的 Configuration。收到超限响应返回 CodecError 并关闭物理连接，唤醒请求并回收 stream 和发送额度；不尝试跳过半个 ROWS 后继续解码。Session 可按既有规则重建连接；未知结果的写入和 BATCH 不自动重放。控制目录也可能因为过低限制无法刷新，此时保持 stale。
 

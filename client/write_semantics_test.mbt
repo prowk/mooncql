@@ -58,8 +58,8 @@ async test "commitment concurrent QUERY and three BATCH kinds correlate reversed
         }
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let actions : Array[async () -> Unit] = Array::makei(16, id => {
             () => {
@@ -141,8 +141,11 @@ async test "commitment QUERY and three BATCH kinds isolate unsent cancelled late
           respond(peer, marker.header.stream, 8, named_result("after error"))
           assert_eq(peer.read_some(), None)
         })
-        let closed = @client.with_connection(
-          config=@client.Config::new(port=server.addr.port(), max_in_flight=1),
+        let closed = @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(
+            port=server.addr.port(),
+            max_in_flight=1,
+          ),
           connection => {
             @async.with_task_group(requests => {
               let blocker = requests.spawn(() => connection.query("blocker"))
@@ -224,8 +227,8 @@ async test "commitment partial QUERY and BATCH send cancellation or EOF closes w
               }
             }
           })
-          @client.with_connection(
-            config=@client.Config::new(
+          @client.with_connection_builder(
+            config=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               max_frame_bytes=40000000,
             ),
@@ -292,8 +295,8 @@ async test "commitment mismatched UNPREPARED and prepared BATCH never trigger re
         respond(peer, marker.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let prepared = connection.prepare("INSERT INTO ks.t(id) VALUES(?)")
           assert_true(

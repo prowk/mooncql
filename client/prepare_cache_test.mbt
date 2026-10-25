@@ -28,8 +28,8 @@ async test "LRU refreshes hits and eviction preserves previously returned prepar
         respond(peer, execute.header.stream, 8, rows_result([2], None))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           prepared_cache_capacity=2,
         ),
@@ -80,8 +80,8 @@ async test "singleflight works with disabled cache and does not serialize differ
         respond(peer, again.header.stream, 8, prepared_result(b"second"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           prepared_cache_capacity=0,
         ),
@@ -135,8 +135,8 @@ async test "prepare failure is shared by waiters then cleared for a later retry"
         respond(peer, retry.header.stream, 8, prepared_result(b"retry"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           @async.with_task_group(requests => {
             async fn prepare() {
@@ -190,8 +190,11 @@ async test "cancelled prepare follower returns its queue budget without cancelli
         respond(peer, prepare.header.stream, 8, prepared_result(b"owner"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), max_waiting=1),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          max_waiting=1,
+        ),
         connection => {
           @async.with_task_group(requests => {
             let first = requests.spawn(() => connection.prepare("query"))
@@ -251,8 +254,8 @@ async test "cancelled prepare owner lets a waiter retry and ignores its late pre
         respond(peer, execute.header.stream, 8, rows_result([7], None))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           @async.with_task_group(requests => {
             let first = requests.spawn(() => connection.prepare("query"))

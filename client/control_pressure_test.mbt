@@ -56,9 +56,9 @@ async test "local control queue timeout or rejection retains healthy subscribed 
             _ => ()
           }
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               queue_timeout_ms=20,
               heartbeat_interval_ms=0,
@@ -90,7 +90,7 @@ async test "local control queue timeout or rejection retains healthy subscribed 
               assert_eq(accepted[0], 2)
               assert_eq(registrations[0], 1)
               assert_true(
-                pressure.last_error is Some(@client.Overloaded(_)) ||
+                pressure.last_error is Some(@client.SessionOverloaded(_)) ||
                 pressure.last_error is Some(@client.TimedOut(_)),
               )
               release.put(())

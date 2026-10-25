@@ -20,8 +20,8 @@ async test "cancelling a slot waiter sends nothing and preserves the active requ
         respond(peer, last.header.stream, 8, named_result("last"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_serial_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_serial_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           @async.with_task_group(requests => {
             let first = requests.spawn(() => connection.query("first"))
@@ -67,8 +67,11 @@ async test "serial timeout retains a stream until its delayed response is draine
         respond(peer, second.header.stream, 8, named_result("second"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_serial_connection(
-        config=@client.Config::new(port=server.addr.port(), timeout_ms=100),
+      @client.with_serial_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          timeout_ms=100,
+        ),
         connection => {
           assert_true(
             try {
@@ -108,8 +111,8 @@ async test "abandoned TTL closes an idle connection and drains pending state" {
         seen.put(())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           abandoned_timeout_ms=50,
         ),
@@ -153,8 +156,11 @@ async test "exceeding abandoned count fails other pending work and returns all s
         }
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), max_abandoned=1),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          max_abandoned=1,
+        ),
         connection => {
           @async.with_task_group(requests => {
             let first = requests.spawn(() => connection.query("first"))
@@ -213,8 +219,8 @@ async test "write lock cancellation is isolated while partial send cancellation 
           ()
         }
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           max_frame_bytes=40000000,
         ),

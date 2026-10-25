@@ -1,5 +1,5 @@
 ///|
-async fn verify_connection_health(config : @client.Config) -> Unit {
+async fn verify_connection_health(config : @client.ConnectionBuilder) -> Unit {
   let probes = [0]
   let metrics = @client.Metrics::new(listener=event => {
     if event is RequestFinished(request) &&
@@ -8,8 +8,8 @@ async fn verify_connection_health(config : @client.Config) -> Unit {
       probes[0] += 1
     }
   })
-  @client.with_session(
-    config=@client.SessionConfig::new(connection={
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(connection={
       ..config,
       heartbeat_interval_ms: 50,
       heartbeat_timeout_ms: 2000,

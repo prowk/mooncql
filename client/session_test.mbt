@@ -23,9 +23,9 @@ async test "session replaces a disconnected connection without replaying the fai
         respond(peer, query.header.stream, 8, named_result("recovered"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           assert_true(
@@ -68,9 +68,12 @@ async test "closing session cancels a stalled connect and wakes all connection w
         seen.put(())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port(), max_waiting=2),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
+            port=server.addr.port(),
+            max_waiting=2,
+          ),
         ),
         session => {
           @async.with_task_group(requests => {
@@ -127,9 +130,9 @@ async test "unavailable session retries with bounded backoff and respects the ca
     let server = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
     let port = server.addr.port()
     server.close()
-    @client.with_session(
-      config=@client.SessionConfig::new(
-        connection=@client.Config::new(port~, connect_timeout_ms=100),
+    @client.with_session_builder(
+      config=@client.SessionBuilder::new(
+        connection=@client.ConnectionBuilder::new(port~, connect_timeout_ms=100),
         backoff_initial_ms=40,
         backoff_max_ms=100,
         jitter=0.25,
@@ -179,9 +182,9 @@ async test "scope exit joins idle session recovery and rejects use after scope" 
         respond(peer, query.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      let escaped = @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      let escaped = @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           assert_true(session.query("healthy") is Void)

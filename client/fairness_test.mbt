@@ -31,7 +31,7 @@ async test "Connection and Session send oldest large query before continuous sma
         })
         let values : Array[@types.Value] = [Bytes(Bytes::make(1000, b'x'))]
         let max_bytes = @protocol.query("large", values~).body.length() + 9
-        let config = @client.Config::new(
+        let config = @client.ConnectionBuilder::new(
           port=server.addr.port(),
           max_in_flight=64,
           max_in_flight_bytes=max_bytes,
@@ -65,8 +65,8 @@ async test "Connection and Session send oldest large query before continuous sma
           assert_eq(waiting(), 0)
         }
         if session_mode {
-          @client.with_session(
-            config=@client.SessionConfig::new(
+          @client.with_session_builder(
+            config=@client.SessionBuilder::new(
               connection=config,
               limits=@client.SessionLimits::new(
                 max_in_flight=64,
@@ -82,7 +82,7 @@ async test "Connection and Session send oldest large query before continuous sma
             },
           )
         } else {
-          @client.with_connection(config~, connection => {
+          @client.with_connection_builder(config~, connection => {
             exercise((cql, values) => connection.query(cql, values~), () => {
               connection.waiting_count()
             })

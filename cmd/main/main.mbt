@@ -6,14 +6,14 @@ async fn main {
     Some(port) => @string.parse_int(port)
     None => 9042
   }
-  let config = @client.Config::new(
+  let config = @client.ConnectionBuilder::new(
     host~,
     port~,
     username?=@env.get_env_var("CQL_USERNAME"),
     password?=@env.get_env_var("CQL_PASSWORD"),
     compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
   )
-  @client.with_connection(config~, connection => {
+  @client.with_connection_builder(config~, connection => {
     let result = connection.query(
       "SELECT cluster_name, release_version FROM system.local",
     )

@@ -16,6 +16,7 @@ import uuid
 import zipfile
 
 from observability_bench import source_digest
+from benchmark_api import for_baseline
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = 2026101821
@@ -65,11 +66,16 @@ def baseline(ref):
     assert (folder / '.source-commit').read_text(encoding='utf-8') == commit
     target = folder / 'cmd/bench'
     target.mkdir(parents=True, exist_ok=True)
+    client_api = (folder / 'client/pkg.generated.mbti').read_text(encoding='utf-8')
     for path in (ROOT / 'cmd/bench').iterdir():
-        if path.is_file(): shutil.copyfile(path, target / path.name)
+        if path.is_file():
+            if path.suffix == '.mbt':
+                (target / path.name).write_text(for_baseline(path.read_text(encoding='utf-8'), client_api), encoding='utf-8')
+            else:
+                shutil.copyfile(path, target / path.name)
     command(['moon', 'update'], folder)
     binary = build(folder)
-    return {'commit': commit, 'source_sha256': source_digest(folder),
+    return {'commit': commit, 'source_sha256': source_digest(folder), 'api_name_adapter': 'Builder to stable names when needed; parameters unchanged',
             'generated_c_sha256': generated_c_digest(folder), 'binary': binary}
 
 

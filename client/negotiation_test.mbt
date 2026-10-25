@@ -23,8 +23,8 @@ async test "OPTIONS before and after startup follows v5 framing in all handshake
             w.raw(b"extension")
             respond(socket, options.header.stream, 6, w.to_bytes())
           })
-          @client.with_connection(
-            config=@client.Config::new(
+          @client.with_connection_builder(
+            config=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               compression=compressed,
               username?=if auth { Some("user") } else { None },

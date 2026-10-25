@@ -11,7 +11,7 @@ async fn main {
     fail("invalid benchmark size")
   }
   let (config, completed) = benchmark_config(mode)
-  @client.with_connection(config~, connection => {
+  @client.with_connection_builder(config~, connection => {
     guard connection.query("SELECT release_version FROM system.local")
       is Rows(version) else {
       fail("missing server version")

@@ -46,9 +46,9 @@ async test "one pooled heartbeat failure recycles only that connection while its
           }
         })
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             max_in_flight=1,
             heartbeat_interval_ms=20,
@@ -102,7 +102,9 @@ async test "topology removal closes every slot of the removed node and preserves
       let control_peer : @async.Queue[Peer] = @async.Queue(kind=Blocking(1))
       let include_peer = [true]
       let events = []
-      let metrics = @client.Metrics::new(listener=event => events.push(event))
+      let metrics = @client.Metrics::with_diagnostics(event => {
+        events.push(event)
+      })
       let closed = [0, 0]
       let workers = []
       for index in 0..<2 {
@@ -157,10 +159,13 @@ async test "topology removal closes every slot of the removed node and preserves
           }
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
           contact_points=[@client.Endpoint::new(port=servers[0].addr.port())],
-          connection=@client.Config::new(heartbeat_interval_ms=0, metrics~),
+          connection=@client.ConnectionBuilder::new(
+            heartbeat_interval_ms=0,
+            metrics~,
+          ),
           connections_per_node=2,
           discovery=@client.DiscoveryConfig::new(
             refresh_interval_ms=60000,
@@ -201,18 +206,16 @@ async test "topology removal closes every slot of the removed node and preserves
           assert_eq(page.row(0).int("id"), 0)
           assert_true(
             events.any(event => {
-              event is RequestFinished({ scope: Control, opcode: 11, .. })
+              event is RpcFinished(Control, { opcode: 11, .. }, _)
             }),
           )
           assert_true(
             events.any(event => {
-              event is RequestFinished({ scope: Control, opcode: 7, .. })
+              event is RpcFinished(Control, { opcode: 7, .. }, _)
             }),
           )
           assert_true(
-            events.any(event => {
-              event is RequestFinished({ scope: Data, opcode: 7, .. })
-            }),
+            events.any(event => event is RpcFinished(Data, { opcode: 7, .. }, _)),
           )
           session.close()
           assert_eq(session.resources().background_task_handles, 0)

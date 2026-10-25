@@ -8,7 +8,6 @@ pub(all) enum RequestOutcome {
   Disconnected
   InvalidConfiguration
   TlsError
-  AuthenticationError
   ProtocolError
   TransportError
   OtherFailure
@@ -83,6 +82,7 @@ pub(all) struct OperationEvent {
   kind : OperationKind
   outcome : RequestOutcome
   elapsed_ms : Int64
+  session_budget : Bool
 } derive(@debug.Debug)
 
 ///|
@@ -90,7 +90,6 @@ pub extend OperationEvent with @debug.Debug::{to_repr}
 
 ///|
 pub(all) struct RequestEvent {
-  scope : RpcScope
   endpoint : Endpoint
   opcode : Int
   request_bytes : Int64
@@ -115,22 +114,43 @@ pub(all) enum MetricEvent {
   Reconnected(Endpoint, Int, Bool)
   Cache(Endpoint, CacheEvent)
   WaitFinished(WaitScope, Int64, Int64, RequestOutcome)
-  OperationStarted(OperationKind)
-  OperationFinished(OperationEvent)
-  RetryStarted(Endpoint, Int)
 } derive(@debug.Debug)
 
 ///|
 pub extend MetricEvent with @debug.Debug::{to_repr}
 
 ///|
-pub(all) struct MetricsSnapshot {
+/// 扩展诊断使用独立事件类型，保留 0.2.0 MetricEvent 的穷尽匹配合同。
+pub(all) enum DiagnosticEvent {
+  Legacy(MetricEvent)
+  OperationStarted(OperationKind)
+  OperationFinished(OperationEvent)
+  RetryStarted(Endpoint, Int)
+  RpcFinished(RpcScope, RequestEvent, Bool)
+  ConnectionFailure(Endpoint, RequestOutcome, Bool)
+} derive(@debug.Debug)
+
+///|
+pub extend DiagnosticEvent with @debug.Debug::{to_repr}
+
+///|
+pub(all) struct OperationMetricsSnapshot {
   mut logical_started : Int64
   mut logical_succeeded : Int64
   mut logical_failed : Int64
   mut logical_cancelled : Int64
   mut logical_ms : Int64
   mut retry_attempts : Int64
+} derive(@debug.Debug, ToJson)
+
+///|
+pub extend OperationMetricsSnapshot with @debug.Debug::{to_repr}
+
+///|
+pub extend OperationMetricsSnapshot with ToJson::{to_json}
+
+///|
+pub(all) struct MetricsSnapshot {
   mut requests_started : Int64
   mut requests_succeeded : Int64
   mut requests_failed : Int64
@@ -193,20 +213,42 @@ pub extend MetricsSnapshot with ToJson::{to_json}
 ///|
 pub struct Metrics {
   data : MetricsSnapshot
+  operations : OperationMetricsSnapshot
   listener : ((MetricEvent) -> Unit raise)?
+  diagnostics : ((DiagnosticEvent) -> Unit raise)?
 }
 
 ///|
 pub fn Metrics::new(listener? : (MetricEvent) -> Unit raise) -> Metrics {
+  metrics_with_listeners(listener, None)
+}
+
+///|
+/// 同步、有界且不排队；回调不得阻塞，抛错仅计入 listener_errors。
+pub fn Metrics::with_diagnostics(
+  diagnostics : (DiagnosticEvent) -> Unit raise,
+  listener? : (MetricEvent) -> Unit raise,
+) -> Metrics {
+  metrics_with_listeners(listener, Some(diagnostics))
+}
+
+///|
+fn metrics_with_listeners(
+  listener : ((MetricEvent) -> Unit raise)?,
+  diagnostics : ((DiagnosticEvent) -> Unit raise)?,
+) -> Metrics {
   {
     listener,
-    data: {
+    diagnostics,
+    operations: {
       logical_started: 0L,
       logical_succeeded: 0L,
       logical_failed: 0L,
       logical_cancelled: 0L,
       logical_ms: 0L,
       retry_attempts: 0L,
+    },
+    data: {
       requests_started: 0L,
       requests_succeeded: 0L,
       requests_failed: 0L,
@@ -268,6 +310,11 @@ pub fn Metrics::snapshot(self : Metrics) -> MetricsSnapshot {
 }
 
 ///|
+pub fn Metrics::operations_snapshot(self : Metrics) -> OperationMetricsSnapshot {
+  { ..self.operations, }
+}
+
+///|
 pub fn MetricsSnapshot::total_timeouts(self : MetricsSnapshot) -> Int64 {
   self.request_timeouts +
   self.connect_timeouts +
@@ -314,6 +361,18 @@ fn Metrics::emit(self : Metrics, event : MetricEvent) -> Unit {
       _ => self.data.listener_errors += 1L
     }
   }
+  if self.diagnostics is Some(_) {
+    self.emit_diagnostic(Legacy(event))
+  }
+}
+
+///|
+fn Metrics::emit_diagnostic(self : Metrics, event : DiagnosticEvent) -> Unit {
+  if self.diagnostics is Some(listener) {
+    listener(event) catch {
+      _ => self.data.listener_errors += 1L
+    }
+  }
 }
 
 ///|
@@ -332,9 +391,9 @@ fn Metrics::cache(
 }
 
 ///|
-pub async fn[G] connect(
+pub async fn[G] connect_builder(
   group : @async.TaskGroup[G],
-  config? : Config = Config::new(),
+  config? : ConnectionBuilder = ConnectionBuilder::new(),
   deadline? : Deadline,
   response_limits? : ResponseLimits,
 ) -> Connection {
@@ -344,7 +403,7 @@ pub async fn[G] connect(
 ///|
 async fn[G] connect_observed(
   group : @async.TaskGroup[G],
-  config : Config,
+  config : ConnectionBuilder,
   deadline : Deadline?,
   shared : Admission?,
   response_limits? : ResponseLimits,
@@ -365,6 +424,7 @@ async fn[G] connect_observed(
   defer (if !completed {
     metrics.data.connect_cancellations += 1L
     metrics.emit(ConnectionFailed(endpoint, Cancelled))
+    metrics.emit_diagnostic(ConnectionFailure(endpoint, Cancelled, false))
   })
   let result = Ok(
     connect_internal(group, config~, deadline?, shared?, response_limits?),
@@ -384,6 +444,13 @@ async fn[G] connect_observed(
         metrics.data.connect_timeouts += 1L
       }
       metrics.emit(ConnectionFailed(endpoint, request_outcome(error)))
+      metrics.emit_diagnostic(
+        ConnectionFailure(
+          endpoint,
+          request_outcome(error),
+          error is Authentication(_),
+        ),
+      )
       raise error
     }
   }
@@ -429,11 +496,12 @@ fn request_outcome(error : Error) -> RequestOutcome {
       }
     Server(error) => ServerError(error.code)
     TimedOut(info) => Timeout(info)
-    Overloaded(reason) => LocalOverload(reason)
+    OperationTimedOut(_, info) => Timeout(info)
+    Overloaded(reason) | SessionOverloaded(reason) => LocalOverload(reason)
     Closed | HeartbeatFailed | @io.ReaderClosed => Disconnected
     Configuration(_) => InvalidConfiguration
     TlsFailure(_) => TlsError
-    Authentication(_) => AuthenticationError
+    Authentication(_) => OtherFailure
     Unexpected(_) | @codec.CodecError(_) => ProtocolError
     @os_error.OSError(_, ..) => TransportError
     _ => OtherFailure
@@ -535,12 +603,13 @@ priv struct RequestObservation {
   started : Int64
   mut executing : Int64?
   mut outcome : RequestOutcome
+  mut session_budget : Bool
 }
 
 ///|
 fn RequestObservation::new(
   metrics : Metrics,
-  config : Config,
+  config : ConnectionBuilder,
   request : @protocol.Request,
   scope : RpcScope,
 ) -> RequestObservation {
@@ -558,6 +627,7 @@ fn RequestObservation::new(
     started,
     executing: None,
     outcome: Cancelled,
+    session_budget: false,
   }
 }
 
@@ -587,18 +657,19 @@ fn RequestObservation::finish(
   }
   data.queue_ms += queue_ms
   data.execution_ms += execution_ms
-  self.metrics.emit(
-    RequestFinished({
-      scope: self.scope,
-      endpoint: self.endpoint,
-      opcode: self.opcode,
-      request_bytes: self.bytes,
-      outcome: self.outcome,
-      phase: context.phase,
-      may_have_been_sent: context.sent,
-      queue_ms,
-      execution_ms,
-    }),
+  let event = RequestEvent::{
+    endpoint: self.endpoint,
+    opcode: self.opcode,
+    request_bytes: self.bytes,
+    outcome: self.outcome,
+    phase: context.phase,
+    may_have_been_sent: context.sent,
+    queue_ms,
+    execution_ms,
+  }
+  self.metrics.emit(RequestFinished(event))
+  self.metrics.emit_diagnostic(
+    RpcFinished(self.scope, event, self.session_budget),
   )
 }
 
@@ -647,6 +718,7 @@ async fn Connection::request_measured(
     Err(error) => {
       if observation is Some(observation) {
         observation.outcome = request_outcome(error)
+        observation.session_budget = is_session_budget_error(error)
       }
       raise error
     }

@@ -18,7 +18,7 @@ test "backoff class exponential cap and seeded full jitter bounds" {
     jitter=0.0,
   )
   let cases : Array[(Error, Int)] = [
-    (Overloaded(SessionByteLimit), 2),
+    (SessionOverloaded(ByteLimit), 2),
     (
       TimedOut({ phase: WaitingSlot, scope: Queue, may_have_been_sent: false, }),
       2,

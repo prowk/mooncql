@@ -20,7 +20,7 @@
 
 ## 可配置的 DDL 后等待
 
-在 `SessionConfig::new(schema_agreement=SchemaAgreementConfig::new(wait_after_ddl=true))` 开启自动等待。当前开发示例 [cmd/features](../cmd/features/main.mbt)包含可编译配置。
+在 `SessionBuilder::new(schema_agreement=SchemaAgreementConfig::new(wait_after_ddl=true))` 开启自动等待。当前开发示例 [cmd/features](../cmd/features/main.mbt)包含可编译配置。
 
 | 配置 | 默认值 | 语义 |
 | --- | --- | --- |
@@ -29,7 +29,7 @@
 | `poll_interval_ms` | 100 | 检查间隔，范围 1–60000 毫秒 |
 | `max_nodes` | 1024 | 本轮最多检查的存活节点数，范围 1–65536；超限报告 Unknown 和限制错误 |
 
-成功 DDL 的结果和等待结果分别保留：使用 `query_with_info` 读取 `execution.value` 与 `execution.info.schema_agreement`。即使 schema 尚未收敛或等待超时，value 仍然是已经成功的 SchemaChanged，`attempt_count` 仍描述原业务请求，等待过程不会重新发送 DDL。后续操作是否继续由应用决定。
+成功 DDL 的结果和等待结果分别保留：使用新增的 `query_with_schema_info` 读取 SchemaExecution 的 `execution.value` 与 `execution.schema_agreement`，原业务信息仍在 `execution.info`。稳定接口 `query_with_info` 继续返回只有 value／info 的 Execution，不扩展 ExecutionInfo 的公开记录字段；显式开启等待时仍会等待，但需要读取等待报告的应用使用新接口。即使 schema 尚未收敛或等待超时，value 仍然是已经成功的 SchemaChanged，`attempt_count` 仍描述原业务请求，等待过程不会重新发送 DDL。后续操作是否继续由应用决定。
 
 普通 `query` 使用同样的可选等待，但只返回业务结果；需要判断收敛状态时应使用 `query_with_info`。默认关闭自动等待的调用、Connection 接口和原始 `Session.request` 保持原有行为；原始入口需要显式调用检查方法。服务端没有返回 SchemaChanged 的无变化操作不附加等待。
 

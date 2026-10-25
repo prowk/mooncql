@@ -135,9 +135,9 @@ async test "pool slots keep prepared IDs result metadata and preparation locks i
           }
         })
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             heartbeat_interval_ms=0,
           ),
@@ -226,9 +226,9 @@ async test "invalid per-node pool sizes fail before any network operation" {
   for size in [0, 9, -1] {
     assert_true(
       try {
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=1),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(port=1),
             connections_per_node=size,
           ),
           _ => (),

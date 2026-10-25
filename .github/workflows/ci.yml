@@ -29,6 +29,10 @@ jobs:
         run: python scripts/package_scope.py
       - if: steps.package_scope.outputs.required == 'true'
         run: python scripts/package_acceptance.py
+      - if: steps.package_scope.outputs.required == 'true'
+        run: moon package --frozen
+      - if: steps.package_scope.outputs.required == 'true'
+        run: python scripts/patch_compatibility.py
       - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
       - run: moon test client/state_machine_test.mbt --target native --deny-warn

@@ -47,8 +47,8 @@ async test "commitment old NO_METADATA response decodes with its sent schema whi
         respond(peer, current.header.stream, 8, body.to_bytes())
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let statement = connection.prepare("SELECT id FROM ks.t WHERE id=?")
           @async.with_task_group(requests => {

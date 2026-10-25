@@ -14,11 +14,14 @@ test "cached metadata cannot bypass nesting limit even for NULL cells or empty p
     }
     let body = w.to_bytes()
     assert_true(
-      @protocol.decode_result(body, cached=columns, max_depth=3) is Rows(_),
+      @protocol.decode_result_limited(body, cached=columns, max_depth=3)
+      is Rows(_),
     )
     assert_true(
       try {
-        ignore(@protocol.decode_result(body, cached=columns, max_depth=2))
+        ignore(
+          @protocol.decode_result_limited(body, cached=columns, max_depth=2),
+        )
         false
       } catch {
         @codec.CodecError(_) => true
@@ -43,7 +46,7 @@ test "invalid decode limits fail for VOID as well as ROWS" {
     assert_true(
       try {
         ignore(
-          @protocol.decode_result(
+          @protocol.decode_result_limited(
             b"\x00\x00\x00\x01",
             max_value_nodes=nodes,
             max_rows=rows,

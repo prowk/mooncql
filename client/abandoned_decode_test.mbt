@@ -51,8 +51,8 @@ async test "abandoned body skips semantic decode while CRC direction stream and 
               assert_eq(peer.read_some(), None)
             }
           })
-          @client.with_connection(
-            config=@client.Config::new(
+          @client.with_connection_builder(
+            config=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               compression=compressed,
               heartbeat_interval_ms=0,

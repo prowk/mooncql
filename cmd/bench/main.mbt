@@ -168,7 +168,7 @@ async fn benchmark() -> Unit {
   if mode != "read" && mode != "write" && mode != "page" {
     fail("invalid benchmark mode")
   }
-  let config = @client.Config::new(
+  let config = @client.ConnectionBuilder::new(
     host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
     port=integer_env("CQL_PORT", "9042"),
     username?=@env.get_env_var("CQL_USERNAME"),
@@ -320,7 +320,7 @@ async fn benchmark() -> Unit {
 ///|
 // 嵌套既有作用域保证部分建连失败也关闭已打开连接，并保持旧基线 API 兼容。
 async fn with_bench_connections(
-  config : @client.Config,
+  config : @client.ConnectionBuilder,
   remaining : Int,
   connections : Array[@client.Connection],
   body : async (Array[@client.Connection]) -> Unit,
@@ -328,7 +328,7 @@ async fn with_bench_connections(
   if remaining == 0 {
     body(connections)
   } else {
-    @client.with_connection(config~, connection => {
+    @client.with_connection_builder(config~, connection => {
       connections.push(connection)
       defer ignore(connections.pop())
       with_bench_connections(config, remaining - 1, connections, body)

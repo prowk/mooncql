@@ -16,7 +16,7 @@
 
 ## 可插拔认证
 
-`Config.auth_provider` 接受 `AuthProvider`；省略时仍使用原有 username／password PasswordAuthenticator。两种配置不能同时提供。
+`ConnectionBuilder.auth_provider` 接受 `AuthProvider`；省略时仍使用原有 username／password PasswordAuthenticator。两种配置不能同时提供。
 
 `AuthProvider.password(credentials)` 在每次新连接建立时调用异步凭据工厂，工厂接收节点 Endpoint，返回 `(username,password)`。应用可在工厂中读取密钥管理系统的当前凭据；工厂返回的认证会话独立于其他连接，更新凭据不会终止已经认证的在途请求。
 
@@ -60,14 +60,14 @@ async fn main {
     (None, None) => None
     _ => fail("set both CQL_USERNAME and CQL_PASSWORD")
   }
-  let config = @client.Config::new(
+  let config = @client.ConnectionBuilder::new(
     host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
     port=@string.parse_int(@env.get_env_var("CQL_PORT").unwrap_or("9042")),
     auth_provider?=provider,
     compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
   )
-  @client.with_session(
-    config=@client.SessionConfig::new(
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(
       connection=config,
       connections_per_node=@string.parse_int(
         @env.get_env_var("CQL_POOL_SIZE").unwrap_or("1"),

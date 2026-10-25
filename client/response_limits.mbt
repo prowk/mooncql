@@ -1,5 +1,5 @@
 ///|
-/// 不可变的接收限制，在启动作用域前构造并校验；不改变 Config 的公开记录字段。
+/// 不可变的接收限制，在启动作用域前构造并校验；不改变 ConnectionBuilder 的公开记录字段。
 pub struct ResponseLimits {
   body_bytes : Int
   rows : Int

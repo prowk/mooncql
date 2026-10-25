@@ -86,8 +86,8 @@ async test "prepared cache validates bindings and recovers UNPREPARED once" {
       assert_eq(r.bytes(), Some(b"\x00\x00\x00\x07"))
       respond(socket, execute_again.header.stream, 8, rows_result([7], None))
     })
-    @client.with_connection(
-      config=@client.Config::new(port=server.addr.port()),
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         let statement = connection.prepare("SELECT id FROM ks.t WHERE id=?")
         ignore(connection.prepare("SELECT id FROM ks.t WHERE id=?"))
@@ -155,8 +155,8 @@ async test "pager continues after an empty page and preserves bound values" {
       }
       assert_eq(socket.read_some(), None)
     })
-    @client.with_connection(
-      config=@client.Config::new(port=server.addr.port()),
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         let bindings : Array[@types.Value] = [Integer(42)]
         let pager = connection.pages(

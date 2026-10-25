@@ -1,7 +1,6 @@
 ///|
 pub(all) suberror DriverError {
   Closed
-  Draining
   Unexpected(String)
   Authentication(String)
   TlsFailure(String)
@@ -18,7 +17,7 @@ pub(all) suberror DriverError {
 pub extend DriverError with @debug.Debug::{to_repr}
 
 ///|
-pub(all) struct Config {
+pub(all) struct ConnectionBuilder {
   host : String
   port : Int
   username : String?
@@ -50,7 +49,7 @@ pub(all) struct Config {
 
 ///|
 /// 构造连接配置，默认操作预算十秒、心跳三十秒；连接前统一校验参数与认证冲突。
-pub fn Config::new(
+pub fn ConnectionBuilder::new(
   host? : String = "127.0.0.1",
   port? : Int = 9042,
   username? : String,
@@ -78,7 +77,7 @@ pub fn Config::new(
   heartbeat_interval_ms? : Int = 30000,
   heartbeat_timeout_ms? : Int = 5000,
   metrics? : Metrics,
-) -> Config {
+) -> ConnectionBuilder {
   {
     host,
     port,
@@ -113,7 +112,7 @@ pub fn Config::new(
 ///|
 pub struct Connection {
   socket : Transport
-  config : Config
+  config : ConnectionBuilder
   response_limits : ResponseLimits
   mut delivery_bytes : Int64
   mut peak_delivery_bytes : Int64
@@ -269,7 +268,7 @@ pub async fn Connection::query(
 ///|
 async fn[G] connect_internal(
   group : @async.TaskGroup[G],
-  config? : Config = Config::new(),
+  config? : ConnectionBuilder = ConnectionBuilder::new(),
   deadline? : Deadline,
   shared? : Admission,
   response_limits? : ResponseLimits,
@@ -316,7 +315,7 @@ async fn[G] connect_internal(
 
 ///|
 async fn open_connection(
-  config : Config,
+  config : ConnectionBuilder,
   parent? : Admission,
   response_limits? : ResponseLimits,
 ) -> Connection {
@@ -418,7 +417,9 @@ pub fn Connection::abandoned_count(self : Connection) -> Int {
 }
 
 ///|
-fn Config::validate(self : Config) -> Unit raise DriverError {
+fn ConnectionBuilder::validate(
+  self : ConnectionBuilder,
+) -> Unit raise DriverError {
   for
     (name, value, minimum, maximum) in [
       ("connect_timeout_ms", self.connect_timeout_ms, 1, 2147483647),

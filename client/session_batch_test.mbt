@@ -56,8 +56,8 @@ async test "Session batch prepares on the selected coordinator freezes values an
         }
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(contact_points=[
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(contact_points=[
           @client.Endpoint::new(port=a.addr.port()),
           @client.Endpoint::new(port=b.addr.port()),
         ]),
@@ -137,9 +137,9 @@ async test "Session batch does not replay unknown outcomes or UNPREPARED and ref
         respond(peer, marker.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           let prepared = session.prepare("prepared", keyspace="ks")
@@ -221,8 +221,8 @@ async test "Session batch shares one deadline across all preparations and sends 
         respond(peer, prepare.header.stream, 8, prepared_result(b"b-two-again"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(contact_points=[
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(contact_points=[
           @client.Endpoint::new(port=a.addr.port()),
           @client.Endpoint::new(port=b.addr.port()),
         ]),

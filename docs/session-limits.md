@@ -6,7 +6,9 @@
 
 ## 配置与计量
 
-通过 `SessionConfig::new(limits=SessionLimits::new(...))` 设置，默认值如下。每条连接的 `Config` 额度同时生效，两个层级均须有可用额度才准入。
+通过 `SessionBuilder::new(limits=SessionLimits::new(...))` 设置，默认值如下。每条连接的 `ConnectionBuilder` 额度同时生效，两个层级均须有可用额度才准入。
+
+旧 with_session／SessionConfig 继续只执行原有逐连接在途预算，不自动增加全局 128 个限制；其 Session.budget().limits 为 None，但计数仍聚合当前全部连接。SessionConfig.builder() 保留此行为。直接创建 SessionBuilder 时 enforce_limits 为 true，limits 为 Some；要在转换后的 Builder 启用总额度，可显式把 enforce_limits 设为 true。
 
 | SessionLimits 参数 | 默认值 | 含义 |
 | --- | --- | --- |
@@ -28,7 +30,7 @@ Session 选择等待、schema 读取合并、节点准备锁及物理连接等�
 
 所有健康候选满载时进入有界 Session 等待，收到任意连接归还额度的通知后由 FIFO 队首重新选择，避免固定排在某条满载连接上。新请求不得越过等待中的大请求。满载等待受 `queue_timeout_ms` 与操作 Deadline 中较早者约束，阶段为 `WaitingSlot`。没有可选健康节点时继续使用原有 `WaitingConnection` 和总操作 Deadline。取消与期限到达立即移除 FIFO 位置；路由约束使队首没有候选时，后续操作也可能等待，业务侧仍应控制同时创建的任务数。
 
-Session 或连接任一层配置 `Reject` 时，不把满载操作放入队列；没有可选健康节点仍遵守恢复等待语义。总预算的错误分别为 `SessionInFlightLimit`、`SessionByteLimit`、`SessionWaitingQueueFull`、`SessionWaitingBytesFull` 和 `SessionRequestTooLarge`；单连接错误保留既有名称。单条请求超过任何在途字节上限时直接失败，不等待一个永远不可能满足的预算。服务器 OVERLOADED 仍是独立的服务端错误。
+Session 或连接任一层配置 `Reject` 时，不把满载操作放入队列；没有可选健康节点仍遵守恢复等待语义。总预算返回独立的 `SessionOverloaded(reason)`，原因沿用稳定版的 InFlightLimit、ByteLimit、WaitingQueueFull、WaitingBytesFull 和 RequestTooLarge；单连接继续返回 Overloaded(reason)。这种分离不扩展旧 OverloadReason 的封闭分支。单条请求超过任何在途字节上限时直接失败，不等待一个永远不可能满足的预算。服务器 OVERLOADED 仍是独立的服务端错误。
 
 取消或超时的排队者立即归还等待额度；完整发送后的请求继续占用两层在途额度，直到迟到响应排空或连接关闭。重试的每个实际 RPC 独立计费，旧请求的保留额度不会因开始重试而消失；是否允许重放仍由显式幂等声明和原有故障语义决定。
 

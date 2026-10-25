@@ -212,8 +212,8 @@ async fn run() -> Unit {
   assert_eq(hosts.length(), 3)
   let metrics = @client.Metrics::new()
   let client_host = @env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1")
-  let config = @client.SessionConfig::new(
-    connection=@client.Config::new(
+  let config = @client.SessionBuilder::new(
+    connection=@client.ConnectionBuilder::new(
       username?=@env.get_env_var("CQL_USERNAME"),
       password?=@env.get_env_var("CQL_PASSWORD"),
       compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
@@ -272,7 +272,7 @@ async fn run() -> Unit {
       (random >> 24).reinterpret_as_int().to_byte()
     }),
   )
-  let report = @client.with_session(config~, session => {
+  let report = @client.with_session_builder(config~, session => {
     wait_ready(session)
     guard session.query("SELECT release_version FROM system.local")
       is Rows(server) else {

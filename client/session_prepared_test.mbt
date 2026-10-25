@@ -133,9 +133,9 @@ async test "same session prepared object survives replacement and preserves keys
         respond(peer, execute.header.stream, 8, session_row(9))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           let statement = session.prepare(
@@ -217,9 +217,9 @@ async test "session prepared rejects mismatched UNPREPARED and bounds matching r
         respond(peer, last.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           let statement = session.prepare("query")

@@ -15,8 +15,8 @@ async test "schema node bound refuses partial success without querying a subset"
           assert_eq(peer.read_some(), None)
         })
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
           contact_points=[
             @client.Endpoint::new(port=a.addr.port()),
             @client.Endpoint::new(port=b.addr.port()),
@@ -72,21 +72,21 @@ async test "DDL remains successful when later schema permission is denied and th
         respond(peer, marker.header.stream, 8, b"\x00\x00\x00\x01")
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           schema_agreement=@client.SchemaAgreementConfig::new(
             wait_after_ddl=true,
           ),
         ),
         session => {
-          let execution = session.query_with_info(
+          let execution = session.query_with_schema_info(
             "CREATE TYPE ks.address(street text)",
             idempotent=true,
           )
           assert_true(execution.value is SchemaChanged(_))
           assert_eq(execution.info.attempt_count, 1)
-          guard execution.info.schema_agreement is Some(report) else {
+          guard execution.schema_agreement is Some(report) else {
             fail("missing schema report")
           }
           assert_eq(report.state, @client.SchemaAgreementState::Unknown)

@@ -13,6 +13,12 @@ pub fn RetryPolicy::new(
 }
 
 ///|
+fn RetryPolicy::validate(self : RetryPolicy) -> Unit raise DriverError {
+  validate_range("retry.max_attempts", self.max_attempts, 1, 64)
+  validate_range("retry.delay_ms", self.delay_ms, 0, 2147483647)
+}
+
+///|
 pub(all) struct AttemptFailure {
   attempt : Int
   endpoint : Endpoint?
@@ -33,8 +39,8 @@ priv suberror RetryPauseFinished
 // 仅本地额度或尚未发送的排队失败；不能据此判定 socket 已损坏。
 fn local_admission_failure(error : Error) -> Bool {
   match error {
-    Overloaded(RequestTooLarge | SessionRequestTooLarge) => false
-    Overloaded(_) => true
+    Overloaded(RequestTooLarge) | SessionOverloaded(RequestTooLarge) => false
+    Overloaded(_) | SessionOverloaded(_) => true
     TimedOut(info) =>
       !info.may_have_been_sent &&
       (info.phase == WaitingSlot || info.phase == WaitingWriteLock)
@@ -73,15 +79,12 @@ fn retryable(error : Error) -> Bool {
     Closed | HeartbeatFailed | @io.ReaderClosed | @os_error.OSError(_, ..) =>
       true
     TimedOut(info) => info.scope == Execution || info.scope == Queue
-    Overloaded(
+    Overloaded(InFlightLimit | ByteLimit | WaitingQueueFull | WaitingBytesFull)
+    | SessionOverloaded(
       InFlightLimit
       | ByteLimit
       | WaitingQueueFull
       | WaitingBytesFull
-      | SessionInFlightLimit
-      | SessionByteLimit
-      | SessionWaitingQueueFull
-      | SessionWaitingBytesFull
     ) => true
     Server(server) =>
       match server.detail {
@@ -100,7 +103,7 @@ fn retryable(error : Error) -> Bool {
 fn possibly_sent(error : Error, endpoint : Endpoint?) -> Bool {
   match error {
     TimedOut(info) => info.may_have_been_sent
-    Overloaded(_) | Configuration(_) => false
+    Overloaded(_) | SessionOverloaded(_) | Configuration(_) => false
     _ => endpoint is Some(_)
   }
 }
@@ -117,9 +120,7 @@ async fn[T] Session::execute_retry(
   complete? : (T, Array[AttemptFailure]) -> T,
   backoff? : RetryBackoff,
 ) -> T {
-  if policy.max_attempts < 1 || policy.max_attempts > 64 || policy.delay_ms < 0 {
-    raise Configuration("invalid retry policy")
-  }
+  policy.validate()
   let enabled = idempotent && policy.max_attempts > 1
   let failures = []
   let mut any_sent = false
@@ -134,8 +135,8 @@ async fn[T] Session::execute_retry(
         Endpoint::new(host=connection.config.host, port=connection.config.port),
       )
       if attempt > 1 && self.config.connection.metrics is Some(metrics) {
-        metrics.data.retry_attempts += 1L
-        metrics.emit(RetryStarted(endpoint.unwrap(), attempt))
+        metrics.operations.retry_attempts += 1L
+        metrics.emit_diagnostic(RetryStarted(endpoint.unwrap(), attempt))
       }
       Ok(action(connection))
     } catch {

@@ -80,6 +80,7 @@ def main():
     args = parser.parse_args()
     report = audit()
     assert not report['removed'], 'removing a stable public declaration requires a separately reviewed versioned migration'
+    assert not report['changed'], 'patch release must preserve stable declarations; use separate additive APIs for extended options'
     migration = (ROOT / 'docs/migration.md').read_text(encoding='utf-8')
     for change in report['changed']:
         owner = change['symbol'].split(' ', 1)[1].split('::', 1)[0]

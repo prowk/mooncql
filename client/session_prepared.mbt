@@ -20,7 +20,7 @@ pub struct SessionPrepared {
 
 ///|
 /// 创建 Session 逻辑语句并保留实际 PREPARE 信息；物理 ID 按节点、槽和连接代次隔离。
-pub async fn Session::prepare_with_info(
+pub async fn Session::prepare_with_profile_info(
   self : Session,
   cql : String,
   keyspace? : String,
@@ -158,7 +158,7 @@ pub fn SessionPrepared::parameters(
 
 ///|
 /// 使用选定物理连接的准备状态；选连接、必要的重新准备与重试共用同一预算。
-pub async fn SessionPrepared::execute_with_info(
+pub async fn SessionPrepared::execute_with_profile_info(
   self : SessionPrepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
@@ -250,18 +250,20 @@ pub async fn SessionPrepared::execute_with_info(
 }
 
 ///|
-pub async fn SessionPrepared::execute_conditional(
+pub async fn SessionPrepared::execute_conditional_with_profile(
   self : SessionPrepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
   profile? : ExecutionProfile,
 ) -> ConditionalResult {
-  conditional_result(self.execute(values, options?, deadline?, profile?))
+  conditional_result(
+    self.execute_with_profile(values, options?, deadline?, profile?),
+  )
 }
 
 ///|
-pub async fn SessionPrepared::execute(
+pub async fn SessionPrepared::execute_with_profile(
   self : SessionPrepared,
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
@@ -270,7 +272,7 @@ pub async fn SessionPrepared::execute(
   retry? : RetryPolicy,
   profile? : ExecutionProfile,
 ) -> @protocol.ResultSet {
-  self.execute_with_info(
+  self.execute_with_profile_info(
     values,
     options?,
     deadline?,
@@ -285,7 +287,7 @@ pub async fn SessionPrepared::execute(
 
 ///|
 /// 准备可跨连接恢复的逻辑语句，保存显式 keyspace 和执行配置；底层 Prepared 仍绑定物理连接。
-pub async fn Session::prepare(
+pub async fn Session::prepare_with_profile(
   self : Session,
   cql : String,
   keyspace? : String,
@@ -293,8 +295,76 @@ pub async fn Session::prepare(
   request_options? : @protocol.RequestOptions,
   profile? : ExecutionProfile,
 ) -> SessionPrepared {
-  self.prepare_with_info(cql, keyspace?, deadline?, request_options?, profile?).value catch {
+  self.prepare_with_profile_info(
+    cql,
+    keyspace?,
+    deadline?,
+    request_options?,
+    profile?,
+  ).value catch {
     ExecutionError(error, _) => raise error
     error => raise error
   }
+}
+
+///|
+pub async fn Session::prepare(
+  self : Session,
+  cql : String,
+  keyspace? : String,
+  deadline? : Deadline,
+  request_options? : @protocol.RequestOptions,
+) -> SessionPrepared {
+  self.prepare_with_profile(cql, keyspace?, deadline?, request_options?)
+}
+
+///|
+pub async fn Session::prepare_with_info(
+  self : Session,
+  cql : String,
+  keyspace? : String,
+  deadline? : Deadline,
+  request_options? : @protocol.RequestOptions,
+) -> Execution[SessionPrepared] {
+  self.prepare_with_profile_info(cql, keyspace?, deadline?, request_options?)
+}
+
+///|
+pub async fn SessionPrepared::execute(
+  self : SessionPrepared,
+  values : Array[@types.Value],
+  options? : @protocol.QueryOptions,
+  deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+) -> @protocol.ResultSet {
+  self.execute_with_profile(values, options?, deadline?, idempotent~, retry?)
+}
+
+///|
+pub async fn SessionPrepared::execute_conditional(
+  self : SessionPrepared,
+  values : Array[@types.Value],
+  options? : @protocol.QueryOptions,
+  deadline? : Deadline,
+) -> ConditionalResult {
+  self.execute_conditional_with_profile(values, options?, deadline?)
+}
+
+///|
+pub async fn SessionPrepared::execute_with_info(
+  self : SessionPrepared,
+  values : Array[@types.Value],
+  options? : @protocol.QueryOptions,
+  deadline? : Deadline,
+  idempotent? : Bool = false,
+  retry? : RetryPolicy,
+) -> Execution[@protocol.ResultSet] {
+  self.execute_with_profile_info(
+    values,
+    options?,
+    deadline?,
+    idempotent~,
+    retry?,
+  )
 }

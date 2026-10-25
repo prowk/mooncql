@@ -9,7 +9,7 @@ pub(all) struct SessionLimits {
 }
 
 ///|
-/// 默认 128 个 RPC／64 MiB 在途和 64 个等待者／64 MiB 等待；with_session 统一校验配置。
+/// 默认 128 个 RPC／64 MiB 在途和 64 个等待者／64 MiB 等待；with_session_builder 统一校验配置。
 pub fn SessionLimits::new(
   max_in_flight? : Int = 128,
   max_in_flight_bytes? : Int = 67108864,
@@ -45,7 +45,10 @@ fn SessionLimits::validate(self : SessionLimits) -> Unit raise DriverError {
 }
 
 ///|
-fn SessionLimits::as_config(self : SessionLimits, base : Config) -> Config {
+fn SessionLimits::as_config(
+  self : SessionLimits,
+  base : ConnectionBuilder,
+) -> ConnectionBuilder {
   {
     ..base,
     max_in_flight: self.max_in_flight,
@@ -63,7 +66,7 @@ pub(all) struct SessionBudget {
   in_flight_bytes : Int64
   waiting : Int
   waiting_bytes : Int64
-  limits : SessionLimits
+  limits : SessionLimits?
 }
 
 ///|
@@ -74,6 +77,10 @@ pub fn Session::budget(self : Session) -> SessionBudget {
     in_flight_bytes: self.admission.bytes,
     waiting: self.admission.waiting,
     waiting_bytes: self.admission.waiting_bytes,
-    limits: self.config.limits,
+    limits: if self.config.enforce_limits {
+      Some(self.config.limits)
+    } else {
+      None
+    },
   }
 }

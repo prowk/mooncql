@@ -49,9 +49,9 @@ async test "idle heartbeats share total credit skip busy Session and release res
           }),
         )
       }
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             heartbeat_interval_ms=20,
             heartbeat_timeout_ms=2000,
           ),
@@ -178,9 +178,9 @@ async test "control catalog RPC and coalesced schema readers use the same Sessio
           _ => ()
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             heartbeat_interval_ms=0,
           ),

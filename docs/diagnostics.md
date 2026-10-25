@@ -18,9 +18,11 @@
 
 RPC 尝试计数不表示服务端一定收到请求；`mooncql_rpc_possible_sent_total` 另按 may_have_been_sent 统计可能已经发送的调用，仍不等同于 Cassandra 已执行成功。
 
-`MetricEvent` 新增 `OperationStarted`、`OperationFinished`、`RetryStarted`，`RequestEvent.scope` 标识 RPC 来源。只有驱动空闲探测使用 heartbeat；手动发送 OPTIONS 仍属于普通 data。`MetricsSnapshot.logical_*` 是逻辑开始／成功／失败／取消和耗时，`retry_attempts` 是上述重试尝试。原来的 requests_*、total_timeouts() 和 total_cancellations() 保持旧口径，不把新增逻辑计数叠加进去。
+为兼容 0.2.0，`MetricEvent`、`RequestEvent`、`MetricsSnapshot` 和 `RequestOutcome` 保留原字段及分支。使用 `Metrics::with_diagnostics(callback, listener?)` 订阅独立的 `DiagnosticEvent`：`OperationStarted`、`OperationFinished`、`RetryStarted` 对应逻辑操作及重试，`RpcFinished(scope, event, session_budget)` 附带 RPC 来源及是否由 Session 总额度拒绝。OperationEvent 也有 session_budget 标记；只在 outcome 为 LocalOverload 时用于区分额度范围。`Legacy(event)` 同时转发原有事件，但导出器不能把它与 RpcFinished 重复计为两次 RPC。`ConnectionFailure(endpoint, outcome, authentication)` 保留旧结果分类并另标识认证拒绝；旧监听器仍收到不含原始认证文本的 OtherFailure。
 
-每个 Session 使用自己的 Metrics，避免混合不同 Session。监听器同步执行，需快速返回；驱动隔离监听器错误并计入 listener_errors。
+只有驱动空闲探测使用 heartbeat；手动发送 OPTIONS 仍属于普通 data。`metrics.operations_snapshot()` 返回独立的 `OperationMetricsSnapshot`，其中 logical_* 是逻辑开始／成功／失败／取消和耗时，retry_attempts 是上述重试尝试。`metrics.snapshot()` 的原有 requests_*、total_timeouts() 和 total_cancellations() 保持旧口径，不把逻辑计数叠加进去。只使用原监听器的代码无须增加匹配分支或记录字段。
+
+每个 Session 使用自己的 Metrics，避免混合不同 Session。两个监听器都同步执行，需快速返回且不得阻塞；驱动隔离监听器错误并累计到同一个 listener_errors。没有异步投递队列。原生回归验证在请求开始／结束回调内关闭连接、两种监听器抛错、退出后回调停止；一个逻辑请求不会因此重复完成。以 16 个事件各忙等 3 ms 的本地检查观察到约 49 ms 累计阻塞，说明慢监听器的成本直接落在请求任务上；这是约束演示，不是生产开销结论。
 
 ## Prometheus 文本示例
 

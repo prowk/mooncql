@@ -54,9 +54,9 @@ async test "schema notifications invalidate on-demand cache and merge burst refr
           _ => ()
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             event_capacity=64,
           ),
@@ -167,9 +167,9 @@ async test "schema changes during load retry consistently and repeated changes f
             respond(peer, request.header.stream, 8, body)
           }
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=server.addr.port()),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           ),
           session => {
             if mode == "always" {
@@ -239,9 +239,9 @@ async test "schema waiters honor deadlines cancellation count and byte limits wi
             respond(peer, request.header.stream, 8, body)
           }
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               max_waiting=1,
               max_waiting_bytes=if mode == "bytes" { 0 } else { 4096 },
@@ -264,8 +264,8 @@ async test "schema waiters honor deadlines cancellation count and byte limits wi
                     )
                     false
                   } catch {
-                    @client.TimedOut(info) =>
-                      info.phase == WaitingSchema && !info.may_have_been_sent
+                    @client.OperationTimedOut(WaitingSchema, info) =>
+                      !info.may_have_been_sent
                     _ => false
                   },
                 )

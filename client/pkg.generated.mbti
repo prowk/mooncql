@@ -14,18 +14,28 @@ import {
 }
 
 // Values
-pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadline, response_limits? : ResponseLimits) -> Connection
+pub async fn[G] connect(@async.TaskGroup[G], config? : Config, deadline? : Deadline) -> Connection
 
-pub async fn[T] with_connection(config? : Config, response_limits? : ResponseLimits, async (Connection) -> T) -> T
+pub async fn[G] connect_builder(@async.TaskGroup[G], config? : ConnectionBuilder, deadline? : Deadline, response_limits? : ResponseLimits) -> Connection
 
-pub async fn[T] with_serial_connection(config? : Config, response_limits? : ResponseLimits, async (Connection) -> T) -> T
+pub async fn[T] with_connection(config? : Config, async (Connection) -> T) -> T
 
-pub async fn[T] with_session(config? : SessionConfig, response_limits? : ResponseLimits, async (Session) -> T) -> T
+pub async fn[T] with_connection_builder(config? : ConnectionBuilder, response_limits? : ResponseLimits, async (Connection) -> T) -> T
+
+pub async fn[T] with_serial_connection(config? : Config, async (Connection) -> T) -> T
+
+pub async fn[T] with_serial_connection_builder(config? : ConnectionBuilder, response_limits? : ResponseLimits, async (Connection) -> T) -> T
+
+pub async fn[T] with_session(config? : SessionConfig, async (Session) -> T) -> T
+
+pub async fn[T] with_session_builder(config? : SessionBuilder, response_limits? : ResponseLimits, async (Session) -> T) -> T
 
 // Errors
+pub suberror Draining derive(@debug.Debug)
+pub fn Draining::to_repr(Self) -> @debug.Repr
+
 pub(all) suberror DriverError {
   Closed
-  Draining
   Unexpected(String)
   Authentication(String)
   TlsFailure(String)
@@ -43,6 +53,11 @@ pub(all) suberror ExecutionError {
   ExecutionError(Error, ExecutionInfo)
 }
 
+pub(all) suberror OperationTimedOut {
+  OperationTimedOut(OperationStage, TimeoutInfo)
+} derive(@debug.Debug)
+pub fn OperationTimedOut::to_repr(Self) -> @debug.Repr
+
 pub(all) suberror RetryExhausted {
   RetryExhausted(Array[AttemptFailure])
 }
@@ -50,6 +65,11 @@ pub(all) suberror RetryExhausted {
 pub(all) suberror SchemaMetadataError {
   SchemaMetadataError(String, Error)
 }
+
+pub(all) suberror SessionOverloaded {
+  SessionOverloaded(OverloadReason)
+} derive(@debug.Debug)
+pub fn SessionOverloaded::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 type Admission
@@ -101,9 +121,6 @@ pub(all) struct Config {
   port : Int
   username : String?
   password : String?
-  auth_provider : AuthProvider?
-  max_auth_rounds : Int
-  max_auth_token_bytes : Int
   timeout_ms : Int
   connect_timeout_ms : Int
   queue_timeout_ms : Int
@@ -125,11 +142,12 @@ pub(all) struct Config {
   heartbeat_timeout_ms : Int
   metrics : Metrics?
 }
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, auth_provider? : AuthProvider, max_auth_rounds? : Int, max_auth_token_bytes? : Int, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
+pub fn Config::builder(Self) -> ConnectionBuilder
+pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
 
 pub struct Connection {
   socket : Transport
-  config : Config
+  config : ConnectionBuilder
   response_limits : ResponseLimits
   mut delivery_bytes : Int64
   mut peak_delivery_bytes : Int64
@@ -175,7 +193,8 @@ pub fn Connection::in_flight_count(Self) -> Int
 pub fn Connection::is_closed(Self) -> Bool
 pub fn Connection::is_draining(Self) -> Bool
 pub async fn Connection::next_event(Self) -> @protocol.ServerEvent
-pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, traversal_deadline? : Deadline) -> Pager raise
+pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
+pub fn Connection::pages_with_options(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, traversal_deadline? : Deadline) -> Pager raise
 pub fn Connection::pending_count(Self) -> Int
 pub async fn Connection::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Prepared
 pub async fn Connection::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Execution[Prepared]
@@ -193,6 +212,37 @@ pub async fn Connection::shutdown(Self) -> Unit
 pub fn Connection::waiting_bytes(Self) -> Int64
 pub fn Connection::waiting_count(Self) -> Int
 
+pub(all) struct ConnectionBuilder {
+  host : String
+  port : Int
+  username : String?
+  password : String?
+  auth_provider : AuthProvider?
+  max_auth_rounds : Int
+  max_auth_token_bytes : Int
+  timeout_ms : Int
+  connect_timeout_ms : Int
+  queue_timeout_ms : Int
+  operation_timeout_ms : Int
+  max_frame_bytes : Int
+  max_in_flight : Int
+  max_in_flight_bytes : Int
+  max_waiting : Int
+  max_waiting_bytes : Int
+  overload_policy : OverloadPolicy
+  throw_on_overload : Bool
+  compression : Bool
+  tls : TlsConfig?
+  prepared_cache_capacity : Int
+  max_abandoned : Int
+  abandoned_timeout_ms : Int
+  event_capacity : Int
+  heartbeat_interval_ms : Int
+  heartbeat_timeout_ms : Int
+  metrics : Metrics?
+}
+pub fn ConnectionBuilder::new(host? : String, port? : Int, username? : String, password? : String, auth_provider? : AuthProvider, max_auth_rounds? : Int, max_auth_token_bytes? : Int, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
+
 type ControlState
 
 pub(all) struct ControlStatus {
@@ -209,6 +259,16 @@ pub struct Deadline {
 }
 pub fn Deadline::after(Int) -> Self raise DriverError
 pub fn Deadline::remaining_ms(Self) -> Int
+
+pub(all) enum DiagnosticEvent {
+  Legacy(MetricEvent)
+  OperationStarted(OperationKind)
+  OperationFinished(OperationEvent)
+  RetryStarted(Endpoint, Int)
+  RpcFinished(RpcScope, RequestEvent, Bool)
+  ConnectionFailure(Endpoint, RequestOutcome, Bool)
+} derive(@debug.Debug)
+pub fn DiagnosticEvent::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DiscoveryConfig {
   refresh_interval_ms : Int
@@ -250,7 +310,6 @@ pub(all) struct ExecutionInfo {
   custom_payload : Map[String, Bytes?]
   previous : Array[ExecutionInfo]
   cached : Bool
-  schema_agreement : SchemaAgreement?
 }
 
 pub struct ExecutionProfile {
@@ -276,26 +335,21 @@ pub(all) enum MetricEvent {
   Reconnected(Endpoint, Int, Bool)
   Cache(Endpoint, CacheEvent)
   WaitFinished(WaitScope, Int64, Int64, RequestOutcome)
-  OperationStarted(OperationKind)
-  OperationFinished(OperationEvent)
-  RetryStarted(Endpoint, Int)
 } derive(@debug.Debug)
 pub fn MetricEvent::to_repr(Self) -> @debug.Repr
 
 pub struct Metrics {
   data : MetricsSnapshot
+  operations : OperationMetricsSnapshot
   listener : ((MetricEvent) -> Unit raise)?
+  diagnostics : ((DiagnosticEvent) -> Unit raise)?
 }
 pub fn Metrics::new(listener? : (MetricEvent) -> Unit raise) -> Self
+pub fn Metrics::operations_snapshot(Self) -> OperationMetricsSnapshot
 pub fn Metrics::snapshot(Self) -> MetricsSnapshot
+pub fn Metrics::with_diagnostics((DiagnosticEvent) -> Unit raise, listener? : (MetricEvent) -> Unit raise) -> Self
 
 pub(all) struct MetricsSnapshot {
-  mut logical_started : Int64
-  mut logical_succeeded : Int64
-  mut logical_failed : Int64
-  mut logical_cancelled : Int64
-  mut logical_ms : Int64
-  mut retry_attempts : Int64
   mut requests_started : Int64
   mut requests_succeeded : Int64
   mut requests_failed : Int64
@@ -381,6 +435,7 @@ pub(all) struct OperationEvent {
   kind : OperationKind
   outcome : RequestOutcome
   elapsed_ms : Int64
+  session_budget : Bool
 } derive(@debug.Debug)
 pub fn OperationEvent::to_repr(Self) -> @debug.Repr
 
@@ -398,6 +453,26 @@ pub fn OperationKind::equal(Self, Self) -> Bool
 pub fn OperationKind::not_equal(Self, Self) -> Bool
 pub fn OperationKind::to_repr(Self) -> @debug.Repr
 
+pub(all) struct OperationMetricsSnapshot {
+  mut logical_started : Int64
+  mut logical_succeeded : Int64
+  mut logical_failed : Int64
+  mut logical_cancelled : Int64
+  mut logical_ms : Int64
+  mut retry_attempts : Int64
+} derive(ToJson, @debug.Debug)
+pub fn OperationMetricsSnapshot::to_json(Self) -> Json
+pub fn OperationMetricsSnapshot::to_repr(Self) -> @debug.Repr
+
+pub(all) enum OperationStage {
+  WaitingDrain
+  WaitingSchema
+  WaitingPage
+} derive(Eq, @debug.Debug)
+pub fn OperationStage::equal(Self, Self) -> Bool
+pub fn OperationStage::not_equal(Self, Self) -> Bool
+pub fn OperationStage::to_repr(Self) -> @debug.Repr
+
 pub(all) enum OverloadPolicy {
   Wait
   Reject
@@ -412,11 +487,6 @@ pub(all) enum OverloadReason {
   WaitingQueueFull
   WaitingBytesFull
   RequestTooLarge
-  SessionInFlightLimit
-  SessionByteLimit
-  SessionWaitingQueueFull
-  SessionWaitingBytesFull
-  SessionRequestTooLarge
 } derive(Eq, @debug.Debug)
 pub fn OverloadReason::equal(Self, Self) -> Bool
 pub fn OverloadReason::not_equal(Self, Self) -> Bool
@@ -494,7 +564,8 @@ pub fn Prepared::bind_batch(Self, Array[@types.Value]) -> @protocol.BatchStateme
 pub async fn Prepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
 pub async fn Prepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn Prepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> Execution[@protocol.ResultSet]
-pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, traversal_deadline? : Deadline) -> Pager raise
+pub fn Prepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
+pub fn Prepared::pages_with_options(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, traversal_deadline? : Deadline) -> Pager raise
 pub fn Prepared::parameters(Self) -> Array[@protocol.Column]
 
 type PreparedCache
@@ -526,7 +597,6 @@ pub(all) struct Reply {
 pub fn Reply::execution_info(Self) -> ExecutionInfo
 
 pub(all) struct RequestEvent {
-  scope : RpcScope
   endpoint : Endpoint
   opcode : Int
   request_bytes : Int64
@@ -547,7 +617,6 @@ pub(all) enum RequestOutcome {
   Disconnected
   InvalidConfiguration
   TlsError
-  AuthenticationError
   ProtocolError
   TransportError
   OtherFailure
@@ -669,6 +738,12 @@ pub fn SchemaColumnKind::to_json(Self) -> Json
 pub fn SchemaColumnKind::to_repr(Self) -> @debug.Repr
 pub impl ToJson for SchemaColumnKind
 
+pub(all) struct SchemaExecution[T] {
+  value : T
+  info : ExecutionInfo
+  schema_agreement : SchemaAgreement?
+}
+
 pub(all) struct SchemaKeyspace {
   name : String
   durable_writes : Bool
@@ -731,7 +806,7 @@ pub(all) struct SchemaVersionObservation {
 }
 
 pub struct Session {
-  config : SessionConfig
+  config : SessionBuilder
   response_limits : ResponseLimits?
   retry_random : @random.Rand
   changed : @cond_var.Cond
@@ -762,13 +837,19 @@ pub fn Session::is_closed(Self) -> Bool
 pub fn Session::is_draining(Self) -> Bool
 pub fn Session::last_error(Self) -> Error?
 pub fn Session::nodes(Self) -> Array[NodeInfo]
-pub fn Session::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, profile? : ExecutionProfile, idempotent? : Bool, retry? : RetryPolicy, traversal_deadline? : Deadline) -> Pager raise
+pub fn Session::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
+pub fn Session::pages_with_options(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, profile? : ExecutionProfile, idempotent? : Bool, retry? : RetryPolicy, traversal_deadline? : Deadline) -> Pager raise
 pub fn Session::pools(Self) -> Array[PoolStatus]
-pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions, profile? : ExecutionProfile) -> SessionPrepared
-pub async fn Session::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions, profile? : ExecutionProfile) -> Execution[SessionPrepared]
-pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> @protocol.ResultSet
+pub async fn Session::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> SessionPrepared
+pub async fn Session::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Execution[SessionPrepared]
+pub async fn Session::prepare_with_profile(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions, profile? : ExecutionProfile) -> SessionPrepared
+pub async fn Session::prepare_with_profile_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions, profile? : ExecutionProfile) -> Execution[SessionPrepared]
+pub async fn Session::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> @protocol.ResultSet
 pub fn Session::query_plan(Self, hint? : RoutingHint) -> Array[Endpoint]
-pub async fn Session::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> Execution[@protocol.ResultSet]
+pub async fn Session::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Execution[@protocol.ResultSet]
+pub async fn Session::query_with_profile(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> @protocol.ResultSet
+pub async fn Session::query_with_profile_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> Execution[@protocol.ResultSet]
+pub async fn Session::query_with_schema_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint, profile? : ExecutionProfile) -> SchemaExecution[@protocol.ResultSet]
 pub fn Session::receive_memory(Self) -> Array[ReceiveMemorySnapshot]
 pub async fn Session::request(Self, @protocol.Request, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, routing? : RoutingHint) -> Reply
 pub fn Session::resources(Self) -> SessionResources
@@ -791,11 +872,12 @@ pub(all) struct SessionBudget {
   in_flight_bytes : Int64
   waiting : Int
   waiting_bytes : Int64
-  limits : SessionLimits
+  limits : SessionLimits?
 }
 
-pub(all) struct SessionConfig {
-  connection : Config
+pub(all) struct SessionBuilder {
+  enforce_limits : Bool
+  connection : ConnectionBuilder
   contact_points : Array[Endpoint]
   backoff_initial_ms : Int
   backoff_max_ms : Int
@@ -808,7 +890,20 @@ pub(all) struct SessionConfig {
   limits : SessionLimits
   connections_per_node : Int
 }
-pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig, execution_profile? : ExecutionProfile, limits? : SessionLimits, connections_per_node? : Int) -> Self
+pub fn SessionBuilder::new(connection? : ConnectionBuilder, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig, execution_profile? : ExecutionProfile, limits? : SessionLimits, connections_per_node? : Int) -> Self
+
+pub(all) struct SessionConfig {
+  connection : Config
+  contact_points : Array[Endpoint]
+  backoff_initial_ms : Int
+  backoff_max_ms : Int
+  jitter : Double
+  stable_reset_ms : Int
+  routing : RoutingConfig?
+  discovery : DiscoveryConfig?
+}
+pub fn SessionConfig::builder(Self) -> SessionBuilder
+pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig) -> Self
 
 pub(all) struct SessionLimits {
   max_in_flight : Int
@@ -833,10 +928,14 @@ pub struct SessionPrepared {
   mut routing_keyspace : String?
 }
 pub fn SessionPrepared::bind_batch(Self, Array[@types.Value]) -> SessionBatchStatement raise
-pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, profile? : ExecutionProfile) -> @protocol.ResultSet
-pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, profile? : ExecutionProfile) -> ConditionalResult
-pub async fn SessionPrepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, profile? : ExecutionProfile) -> Execution[@protocol.ResultSet]
-pub fn SessionPrepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, profile? : ExecutionProfile, idempotent? : Bool, retry? : RetryPolicy, traversal_deadline? : Deadline) -> Pager raise
+pub async fn SessionPrepared::execute(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> @protocol.ResultSet
+pub async fn SessionPrepared::execute_conditional(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
+pub async fn SessionPrepared::execute_conditional_with_profile(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, profile? : ExecutionProfile) -> ConditionalResult
+pub async fn SessionPrepared::execute_with_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy) -> Execution[@protocol.ResultSet]
+pub async fn SessionPrepared::execute_with_profile(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, profile? : ExecutionProfile) -> @protocol.ResultSet
+pub async fn SessionPrepared::execute_with_profile_info(Self, Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline, idempotent? : Bool, retry? : RetryPolicy, profile? : ExecutionProfile) -> Execution[@protocol.ResultSet]
+pub fn SessionPrepared::pages(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
+pub fn SessionPrepared::pages_with_options(Self, Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, profile? : ExecutionProfile, idempotent? : Bool, retry? : RetryPolicy, traversal_deadline? : Deadline) -> Pager raise
 pub fn SessionPrepared::parameters(Self) -> Array[@protocol.Column]
 
 type SessionPreparedState
@@ -871,9 +970,6 @@ pub(all) enum TimeoutPhase {
   WaitingPrepare
   WaitingConnection
   WaitingRetry
-  WaitingDrain
-  WaitingSchema
-  WaitingPage
 } derive(Eq, @debug.Debug)
 pub fn TimeoutPhase::equal(Self, Self) -> Bool
 pub fn TimeoutPhase::not_equal(Self, Self) -> Bool

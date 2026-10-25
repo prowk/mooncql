@@ -41,8 +41,8 @@ async test "response body rows columns nodes and depth limits close connection a
             max_value_nodes=if kind == 3 { 2 } else { 1000000 },
             max_depth=if kind == 4 { 1 } else { 32 },
           )
-          @client.with_connection(
-            config=@client.Config::new(
+          @client.with_connection_builder(
+            config=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               compression=compressed,
             ),

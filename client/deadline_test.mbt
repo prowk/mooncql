@@ -13,9 +13,9 @@ async test "connection deadline includes OPTIONS and closes a stalled handshake"
       })
       assert_true(
         try {
-          let connection = @client.connect(
+          let connection = @client.connect_builder(
             group,
-            config=@client.Config::new(
+            config=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               connect_timeout_ms=50,
             ),
@@ -106,7 +106,7 @@ async test "serial and multiplex requests share queue and execution timing bound
           assert_eq(connection.in_flight_count(), 0)
           assert_eq(connection.in_flight_bytes(), 0L)
         }
-        let config = @client.Config::new(
+        let config = @client.ConnectionBuilder::new(
           port=server.addr.port(),
           max_in_flight=1,
           queue_timeout_ms=100,
@@ -114,9 +114,9 @@ async test "serial and multiplex requests share queue and execution timing bound
           operation_timeout_ms=5000,
         )
         if serial {
-          @client.with_serial_connection(config~, check)
+          @client.with_serial_connection_builder(config~, check)
         } else {
-          @client.with_connection(config~, check)
+          @client.with_connection_builder(config~, check)
         }
         worker.wait()
       })
@@ -155,8 +155,8 @@ async test "UNPREPARED reprepare uses the original operation deadline" {
         respond(peer, query.header.stream, 8, named_result("still usable"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           timeout_ms=2000,
           operation_timeout_ms=2000,
@@ -214,8 +214,8 @@ async test "same statement prepare lock and already expired deadline never send 
         respond(peer, prepare.header.stream, 8, prepared_result(b"id"))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           @async.with_task_group(requests => {
             let first = requests.spawn(() => connection.prepare("first"))

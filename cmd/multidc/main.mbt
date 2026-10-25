@@ -93,7 +93,7 @@ async fn run() -> Unit {
       None
     },
   )
-  let connection = @client.Config::new(
+  let connection = @client.ConnectionBuilder::new(
     operation_timeout_ms=5000,
     connect_timeout_ms=2000,
     heartbeat_interval_ms=500,
@@ -101,16 +101,16 @@ async fn run() -> Unit {
     compression=true,
   )
   let contacts = [@client.Endpoint::new(port=ports[0])]
-  @client.with_session(
-    config=@client.SessionConfig::new(
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(
       connection~,
       contact_points=contacts,
       discovery~,
       routing=@client.RoutingConfig::new("dc1"),
     ),
     local_session => {
-      @client.with_session(
-        config=@client.SessionConfig::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
           connection~,
           contact_points=contacts,
           discovery~,

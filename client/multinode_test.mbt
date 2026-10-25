@@ -80,8 +80,8 @@ async test "one session prepared object keeps different nodes metadata and metad
         }
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(contact_points=[
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(contact_points=[
           @client.Endpoint::new(port=a.addr.port()),
           @client.Endpoint::new(port=b.addr.port()),
         ]),
@@ -169,8 +169,8 @@ async test "three node session isolates failure schedules healthy nodes and rejo
       let endpoints = servers.map(server => {
         @client.Endpoint::new(port=server.addr.port())
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(contact_points=endpoints),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(contact_points=endpoints),
         session => {
           wait_session_nodes(session, 3)
           assert_true(

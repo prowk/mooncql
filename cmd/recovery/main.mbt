@@ -3,8 +3,8 @@ async fn main {
   guard @env.get_env_var("CQL_RECOVERY_DIR") is Some(directory) else {
     fail("CQL_RECOVERY_DIR must name an existing test directory")
   }
-  let config = @client.SessionConfig::new(
-    connection=@client.Config::new(
+  let config = @client.SessionBuilder::new(
+    connection=@client.ConnectionBuilder::new(
       host=@env.get_env_var("CQL_HOST").unwrap_or("127.0.0.1"),
       port=@string.parse_int(@env.get_env_var("CQL_PORT").unwrap_or("9042")),
       username?=@env.get_env_var("CQL_USERNAME"),
@@ -16,7 +16,7 @@ async fn main {
     backoff_initial_ms=50,
     backoff_max_ms=1000,
   )
-  @client.with_session(config~, session => {
+  @client.with_session_builder(config~, session => {
     assert_true(
       session.query("SELECT release_version FROM system.local") is Rows(_),
     )

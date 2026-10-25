@@ -150,9 +150,9 @@ async test "periodic topology snapshots isolate replacement identity address DC 
           }
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(heartbeat_interval_ms=0),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(heartbeat_interval_ms=0),
           contact_points=[@client.Endpoint::new(port=servers[0].addr.port())],
           connections_per_node=2,
           discovery=@client.DiscoveryConfig::new(

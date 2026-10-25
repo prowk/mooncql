@@ -29,8 +29,11 @@ async test "raw cached column metadata freezes nested types before queueing and 
       let cached : Array[@protocol.Column] = [
         { keyspace: "ks", table: "t", name: "value", typ: Tuple(fields), },
       ]
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port(), max_in_flight=1),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
+          port=server.addr.port(),
+          max_in_flight=1,
+        ),
         connection => {
           @async.with_task_group(requests => {
             let held = requests.spawn(() => connection.query("held"))

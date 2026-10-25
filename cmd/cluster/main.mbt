@@ -40,11 +40,11 @@ async fn verify_schema_ddl(session : @client.Session) -> Unit {
       "CREATE TYPE mooncql_cluster_probe.schema_address(street text)",
     ),
   )
-  let changed = session.query_with_info(
+  let changed = session.query_with_schema_info(
     "ALTER TYPE mooncql_cluster_probe.schema_address ADD zip int",
   )
   assert_true(changed.value is SchemaChanged(_))
-  guard changed.info.schema_agreement is Some(report) else {
+  guard changed.schema_agreement is Some(report) else {
     fail("missing schema agreement report")
   }
   assert_eq(report.state, @client.SchemaAgreementState::Agreed)
@@ -126,8 +126,8 @@ async fn main {
     endpoints.push(@client.Endpoint::new(port=@string.parse_int(port)))
   }
   assert_eq(endpoints.length(), 3)
-  let config = @client.SessionConfig::new(
-    connection=@client.Config::new(
+  let config = @client.SessionBuilder::new(
+    connection=@client.ConnectionBuilder::new(
       username?=@env.get_env_var("CQL_USERNAME"),
       password?=@env.get_env_var("CQL_PASSWORD"),
       compression=@env.get_env_var("CQL_COMPRESSION") == Some("lz4"),
@@ -139,7 +139,7 @@ async fn main {
       timeout_ms=30000,
     ),
   )
-  @client.with_session(config~, session => {
+  @client.with_session_builder(config~, session => {
     wait_ready(session, 3)
     if @env.get_env_var("CQL_USERNAME") is Some(_) {
       ignore(

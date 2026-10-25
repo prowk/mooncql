@@ -53,9 +53,9 @@ async test "denied system metadata and discovery remain explicit while ordinary 
             _ => ()
           }
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(
               port=server.addr.port(),
               heartbeat_interval_ms=0,
             ),

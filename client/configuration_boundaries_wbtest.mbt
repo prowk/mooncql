@@ -1,6 +1,6 @@
 ///|
 test "connection configuration rejects boundary errors with parameter name and range before transport" {
-  let defaults = Config::new()
+  let defaults = ConnectionBuilder::new()
   for
     (name, invalid) in [
       ("connect_timeout_ms", { ..defaults, connect_timeout_ms: 0, }),
@@ -76,11 +76,17 @@ test "shared limits reject impossible sizes without waiting and do not overflow 
     )
   }
   let parent = Admission::new(
-    Config::new(max_in_flight_bytes=2147483647, max_waiting_bytes=2147483647),
+    ConnectionBuilder::new(
+      max_in_flight_bytes=2147483647,
+      max_waiting_bytes=2147483647,
+    ),
     session=true,
   )
   let child = Admission::new(
-    Config::new(max_in_flight_bytes=2147483647, max_waiting_bytes=2147483647),
+    ConnectionBuilder::new(
+      max_in_flight_bytes=2147483647,
+      max_waiting_bytes=2147483647,
+    ),
     parent~,
   )
   let held = child.register(2147483647L)
@@ -92,7 +98,7 @@ test "shared limits reject impossible sizes without waiting and do not overflow 
       ignore(child.register(2147483648L))
       false
     } catch {
-      Overloaded(SessionRequestTooLarge) => true
+      SessionOverloaded(RequestTooLarge) => true
       _ => false
     },
   )

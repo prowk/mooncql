@@ -1,7 +1,7 @@
 ///|
-async fn verify_topology(config : @client.Config) -> Unit {
-  @client.with_session(
-    config=@client.SessionConfig::new(
+async fn verify_topology(config : @client.ConnectionBuilder) -> Unit {
+  @client.with_session_builder(
+    config=@client.SessionBuilder::new(
       connection=config,
       discovery=@client.DiscoveryConfig::new(refresh_interval_ms=200),
     ),

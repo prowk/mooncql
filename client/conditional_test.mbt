@@ -60,8 +60,8 @@ async test "LWT skip metadata uses each response and preserves prepared metadata
         let query = receive(socket)
         respond(socket, query.header.stream, 8, rows_result([7], None))
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let statement = connection.prepare("conditional")
           for i = 0; i < 3; i = i + 1 {
@@ -116,8 +116,8 @@ async test "conditional QUERY requests metadata even when skip metadata is reque
         conditional_rows(false, current="existing"),
       )
     })
-    @client.with_connection(
-      config=@client.Config::new(port=server.addr.port()),
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         let result = connection.query_conditional(
           "conditional",
@@ -148,8 +148,8 @@ async test "conditional API rejects ordinary result instead of inventing applied
       respond(socket, query.header.stream, 8, rows_result([7], None))
       assert_eq(socket.read_some(), None)
     })
-    @client.with_connection(
-      config=@client.Config::new(port=server.addr.port()),
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         assert_true(
           try {

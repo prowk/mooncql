@@ -60,8 +60,8 @@ async test "cursor restores on another connection rejects changed context and do
       let cql = "SELECT id FROM ks.t WHERE id=?"
       let values : Array[@types.Value] = [Integer(42)]
       let options = @protocol.QueryOptions::new(page_size=2)
-      let saved = @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      let saved = @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let pager = connection.pages(cql, values~, options~)
           let initial = pager.cursor().to_bytes()
@@ -73,8 +73,8 @@ async test "cursor restores on another connection rejects changed context and do
         },
       )
       let cursor = @client.PagingCursor::from_bytes(saved)
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           assert_true(
             try {
@@ -210,8 +210,8 @@ async test "cancelled next preserves cursor and busy calls cannot capture or adv
         respond(peer, request.header.stream, 8, rows_result([42], None))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_serial_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_serial_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let pager = connection.pages(
             "SELECT id FROM ks.t WHERE id=?",

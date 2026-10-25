@@ -27,9 +27,13 @@ pub fn decode_message_envelope(Bytes, max_body? : Int) -> MessageEnvelope raise 
 
 pub fn decode_payload(MessageEnvelope) -> MessagePayload raise @codec.CodecError
 
-pub fn decode_response(Int, Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> Response raise @codec.CodecError
+pub fn decode_response(Int, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError
 
-pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> ResultSet raise @codec.CodecError
+pub fn decode_response_limited(Int, Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> Response raise @codec.CodecError
+
+pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int) -> ResultSet raise @codec.CodecError
+
+pub fn decode_result_limited(Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> ResultSet raise @codec.CodecError
 
 pub fn encode_envelope(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
 
@@ -43,7 +47,9 @@ pub fn prepare(String, keyspace? : String, request_options? : RequestOptions) ->
 
 pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
-pub fn read_metadata(@codec.Reader, cached? : Array[Column], max_columns? : Int, max_depth? : Int) -> Metadata raise @codec.CodecError
+pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError
+
+pub fn read_metadata_limited(@codec.Reader, cached? : Array[Column], max_columns? : Int, max_depth? : Int) -> Metadata raise @codec.CodecError
 
 pub fn register(Array[EventKind]) -> Request raise @codec.CodecError
 

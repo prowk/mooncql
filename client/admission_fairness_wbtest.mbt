@@ -2,7 +2,10 @@
 async test "FIFO mixed sizes across sibling connections cannot bypass oldest waiter" {
   @async.with_timeout(3000, () => {
     @async.with_task_group(group => {
-      let config = Config::new(max_in_flight=64, max_in_flight_bytes=100)
+      let config = ConnectionBuilder::new(
+        max_in_flight=64,
+        max_in_flight_bytes=100,
+      )
       let parent = Admission::new(config, session=true)
       let first = Admission::new(config, parent~)
       let second = Admission::new(config, parent~)
@@ -55,7 +58,9 @@ async test "FIFO mixed sizes across sibling connections cannot bypass oldest wai
 async test "head timeout and middle cancellation remove FIFO tickets and unblock survivors" {
   @async.with_timeout(3000, () => {
     @async.with_task_group(group => {
-      let admission = Admission::new(Config::new(max_in_flight_bytes=100))
+      let admission = Admission::new(
+        ConnectionBuilder::new(max_in_flight_bytes=100),
+      )
       let held = admission.register(40L)
       let old = admission.register(80L)
       let expires = group.spawn(allow_failure=true, () => {
@@ -94,7 +99,7 @@ async test "head timeout and middle cancellation remove FIFO tickets and unblock
 
 ///|
 test "cancel before admit and close release bounded FIFO ownership exactly once" {
-  let admission = Admission::new(Config::new(max_in_flight=1))
+  let admission = Admission::new(ConnectionBuilder::new(max_in_flight=1))
   let held = admission.register(9L)
   for _ in 0..<1000 {
     let waiting = admission.register(10L)

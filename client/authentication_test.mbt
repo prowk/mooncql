@@ -81,8 +81,8 @@ async test "custom auth handles bounded multiround NULL and empty tokens under p
             },
           )
         })
-        @client.with_connection(
-          config=@client.Config::new(
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             compression=compressed,
             auth_provider=provider,
@@ -166,11 +166,13 @@ async test "authentication rejects excessive rounds oversized tokens server refu
           )
         })
         let events = []
-        let metrics = @client.Metrics::new(listener=event => events.push(event))
+        let metrics = @client.Metrics::with_diagnostics(event => {
+          events.push(event)
+        })
         assert_true(
           try {
-            @client.with_connection(
-              config=@client.Config::new(
+            @client.with_connection_builder(
+              config=@client.ConnectionBuilder::new(
                 port=server.addr.port(),
                 auth_provider=provider,
                 max_auth_rounds=2,
@@ -188,7 +190,7 @@ async test "authentication rejects excessive rounds oversized tokens server refu
           },
         )
         assert_true(
-          events.any(event => event is ConnectionFailed(_, AuthenticationError)),
+          events.any(event => event is ConnectionFailure(_, OtherFailure, true)),
         )
         worker.wait()
       })
@@ -227,13 +229,15 @@ async test "auth provider callbacks and challenge exchanges share connection dea
             },
           )
         })
-        let config = @client.Config::new(
+        let config = @client.ConnectionBuilder::new(
           port=server.addr.port(),
           auth_provider=provider,
           connect_timeout_ms=if cancel { 2000 } else { 200 },
         )
         if cancel {
-          let task = group.spawn(() => @client.with_connection(config~, _ => ()))
+          let task = group.spawn(() => {
+            @client.with_connection_builder(config~, _ => ())
+          })
           entered.get()
           task.cancel()
           ignore(task.wait()) catch {
@@ -243,7 +247,7 @@ async test "auth provider callbacks and challenge exchanges share connection dea
           let started = @async.now()
           assert_true(
             try {
-              @client.with_connection(config~, _ => ())
+              @client.with_connection_builder(config~, _ => ())
               false
             } catch {
               @client.TimedOut(info) => info.scope == Connection
@@ -302,9 +306,9 @@ async test "auth factory snapshots rotated credentials per new connection withou
         let token = credentials[0]
         @client.Authenticator::new(() => Some(token))
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             auth_provider=provider,
           ),

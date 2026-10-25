@@ -300,9 +300,9 @@ async test "schema metadata freezes filter paginates sorts keys coalesces reader
           }
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           let keys = ["ks"]
@@ -442,9 +442,9 @@ async test "schema metadata refuses missing duplicated malformed and over-limit 
             }
           }
         })
-        @client.with_session(
-          config=@client.SessionConfig::new(
-            connection=@client.Config::new(port=server.addr.port()),
+        @client.with_session_builder(
+          config=@client.SessionBuilder::new(
+            connection=@client.ConnectionBuilder::new(port=server.addr.port()),
           ),
           session => {
             assert_true(

@@ -46,8 +46,8 @@ async test "v5 metadata cache updates and ignores stale concurrent executions" {
         @types.write_value(w, Text("cached"))
         respond(socket, next.header.stream, 8, w.to_bytes())
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           let statement = connection.prepare("query")
           let results = @async.all([
@@ -90,8 +90,8 @@ async test "prepared cache separates identical text by explicit keyspace" {
         respond(socket, request.header.stream, 8, prepared_result(b"id"))
       }
     })
-    @client.with_connection(
-      config=@client.Config::new(port=server.addr.port()),
+    @client.with_connection_builder(
+      config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         ignore(connection.prepare("query", keyspace="one"))
         ignore(connection.prepare("query", keyspace="one"))
@@ -136,8 +136,8 @@ async test "v5 LZ4 authentication large request and large response" {
         w.bytes(Some(payload))
         respond(socket, query.header.stream, 8, w.to_bytes())
       })
-      @client.with_connection(
-        config=@client.Config::new(
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(
           port=server.addr.port(),
           username="user",
           password="secret",
@@ -179,8 +179,8 @@ async test "v5 payload CRC failure closes pending requests" {
         socket.write(Bytes::from_array(bytes))
         assert_eq(socket.read_some(), None)
       })
-      @client.with_connection(
-        config=@client.Config::new(port=server.addr.port()),
+      @client.with_connection_builder(
+        config=@client.ConnectionBuilder::new(port=server.addr.port()),
         connection => {
           assert_true(
             try {

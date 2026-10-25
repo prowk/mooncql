@@ -56,7 +56,6 @@ fn outcome_index(outcome : @client.RequestOutcome) -> Int {
     ProtocolError => 9
     TransportError => 10
     OtherFailure => 11
-    AuthenticationError => 12
   }
 }
 
@@ -105,19 +104,18 @@ fn scope_index(scope : @client.RpcScope) -> Int {
 }
 
 ///|
-fn overload_index(reason : @client.OverloadReason) -> Int {
-  match reason {
+fn overload_index(
+  reason : @client.OverloadReason,
+  session_budget? : Bool = false,
+) -> Int {
+  let index = match reason {
     InFlightLimit => 0
     ByteLimit => 1
     WaitingQueueFull => 2
     WaitingBytesFull => 3
     RequestTooLarge => 4
-    SessionInFlightLimit => 5
-    SessionByteLimit => 6
-    SessionWaitingQueueFull => 7
-    SessionWaitingBytesFull => 8
-    SessionRequestTooLarge => 9
   }
+  index + (if session_budget { 5 } else { 0 })
 }
 
 ///|
@@ -220,7 +218,7 @@ fn Meter::node(
 }
 
 ///|
-fn Meter::observe(self : Meter, event : @client.MetricEvent) -> Unit {
+fn Meter::observe(self : Meter, event : @client.DiagnosticEvent) -> Unit {
   match event {
     OperationStarted(kind) => self.started[operation_index(kind)] += 1L
     OperationFinished(operation) => {
@@ -228,12 +226,15 @@ fn Meter::observe(self : Meter, event : @client.MetricEvent) -> Unit {
       self.logical[kind * 13 + outcome_index(operation.outcome)] += 1L
       self.logical_latency[kind].observe(operation.elapsed_ms)
       if operation.outcome is LocalOverload(reason) {
-        self.logical_overloads[overload_index(reason)] += 1L
+        self.logical_overloads[overload_index(
+          reason,
+          session_budget=operation.session_budget,
+        )] += 1L
       }
     }
-    RequestFinished(request) => {
+    RpcFinished(scope, request, session_budget) => {
       let node = self.node(request.endpoint)
-      let scope = scope_index(request.scope)
+      let scope = scope_index(scope)
       node.rpc[(scope * 7 + opcode_index(request.opcode)) * 13 +
       outcome_index(request.outcome)] += 1L
       if request.may_have_been_sent {
@@ -242,11 +243,11 @@ fn Meter::observe(self : Meter, event : @client.MetricEvent) -> Unit {
       node.queue[scope].observe(request.queue_ms)
       node.execution[scope].observe(request.execution_ms)
       if request.outcome is LocalOverload(reason) {
-        node.overloads[overload_index(reason)] += 1L
+        node.overloads[overload_index(reason, session_budget~)] += 1L
       }
     }
     RetryStarted(endpoint, _) => self.node(endpoint).retries += 1L
-    WaitFinished(scope, _, duration, _) => {
+    Legacy(WaitFinished(scope, _, duration, _)) => {
       let index = match scope {
         Connection => 0
         Prepare => 1
@@ -254,14 +255,19 @@ fn Meter::observe(self : Meter, event : @client.MetricEvent) -> Unit {
       }
       self.waits[index].observe(duration)
     }
-    ConnectionAttempt(endpoint) => self.node(endpoint).connects[0] += 1L
-    ConnectionEstablished(endpoint) => self.node(endpoint).connects[1] += 1L
-    ConnectionFailed(endpoint, outcome) => {
+    Legacy(ConnectionAttempt(endpoint)) => self.node(endpoint).connects[0] += 1L
+    Legacy(ConnectionEstablished(endpoint)) =>
+      self.node(endpoint).connects[1] += 1L
+    ConnectionFailure(endpoint, outcome, authentication) => {
       let node = self.node(endpoint)
       node.connects[2] += 1L
-      node.connect_failures[outcome_index(outcome)] += 1L
+      node.connect_failures[if authentication {
+        12
+      } else {
+        outcome_index(outcome)
+      }] += 1L
     }
-    ConnectionClosed(endpoint) => self.node(endpoint).connects[3] += 1L
+    Legacy(ConnectionClosed(endpoint)) => self.node(endpoint).connects[3] += 1L
     _ => ()
   }
 }

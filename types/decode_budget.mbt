@@ -5,7 +5,7 @@ pub struct DecodeBudget {
 }
 
 ///|
-pub fn DecodeBudget::new(
+pub fn DecodeBudget::new_limited(
   max_nodes? : Int = 1000000,
   max_depth? : Int = 32,
 ) -> DecodeBudget raise @codec.CodecError {
@@ -37,4 +37,11 @@ fn DecodeBudget::require(
 fn DecodeBudget::take(self : DecodeBudget) -> Unit raise @codec.CodecError {
   self.require(1)
   self.remaining -= 1
+}
+
+///|
+pub fn DecodeBudget::new(
+  max_nodes? : Int = 1000000,
+) -> DecodeBudget raise @codec.CodecError {
+  DecodeBudget::new_limited(max_nodes~)
 }

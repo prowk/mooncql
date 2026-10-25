@@ -24,9 +24,9 @@ async test "Session resources expose pending abandoned cache and joined task han
         respond(peer, last.header.stream, 8, rows_result([9], None))
         assert_eq(peer.read_some(), None)
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             prepared_cache_capacity=1,
           ),

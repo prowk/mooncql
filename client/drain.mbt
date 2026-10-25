@@ -1,4 +1,11 @@
 ///|
+/// 排空是新增生命周期；独立错误不扩展稳定版 DriverError 的封闭分支。
+pub suberror Draining derive(@debug.Debug)
+
+///|
+pub extend Draining with @debug.Debug::{to_repr}
+
+///|
 /// 排空只表示已接受操作全部结束，不表示每个业务操作均执行成功。
 pub(all) enum DrainOutcome {
   Drained
@@ -13,7 +20,7 @@ pub extend DrainOutcome with Eq::{equal, not_equal}
 pub extend DrainOutcome with @debug.Debug::{to_repr}
 
 ///|
-fn Session::begin_operation(self : Session) -> Unit raise DriverError {
+fn Session::begin_operation(self : Session) -> Unit raise {
   if self.closed {
     raise Closed
   }
@@ -73,10 +80,11 @@ pub async fn Session::drain(
   // 正常、超时、外部取消都必须关闭并等待后台任务及已接受调用收尾。
   defer @async.protect_from_cancel(() => self.close())
   let expired = try {
-    timed(
+    timed_stage(
       deadline.remaining_ms(),
+      WaitingDrain,
       Operation,
-      { phase: WaitingDrain, sent: false, },
+      { phase: WaitingResponse, sent: false, },
       () => {
         while self.active > 0 && !self.closed {
           self.changed.wait()
@@ -85,7 +93,7 @@ pub async fn Session::drain(
     )
     false
   } catch {
-    TimedOut(_) => true
+    OperationTimedOut(_, _) => true
     error => raise error
   }
   if self.drain_outcome is None {
@@ -123,10 +131,11 @@ pub async fn Connection::drain(
   self.pause_health()
   defer @async.protect_from_cancel(() => self.shutdown())
   let expired = try {
-    timed(
+    timed_stage(
       deadline.remaining_ms(),
+      WaitingDrain,
       Operation,
-      { phase: WaitingDrain, sent: false, },
+      { phase: WaitingResponse, sent: false, },
       () => {
         while self.drain_remaining() > 0 && !self.closed {
           self.closed_changed.wait()
@@ -135,7 +144,7 @@ pub async fn Connection::drain(
     )
     false
   } catch {
-    TimedOut(_) => true
+    OperationTimedOut(_, _) => true
     error => raise error
   }
   if self.drain_outcome is None {

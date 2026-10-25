@@ -40,9 +40,9 @@ async test "cancelled schema owner releases singleflight and its stale late vers
           respond(peer, request.header.stream, 8, body)
         }
       })
-      @client.with_session(
-        config=@client.SessionConfig::new(
-          connection=@client.Config::new(port=server.addr.port()),
+      @client.with_session_builder(
+        config=@client.SessionBuilder::new(
+          connection=@client.ConnectionBuilder::new(port=server.addr.port()),
         ),
         session => {
           let options = @client.SchemaOptions::new(keyspaces=["ks"])

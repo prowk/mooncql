@@ -5,11 +5,11 @@ async test "authentication bounds and ambiguous credential settings fail before 
   })
   for
     config in [
-      @client.Config::new(port=1, max_auth_rounds=0),
-      @client.Config::new(port=1, max_auth_rounds=129),
-      @client.Config::new(port=1, max_auth_token_bytes=-1),
-      @client.Config::new(port=1, max_auth_token_bytes=16777217),
-      @client.Config::new(
+      @client.ConnectionBuilder::new(port=1, max_auth_rounds=0),
+      @client.ConnectionBuilder::new(port=1, max_auth_rounds=129),
+      @client.ConnectionBuilder::new(port=1, max_auth_token_bytes=-1),
+      @client.ConnectionBuilder::new(port=1, max_auth_token_bytes=16777217),
+      @client.ConnectionBuilder::new(
         port=1,
         auth_provider=provider,
         username="user",
@@ -18,7 +18,7 @@ async test "authentication bounds and ambiguous credential settings fail before 
     ] {
     assert_true(
       try {
-        @client.with_connection(config~, _ => ())
+        @client.with_connection_builder(config~, _ => ())
         false
       } catch {
         @client.Configuration(_) => true
@@ -50,8 +50,8 @@ async test "Connection drain reports deadline interruption and cancellation whil
             assert_eq(peer.read_some(), None)
           }
         })
-        @client.with_connection(
-          config=@client.Config::new(port=server.addr.port()),
+        @client.with_connection_builder(
+          config=@client.ConnectionBuilder::new(port=server.addr.port()),
           connection => {
             @async.with_task_group(requests => {
               let task = requests.spawn(() => {
