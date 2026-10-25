@@ -22,6 +22,18 @@ fn rank(sorted : Array[Int64], percent : Int) -> Int64 {
 }
 
 ///|
+async fn await_arrival(started : Int64, planned : Int64) -> Int64 {
+  while true {
+    let elapsed = now_ns() - started
+    if elapsed >= planned {
+      return elapsed
+    }
+    // 毫秒事件循环可能提前唤醒；始终以同一个纳秒时钟确认计划已到达。
+    @async.sleep(((planned - elapsed + 999999L) / 1000000L).to_int())
+  }
+}
+
+///|
 async fn main {
   let count = number("LOAD_COUNT", "1000")
   let concurrency = number("LOAD_CONCURRENCY", "32")
@@ -110,11 +122,7 @@ async fn main {
         } else {
           id.to_int64() * 1000000000L / rate.to_int64()
         }
-        let remaining = planned - (now_ns() - started)
-        if remaining > 0L {
-          @async.sleep(((remaining + 999999L) / 1000000L).to_int())
-        }
-        let dispatched = now_ns() - started
+        let dispatched = await_arrival(started, planned)
         // 开环计划独立于完成时间；过期到达仍被计入队列延迟，不能静默丢弃。
         let partition = if distribution == "hot" { 0 } else { id % partitions }
         let outcome = try {
