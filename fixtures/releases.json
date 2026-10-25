@@ -1,10 +1,46 @@
 {
   "repository": "prowk/mooncql",
-  "stable": "0.2.0",
+  "stable": "0.2.1",
   "api_baseline": "0.2.0",
-  "pending": "0.2.1",
   "versions": [
-    {"version": "0.1.0", "commit": "960b9e3dce6629c7bef021228c9b6112a40f9b8a", "profile": "declaration", "packages": ["client", "protocol", "types", "codec", "framing"]},
-    {"version": "0.2.0", "commit": "0acc98a5bd184c9e31d57bbdc1be652922d0cea4", "profile": "stable", "packages": ["client", "protocol", "types", "codec", "framing", "routing"]}
+    {
+      "version": "0.1.0",
+      "commit": "960b9e3dce6629c7bef021228c9b6112a40f9b8a",
+      "profile": "declaration",
+      "packages": [
+        "client",
+        "protocol",
+        "types",
+        "codec",
+        "framing"
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "commit": "0acc98a5bd184c9e31d57bbdc1be652922d0cea4",
+      "profile": "compatibility",
+      "packages": [
+        "client",
+        "protocol",
+        "types",
+        "codec",
+        "framing",
+        "routing"
+      ]
+    },
+    {
+      "version": "0.2.1",
+      "commit": "b3203d91a9720e819c8f8b65a78180a076001d6d",
+      "profile": "stable",
+      "packages": [
+        "client",
+        "protocol",
+        "types",
+        "codec",
+        "framing",
+        "routing",
+        "mapping"
+      ]
+    }
   ]
 }
