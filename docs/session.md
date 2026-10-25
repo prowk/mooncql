@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.0。默认维护单个节点，也支持显式配置多个协调节点。
+本文适用于 0.2.1。默认维护单个节点，也支持显式配置多个协调节点。
 
 ```moonbit
 @client.with_session(

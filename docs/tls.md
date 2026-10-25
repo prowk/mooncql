@@ -2,9 +2,9 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-开发分支新增的 Cassandra 自身 TLS 监听与最小权限账户测试见[原生 TLS 验收](native-tls-acceptance.md)，与本页的 TLS 代理矩阵分别报告。
+0.2.1 新增的 Cassandra 自身 TLS 监听与最小权限账户测试见[原生 TLS 验收](native-tls-acceptance.md)，与本页的 TLS 代理矩阵分别报告。
 
-本文适用于 0.2.0。最低 TLS 版本为 1.2。
+本文适用于 0.2.1。最低 TLS 版本为 1.2。
 
 `Config::new(tls=TlsConfig::new(...))` 开启 TLS。默认使用系统信任根，始终校验服务端名称；`server_name` 默认等于连接 host。指定 `ca_file` 时，仅使用该 PEM 文件中的 CA 作为信任根。可以将连接地址设置为 IP，同时使用 `server_name` 指定证书中的 DNS 名称；也支持证书的 IP SAN。驱动没有跳过证书验证的配置。
 

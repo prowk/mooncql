@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.0。
+本文适用于 0.2.1。
 
 `Connection.query_conditional` 和 `Prepared.execute_conditional` 返回 `ConditionalResult`。
 `applied` 表示本次 IF 条件是否成立；未应用是正常数据库结果，不作为异常。

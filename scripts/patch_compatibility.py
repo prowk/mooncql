@@ -66,10 +66,8 @@ def accept(archive, output):
         run(['moon', 'check', '--target', 'native', '--deny-warn'], output, 'baseline-check', cwd=project)
         report['baseline_package'] = check_package(project, stable, output)
         report['baseline_compiled'] = True
-        installed = project / '.mooncakes/prowk/mooncql'
-        assert installed.resolve().is_relative_to(project.resolve())
-        # 只替换本次独立消费项目的缓存，不影响工作区或用户全局缓存。
-        shutil.rmtree(installed)
+        installed = output / 'candidate'
+        assert installed.resolve().is_relative_to(output.resolve())
         installed.mkdir()
         files = []
         with zipfile.ZipFile(archive) as package:
@@ -90,8 +88,12 @@ def accept(archive, output):
                                        'files': files, 'path': str(archive)}
         for name in ['features', 'profiles', 'limits', 'schema', 'prometheus']:
             copy_example(project, ROOT / 'cmd' / name, name)
-        run(['moon', 'check', '--target', 'native', '--deny-warn'], output, 'candidate-check', cwd=project)
-        run(['moon', 'build', '--target', 'native', '--release', '--deny-warn'], output, 'candidate-build', cwd=project)
+        # 原生 workspace 只指向本次解包结果；不改归档版本，也不伪造注册表安装。
+        (output / 'moon.work').write_text('members = ["./consumer", "./candidate"]\n', encoding='utf-8')
+        run(['moon', 'check', '.', '--target', 'native', '--deny-warn'], output, 'candidate-check', cwd=project)
+        run(['moon', 'build', '.', '--frozen', '--target', 'native', '--release', '--deny-warn'], output, 'candidate-build', cwd=project)
+        with zipfile.ZipFile(archive) as package:
+            assert all((installed / name).read_bytes() == package.read(name) for name in files), 'candidate archive changed during consumption'
         report['candidate_compiled'] = True
         report['passed'] = True
     finally:

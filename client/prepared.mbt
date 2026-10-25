@@ -153,6 +153,17 @@ pub async fn Prepared::execute_with_info(
   // 整次执行及可能的一次恢复共用同一份参数快照。
   let options = prepared_options(options, self.keyspace)
   let values = @types.snapshot(values)
+  self.execute_frozen(values, options, deadline)
+}
+
+///|
+// 仅接收驱动已经持有的参数快照，Session 重试不再逐次重复深拷贝。
+async fn Prepared::execute_frozen(
+  self : Prepared,
+  values : Array[@types.Value],
+  options : @protocol.QueryOptions,
+  deadline : Deadline,
+) -> Execution[@protocol.ResultSet] {
   self.validate_bindings(values)
   let metadata = self.metadata
   let generation = self.generation

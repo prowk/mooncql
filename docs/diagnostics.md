@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [原有指标](metrics.md) · [连接健康](connection-health.md) · [超时](timeouts.md)
 
-本页的逻辑调用事件、RPC 分类和导出示例适用于**尚未发布的开发分支**。稳定版 0.2.0 只有[原有 RPC 与资源指标](metrics.md)。默认不创建 Metrics；观测和导出均需显式启用。
+本页的逻辑调用事件、RPC 分类和导出示例适用于 **0.2.1**。0.2.0 只有[原有 RPC 与资源指标](metrics.md)。默认不创建 Metrics；观测和导出均需显式启用。
 
 ## 指标口径
 
@@ -19,6 +19,10 @@
 RPC 尝试计数不表示服务端一定收到请求；`mooncql_rpc_possible_sent_total` 另按 may_have_been_sent 统计可能已经发送的调用，仍不等同于 Cassandra 已执行成功。
 
 为兼容 0.2.0，`MetricEvent`、`RequestEvent`、`MetricsSnapshot` 和 `RequestOutcome` 保留原字段及分支。使用 `Metrics::with_diagnostics(callback, listener?)` 订阅独立的 `DiagnosticEvent`：`OperationStarted`、`OperationFinished`、`RetryStarted` 对应逻辑操作及重试，`RpcFinished(scope, event, session_budget)` 附带 RPC 来源及是否由 Session 总额度拒绝。OperationEvent 也有 session_budget 标记；只在 outcome 为 LocalOverload 时用于区分额度范围。`Legacy(event)` 同时转发原有事件，但导出器不能把它与 RpcFinished 重复计为两次 RPC。`ConnectionFailure(endpoint, outcome, authentication)` 保留旧结果分类并另标识认证拒绝；旧监听器仍收到不含原始认证文本的 OtherFailure。
+
+`RpcTimeline(RequestTimeline)` 提供同一 Metrics 内唯一的 request_id、单调毫秒时钟的排队、首次 socket 写入尝试和完成时刻。发送前拒绝的 sending_at_ms 为 None；它不是服务端收到或提交时间。时间线只通过显式监听器投递，不在驱动内保存历史；默认无 Metrics 时不采集。负载程序的计划到达与应用调度时间另以单调纳秒采集，见[性能基准](performance.md)。
+
+驱动生成的请求指标、时间线和游标 Debug 不携带 CQL、绑定值、payload 或认证 token。业务 ServerError.message、服务端 warnings／custom payload 属于原始服务端数据，可能回显敏感文本；应用自行打印它们，或打印 Value／低层 Request 的 Debug，必须自行脱敏。默认指标导出器不将这些内容写入日志或标签，认证错误另有强制脱敏。错误原因可由 ExecutionError、RetryExhausted 历史与 SchemaMetadataError 包装保留；取消不会转换成可重试业务失败。
 
 只有驱动空闲探测使用 heartbeat；手动发送 OPTIONS 仍属于普通 data。`metrics.operations_snapshot()` 返回独立的 `OperationMetricsSnapshot`，其中 logical_* 是逻辑开始／成功／失败／取消和耗时，retry_attempts 是上述重试尝试。`metrics.snapshot()` 的原有 requests_*、total_timeouts() 和 total_cancellations() 保持旧口径，不把逻辑计数叠加进去。只使用原监听器的代码无须增加匹配分支或记录字段。
 

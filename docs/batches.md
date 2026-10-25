@@ -29,7 +29,7 @@ connection.batch(
 )
 ```
 
-成功时 Connection.batch 要求服务端返回 VOID。0.2.0 的 Session 低层入口是 `session.request(protocol.batch(...))`，返回 Reply，调用方应检查其 response 中的 Failure 分支；当前开发分支另外提供不依赖业务侧物理连接的 `Session.batch`／`batch_with_info` 和逻辑批处理绑定，详见[开发分支接口](development-api.md)。需要 LWT 返回列时使用查询或预处理接口，参见 [条件写入](conditional-writes.md)。
+成功时 Connection.batch 要求服务端返回 VOID。0.2.0 的 Session 低层入口是 `session.request(protocol.batch(...))`，返回 Reply，调用方应检查其 response 中的 Failure 分支；当前0.2.1 另外提供不依赖业务侧物理连接的 `Session.batch`／`batch_with_info` 和逻辑批处理绑定，详见[批处理与生命周期](development-api.md)。需要 LWT 返回列时使用查询或预处理接口，参见 [条件写入](conditional-writes.md)。
 
 BATCH 不自动重放，也不自动修复其中的 UNPREPARED。断线、超时或取消后，服务端可能已经执行部分或全部写入，需按业务键读取并核对结果。重新准备后重提整个批次前，应由应用确认所有操作都适合重放；counter、LWT 和集合追加尤其需要独立处理。请求级 tracing 和 custom payload 通过 options.request_options 发送；要保留完整执行信息，参见 [with_info 接口](execution-info.md)。
 

@@ -15,7 +15,7 @@ MoonBit 原生异步 Cassandra 驱动，使用正式 Native Protocol v5，面向
 ## 安装
 
 ```sh
-moon add prowk/mooncql@0.2.0
+moon add prowk/mooncql@0.2.1
 moon add moonbitlang/async@0.22.3
 ```
 
@@ -45,7 +45,7 @@ moon run cmd/tutorial
 
 ## 文档
 
-[文档目录](docs/README.md) · [入门教程](docs/getting-started.md) · [连接配置](docs/configuration.md) · [从 0.1 升级](docs/migration.md) · [API](https://mooncakes.io/docs/prowk/mooncql)
+[文档目录](docs/README.md) · [入门教程](docs/getting-started.md) · [连接配置](docs/configuration.md) · [升级说明](docs/migration.md) · [API](https://mooncakes.io/docs/prowk/mooncql)
 
 ## 兼容性与语义
 

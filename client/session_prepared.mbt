@@ -198,7 +198,7 @@ pub async fn SessionPrepared::execute_with_profile_info(
       connection => {
         let preparation = self.statement_for(connection, deadline, charge)
         let prepared = preparation.value
-        let result = prepared.execute_with_info(values, options~, deadline~) catch {
+        let result = prepared.execute_frozen(values, options, deadline) catch {
           ExecutionError(error, info) => {
             let previous = if preparation.info.cached {
               info.previous.copy()

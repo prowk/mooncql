@@ -3,8 +3,10 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import urllib.request
+import subprocess
 import uuid
 
 from acceptance_common import ROOT, provenance, run, write_json
@@ -111,17 +113,32 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run', action='store_true', help='在专用 Cassandra 上运行三个场景及错误分支')
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--candidate-version', help='发布后显式验收刚发布、尚未登记到历史合同的版本')
+    parser.add_argument('--candidate-commit', help='候选标签必须指向这个完整提交')
     args = parser.parse_args()
     output = (args.output or ROOT / '.artifacts' / f'package-acceptance-{uuid.uuid4().hex}').resolve()
     output.mkdir(parents=True, exist_ok=False)
     contracts = json.loads((ROOT / 'fixtures/releases.json').read_text(encoding='utf-8'))
+    if args.candidate_version or args.candidate_commit:
+        assert args.candidate_version and args.candidate_commit and re.fullmatch('[a-f0-9]{40}', args.candidate_commit)
+        assert args.candidate_version == contracts.get('pending'), 'candidate must match explicit pending release'
+        contracts['stable'] = args.candidate_version
+        contracts['versions'].append(dict(version=args.candidate_version, commit=args.candidate_commit, profile='stable',
+            packages=sorted(path.parent.name for path in ROOT.glob('*/pkg.generated.mbti') if not path.parent.name.startswith('.'))))
     report = {'passed': False, 'versions': [], 'long_test_run': False}
     try:
         report['provenance'] = provenance(output)
         request = urllib.request.Request('https://api.github.com/repos/prowk/mooncql/releases/latest',
                                          headers={'User-Agent': 'mooncql-package-acceptance'})
         with urllib.request.urlopen(request, timeout=30) as response:
-            assert json.load(response)['tag_name'] == 'v' + contracts['stable'], 'update the stable version contract explicitly'
+            latest = json.load(response)['tag_name']
+            if latest != 'v' + contracts['stable']:
+                # 发布提交无法包含自身 SHA。只允许该提交对应的显式待发布标签过渡，随后另提交固定合同。
+                assert latest == 'v' + contracts.get('pending', ''), 'update the stable version contract explicitly'
+                tag = subprocess.check_output(['git', 'rev-parse', latest + '^{}'], cwd=ROOT, encoding='utf-8').strip()
+                head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, encoding='utf-8').strip()
+                assert tag == head, 'pending release transition only applies to exact release commit'
+                report['pending_release_transition'] = dict(version=contracts['pending'], commit=head)
         for contract in contracts['versions']:
             report['versions'].append(accept_version(output / contract['version'], contract, args.run))
         report['passed'] = True

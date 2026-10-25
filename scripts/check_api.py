@@ -56,7 +56,7 @@ def git(*arguments):
 
 def audit():
     versions = json.loads((ROOT / 'fixtures/releases.json').read_text(encoding='utf-8'))
-    stable = next(version for version in versions['versions'] if version['version'] == versions['stable'])
+    stable = next(version for version in versions['versions'] if version['version'] == versions.get('api_baseline', versions['stable']))
     tag = 'v' + stable['version']
     assert git('rev-parse', tag + '^{}') == stable['commit'], 'stable API baseline tag moved'
     packages = sorted(set(stable['packages']) | {path.parent.name for path in ROOT.glob('*/pkg.generated.mbti') if not path.parent.name.startswith('.')})

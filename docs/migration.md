@@ -3,7 +3,7 @@
 [文档目录](README.md) · [入门教程](getting-started.md)
 
 ```sh
-moon add --upgrade prowk/mooncql@0.2.0
+moon add --upgrade prowk/mooncql@0.2.1
 ```
 
 0.2 新增 Session、TLS、节点发现与路由、显式幂等重试、执行信息、指标、Row 类型化读取和可恢复分页游标。已有 Connection、Prepared 和基础分页接口继续保留。
@@ -24,13 +24,13 @@ moon add --upgrade prowk/mooncql@0.2.0
 
 读取参数元数据和 Row 列定义得到隔离快照，修改返回的嵌套 tuple 或 UDT 不会改变内部状态。默认写时间戳现在接受 Cassandra 5.0.5 支持的负值，Int64 最小值仍保留。
 
-## 当前开发分支（尚未发布）
+## 从 0.2.0 升级到 0.2.1
 
 稳定版公开声明相对 0.2.0 保持不变：完整 Config／SessionConfig／ExecutionInfo／RequestEvent／MetricsSnapshot 记录仍可构造，DriverError／TimeoutPhase／OverloadReason／RequestOutcome／MetricEvent 的穷尽匹配保持有效，原函数参数列表也不增加可选参数。扩展能力使用独立新类型和函数名；源码检查同时禁止修改或删除旧声明，不把更新差异合同当作放行破坏性改动。
 
 原 Config／SessionConfig 与 with_connection／with_session 继续保留。动态认证、固定 Session 总预算、每节点多连接、默认执行配置和 DDL 等待使用 ConnectionBuilder／SessionBuilder，配合 connect_builder、with_connection_builder、with_serial_connection_builder 和 with_session_builder。Config.builder() 转换连接值；SessionConfig.builder() 保留旧的逐连接预算语义，Session.budget().limits 为 None。直接创建 SessionBuilder::new() 默认启用固定总预算，limits 为 Some；也可显式调整 enforce_limits。旧入口不会自动从多个逐连接预算变成总计 128 个 RPC 的新限制。
 
-新增 Session 批处理、可插拔认证与优雅排空，参见[开发接口](development-api.md)。排空拒绝是独立的 Draining 错误。总额度错误是独立的 SessionOverloaded(reason)，单连接仍返回 Overloaded(reason)，原因使用已有 OverloadReason。目录锁等待和两页间遍历预算超时是 OperationTimedOut(stage, info)，阶段属于新的 OperationStage；原 TimedOut 和 TimeoutPhase 仍表示原有请求等待阶段。排空到期仍返回 DrainOutcome，不能据此推断业务成功或服务端撤销。
+新增 Session 批处理、可插拔认证与优雅排空，参见[批处理与生命周期](development-api.md)。排空拒绝是独立的 Draining 错误。总额度错误是独立的 SessionOverloaded(reason)，单连接仍返回 Overloaded(reason)，原因使用已有 OverloadReason。目录锁等待和两页间遍历预算超时是 OperationTimedOut(stage, info)，阶段属于新的 OperationStage；原 TimedOut 和 TimeoutPhase 仍表示原有请求等待阶段。排空到期仍返回 DrainOutcome，不能据此推断业务成功或服务端撤销。
 
 认证拒绝现在返回脱敏的 Authentication，不把服务端可能回显凭据的认证原文直接暴露；业务查询的 ServerError 不受此改变影响。默认作用域关闭仍立即取消，只有显式调用 drain 才等待；BATCH 无论低层还是新 Session 接口均不自动重放。认证回调每个连接独立创建，重连和额外池槽不会复用上一会话。
 
@@ -46,4 +46,4 @@ DDL 等待报告由 query_with_schema_info 返回 SchemaExecution.schema_agreeme
 
 MetricEvent、RequestOutcome、RequestEvent 和 MetricsSnapshot 保留 0.2.0 形状。扩展事件使用独立 DiagnosticEvent，通过 Metrics::with_diagnostics 订阅；RPC 分类读取 RpcFinished(scope, event, session_budget)，逻辑计数读取 Metrics::operations_snapshot()。认证失败在扩展 ConnectionFailure 中单独标识，旧 RequestOutcome 仍为 OtherFailure；详见[运维诊断](diagnostics.md)。
 
-Builder 的每节点连接池默认仍为 1，可选 1–8。NodeStatus.generation／Session.status().generation 继续计接受的连接代次，初次建池也会增长；按槽诊断使用 Session.pools()。尚未发布开发分支的旧写法需要迁移到上述新名称，已发布 0.2.0 的业务接口保留。
+Builder 的每节点连接池默认仍为 1，可选 1–8。NodeStatus.generation／Session.status().generation 继续计接受的连接代次，初次建池也会增长；按槽诊断使用 Session.pools()。发布前开发分支的旧写法需要迁移到上述新名称，已发布 0.2.0 的业务接口保留。

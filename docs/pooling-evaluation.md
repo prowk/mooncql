@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [性能基准](performance.md) · [Session 总额度](session-limits.md)
 
-本页是开发分支的短时测量入口。Session 当前默认每节点一条物理连接。[Java Driver 的连接池指南](https://apache.github.io/cassandra-java-driver/4.19.0/core/pooling/)同样默认单连接，并要求依据具体测量调整连接数；协议可以在一条连接上复用多个 stream，不能由连接数量直接推断吞吐收益。
+本页是0.2.1 的短时测量入口。Session 当前默认每节点一条物理连接。[Java Driver 的连接池指南](https://apache.github.io/cassandra-java-driver/4.19.0/core/pooling/)同样默认单连接，并要求依据具体测量调整连接数；协议可以在一条连接上复用多个 stream，不能由连接数量直接推断吞吐收益。
 
 可配置接口与恢复语义见[每节点连接池](pooling.md)。
 

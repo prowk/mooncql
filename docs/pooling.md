@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [连接数评估](pooling-evaluation.md) · [总额度](session-limits.md) · [连接健康](connection-health.md)
 
-本页适用于**尚未发布的开发分支**。`SessionBuilder::new(connections_per_node=...)` 为每个节点设置固定数量的数据连接，默认 **1**，范围 **1–8**。一个 Session 内所有节点使用同一配置，创建后保持固定；控制连接作为独立连接管理。
+本页适用于**0.2.1**。`SessionBuilder::new(connections_per_node=...)` 为每个节点设置固定数量的数据连接，默认 **1**，范围 **1–8**。一个 Session 内所有节点使用同一配置，创建后保持固定；控制连接作为独立连接管理。
 
 ## 配置与请求路由
 

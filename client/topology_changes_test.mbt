@@ -87,11 +87,26 @@ async test "periodic topology snapshots isolate replacement identity address DC 
                           session_metadata(id, b"metadata", "id"),
                         )
                       } else if request.header.opcode == 10 {
-                        assert_eq(
-                          @codec.Reader::new(request.body).short_bytes(),
-                          id,
-                        )
-                        respond(peer, request.header.stream, 8, session_row(7))
+                        let execution = @codec.Reader::new(request.body)
+                        assert_eq(execution.short_bytes(), id)
+                        ignore(execution.short_bytes())
+                        ignore(execution.u16())
+                        let flags = execution.i32()
+                        let body = if (flags & 4) != 0 {
+                          // 同一 Pager 的第二页跨越 host_id 替换，旧句柄不能沿用旧连接 ID。
+                          rows_result(
+                            [if (flags & 8) == 0 { 7 } else { 8 }],
+                            if (flags & 8) == 0 {
+                              Some(b"next")
+                            } else {
+                              None
+                            },
+                            omit_metadata=(flags & 8) != 0,
+                          )
+                        } else {
+                          session_row(7)
+                        }
+                        respond(peer, request.header.stream, 8, body)
                       } else {
                         let reader = @codec.Reader::new(request.body)
                         let cql = reader.long_string()
@@ -205,6 +220,12 @@ async test "periodic topology snapshots isolate replacement identity address DC 
           assert_true(prepared.execute([Integer(7)]) is Rows(_))
           let connections_before = accepted[2]
           assert_eq(connections_before, 2)
+          let pager = prepared.pages(
+            [Integer(7)],
+            options=@protocol.QueryOptions::new(page_size=1, skip_metadata=true),
+          )
+          let previous_page = pager.next().unwrap()
+          assert_eq(previous_page.row(0).int("id"), 7)
           // 地址未变而 host_id 改变也必须结束旧池，不能保留旧 PREPARE ID。
           phase[0] = 2
           let revision = session.topology().unwrap().revision
@@ -216,6 +237,10 @@ async test "periodic topology snapshots isolate replacement identity address DC 
           assert_eq(accepted[2], 4)
           assert_eq(replaced.nodes[1].host_id[15], b'\x09')
           assert_true(prepared.execute([Integer(7)]) is Rows(_))
+          let current_page = pager.next().unwrap()
+          assert_eq(current_page.row(0).int("id"), 8)
+          assert_true(pager.next() is None)
+          assert_eq(previous_page.row(0).int("id"), 7)
           // 复制因子调整后两节点均为副本，轮转起点取代旧的单副本偏好。
           phase[0] = 3
           let revision = session.topology().unwrap().revision

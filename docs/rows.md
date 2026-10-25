@@ -2,9 +2,9 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-开发分支新增的显式应用结构、Value 和 Row 映射见[应用类型映射](value-mapping.md)。
+0.2.1 新增的显式应用结构、Value 和 Row 映射见[应用类型映射](value-mapping.md)。
 
-本文适用于 0.2.0。`page.row(index)` 返回共享本页列定义和列名索引的 Row；第一次按名称读取时构建索引，后续各行按名称查找不再扫描全部列。同名列返回第一列，建议在 CQL 中使用明确别名。
+本文适用于 0.2.1。`page.row(index)` 返回共享本页列定义和列名索引的 Row；第一次按名称读取时构建索引，后续各行按名称查找不再扫描全部列。同名列返回第一列，建议在 CQL 中使用明确别名。
 
 ```moonbit
 guard connection.query("SELECT id, message FROM app.events WHERE device=?", values=[Integer(42)]) is Rows(page) else { fail("expected rows") }

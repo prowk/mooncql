@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [背压](backpressure.md) · [取消](timeouts.md)
 
-本页接口适用于当前开发分支。通过 `ResponseLimits::new` 构造不可变限制，在 `with_connection_builder`、`with_serial_connection_builder`、`connect_builder` 或 `with_session_builder` 传入 `response_limits~`。Session 的所有数据槽、重连和控制连接继承该限制；原有 ConnectionBuilder 记录无需添加字段。
+本页接口适用于 0.2.1。通过 `ResponseLimits::new` 构造不可变限制，在 `with_connection_builder`、`with_serial_connection_builder`、`connect_builder` 或 `with_session_builder` 传入 `response_limits~`。Session 的所有数据槽、重连和控制连接继承该限制；原有 ConnectionBuilder 记录无需添加字段。
 
 | 参数 | 默认值 | 合法范围 |
 | --- | --- | --- |

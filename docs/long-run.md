@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.0。入口为 cmd/soak/main.mbt，控制器为 scripts/long_run.py。可以先执行短时混合负载和周期故障验证。连续六小时及长期内存趋势验证作为按需安排的后续验证，尚未执行。
+本文适用于 0.2.1。入口为 cmd/soak/main.mbt，控制器为 scripts/long_run.py。可以先执行短时混合负载和周期故障验证。连续六小时及长期内存趋势验证作为按需安排的后续验证，尚未执行。
 
 示例使用独立三节点 Cassandra 5.0.5 集群，在 dc1 配置 RF=3，以 QUORUM 读写。同时演示持续事件写入、类型化读取、精确 bigint、分页游标、Session 自动恢复、显式幂等读取、LWT、同分区 unlogged BATCH、缓存淘汰、schema 事件及控制连接。写入覆盖固定分区和 ID，测试数据规模保持有界。
 

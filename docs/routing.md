@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.0。SessionConfig 的 `routing=RoutingConfig::new("dc1")` 开启本地数据中心优先，且要求同时配置 discovery。local_dc 必须明确给出；默认不会使用远端或 DC 未知的节点。只有设置 allow_remote=true，才允许在本地候选不可用或已尝试后向其他 DC 回退。
+本文适用于 0.2.1。SessionConfig 的 `routing=RoutingConfig::new("dc1")` 开启本地数据中心优先，且要求同时配置 discovery。local_dc 必须明确给出；默认不会使用远端或 DC 未知的节点。只有设置 allow_remote=true，才允许在本地候选不可用或已尝试后向其他 DC 回退。
 
 ```moonbit
 @client.with_session(

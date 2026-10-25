@@ -14,26 +14,52 @@ async test "fixed seed multiplex model combines reordered TCP fragments cancella
       @env.get_env_var("CQL_TEST_ROUNDS").unwrap_or("32"),
     )
     assert_true(rounds >= 1 && rounds <= 256)
-    let random = [seed]
+    let only = @string.parse_int(
+      @env.get_env_var("CQL_TEST_CASE").unwrap_or("-1"),
+    )
+    let width = @string.parse_int(
+      @env.get_env_var("CQL_TEST_WIDTH").unwrap_or("12"),
+    )
+    let cancels = @string.parse_int(
+      @env.get_env_var("CQL_TEST_CANCELS").unwrap_or("4"),
+    )
+    let fragment = @string.parse_int(
+      @env.get_env_var("CQL_TEST_FRAGMENT").unwrap_or("31"),
+    )
+    assert_true(
+      only >= -1 &&
+      only < rounds &&
+      width >= 1 &&
+      width <= 12 &&
+      cancels >= 0 &&
+      cancels <= 12 &&
+      fragment >= 1 &&
+      fragment <= 131071,
+    )
     for round in 0..<rounds {
+      if only >= 0 && round != only {
+        continue
+      }
+      // 各轮独立派生种子，可直接重放单轮，缩减时不依赖此前网络分片数量。
+      let random = [seed ^ ((round + 1).reinterpret_as_uint() * 2654435761U)]
       errdefer println(
-        "replay CQL_TEST_SEED=\{seed} CQL_TEST_ROUNDS=\{round + 1}; phase=multiplex round=\{round}",
+        "replay CQL_TEST_SEED=\{seed} CQL_TEST_ROUNDS=\{round + 1} CQL_TEST_CASE=\{round} CQL_TEST_WIDTH=\{width} CQL_TEST_CANCELS=\{cancels} CQL_TEST_FRAGMENT=\{fragment}; phase=multiplex round=\{round}",
       )
       let compressed = round % 2 == 0
-      let order = Array::makei(12, index => index)
-      for index in 0..<12 {
-        let other = model_random(random, 12)
+      let order = Array::makei(width, index => index)
+      for index in 0..<width {
+        let other = model_random(random, width)
         let saved = order[index]
         order[index] = order[other]
         order[other] = saved
       }
-      let cancelled = Array::make(12, false)
-      for _ in 0..<4 {
-        cancelled[model_random(random, 12)] = true
+      let cancelled = Array::make(width, false)
+      for _ in 0..<cancels {
+        cancelled[model_random(random, width)] = true
       }
       let eof = round % 3 == 0
-      let completed = if eof { 1 + model_random(random, 10) } else { 12 }
-      let replied = Array::make(12, false)
+      let completed = if eof { model_random(random, width) } else { width }
+      let replied = Array::make(width, false)
       for index in 0..<completed {
         replied[order[index]] = true
       }
@@ -48,13 +74,13 @@ async test "fixed seed multiplex model combines reordered TCP fragments cancella
           let peer = Peer::new(tcp, compressed~)
           defer peer.close()
           handshake(peer)
-          let streams = Array::make(12, -1)
-          for _ in 0..<12 {
+          let streams = Array::make(width, -1)
+          for _ in 0..<width {
             let message = receive(peer)
             let id = @string.parse_int(
               @codec.Reader::new(message.body).long_string(),
             )
-            assert_true(id >= 0 && id < 12 && streams[id] == -1)
+            assert_true(id >= 0 && id < width && streams[id] == -1)
             streams[id] = message.header.stream
           }
           ready.put(())
@@ -81,7 +107,7 @@ async test "fixed seed multiplex model combines reordered TCP fragments cancella
           let bytes = output.to_bytes()
           let mut position = 0
           while position < bytes.length() {
-            let width = 1 + model_random(random, 31)
+            let width = 1 + model_random(random, fragment)
             let remaining = bytes.length() - position
             let end = position +
               (if width < remaining { width } else { remaining })
@@ -96,13 +122,13 @@ async test "fixed seed multiplex model combines reordered TCP fragments cancella
           config=@client.ConnectionBuilder::new(
             port=server.addr.port(),
             compression=compressed,
-            max_in_flight=12,
+            max_in_flight=width,
             metrics~,
           ),
           connection => {
             @async.with_task_group(requests => {
               let tasks = []
-              for id in 0..<12 {
+              for id in 0..<width {
                 tasks.push(
                   requests.spawn(() => {
                     try {
@@ -117,9 +143,9 @@ async test "fixed seed multiplex model combines reordered TCP fragments cancella
                 )
               }
               ready.get()
-              assert_eq(connection.pending_count(), 12)
+              assert_eq(connection.pending_count(), width)
               let mut cancelled_count = 0
-              for id in 0..<12 {
+              for id in 0..<width {
                 if cancelled[id] {
                   tasks[id].cancel()
                   ignore(tasks[id].wait()) catch {
@@ -129,9 +155,9 @@ async test "fixed seed multiplex model combines reordered TCP fragments cancella
                 }
               }
               assert_eq(connection.abandoned_count(), cancelled_count)
-              assert_eq(connection.in_flight_count(), 12)
+              assert_eq(connection.in_flight_count(), width)
               release.put(())
-              for id in 0..<12 {
+              for id in 0..<width {
                 if !cancelled[id] {
                   match tasks[id].wait() {
                     Ok(value) => {

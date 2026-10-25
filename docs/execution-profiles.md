@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [分页](paging.md) · [重试](retries.md) · [超时与取消](timeouts.md)
 
-本页适用于**尚未发布的开发分支**。已发布的 0.2.0 不包含 `ExecutionProfile`。可复用的请求配置参考 [Java Driver execution profiles](https://apache.github.io/cassandra-java-driver/4.19.0/core/configuration/)，此处直接传递不可变对象，无配置文件、名称注册或热更新。
+本页适用于**0.2.1**。已发布的 0.2.0 不包含 `ExecutionProfile`。可复用的请求配置参考 [Java Driver execution profiles](https://apache.github.io/cassandra-java-driver/4.19.0/core/configuration/)，此处直接传递不可变对象，无配置文件、名称注册或热更新。
 
 ## 创建和选择
 
@@ -35,7 +35,7 @@
 
 Pager 在创建时冻结查询选项、参数、幂等声明和重试策略，每次取页使用新的单页操作预算。`Pager.next(deadline=...)` 或 `next_with_info(deadline=...)` 可显式覆盖这一次取页的预算。
 
-`traversal_timeout_ms` 从第一次取页开始计时，包含重试、调用方处理每页的时间和两页之间的等待。`pages(traversal_deadline=...)` 可在创建时指定整次遍历的绝对期限；它优先于配置中的相对遍历预算，Connection 和 Prepared 的低层 Pager 也支持它。最终取页期限始终是单页与遍历两者中较早的一个，给下一页更长的 Deadline 不能延长已经开始的遍历。
+`traversal_timeout_ms` 从第一次取页开始计时，包含重试、调用方处理每页的时间和两页之间的等待。`pages_with_options(traversal_deadline=...)` 可在创建时指定整次遍历的绝对期限；它优先于配置中的相对遍历预算，Connection 和 Prepared 的低层 Pager 也支持它。最终取页期限始终是单页与遍历两者中较早的一个，给下一页更长的 Deadline 不能延长已经开始的遍历。
 
 遍历预算在页与页之间用尽时，下一次取页返回独立的 `OperationTimedOut(WaitingPage, info)`，`may_have_been_sent=false`；在请求过程中用尽则保留原 `TimedOut` 和真实请求阶段。新阶段属于 OperationStage，不扩展稳定版 TimeoutPhase 的封闭分支。显式传入已经过期的单页 Deadline 仍是原 TimedOut／WaitingSlot。预算不强制中断调用方正在执行的行处理回调。失败和取消均不推进游标，已经返回的页仍归调用方所有。
 

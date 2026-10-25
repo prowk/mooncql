@@ -1,5 +1,6 @@
 ///|
 async test "FIFO mixed sizes across sibling connections cannot bypass oldest waiter" {
+  let started = @async.now()
   @async.with_timeout(3000, () => {
     @async.with_task_group(group => {
       let config = ConnectionBuilder::new(
@@ -50,6 +51,10 @@ async test "FIFO mixed sizes across sibling connections cannot bypass oldest wai
       assert_eq(parent.scheduling_snapshot().queued, 0)
       assert_true(parent.scheduling_snapshot().wakeups < 2048L)
       assert_true(parent.scheduling_snapshot().broadcasts < 256L)
+      let scheduling = parent.scheduling_snapshot()
+      println(
+        "fifo-cost contenders=33 broadcasts=\{scheduling.broadcasts} wakeups=\{scheduling.wakeups} elapsed_ms=\{@async.now() - started}",
+      )
     })
   })
 }

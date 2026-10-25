@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [TLS 配置](tls.md) · [运维诊断](diagnostics.md) · [开发指南](development.md)
 
-本页是**尚未发布开发分支**的专用短时集成入口，服务端固定 Cassandra 5.0.5。它直接连接 Cassandra 自己的 TLS 监听，独立于现有 Python TLS 服务／TLS 终止代理矩阵；结果不合并成同一种测试。
+本页是 **0.2.1** 的专用短时集成入口，服务端固定 Cassandra 5.0.5。它直接连接 Cassandra 自己的 TLS 监听，独立于现有 Python TLS 服务／TLS 终止代理矩阵；结果不合并成同一种测试。
 
 ## 运行
 

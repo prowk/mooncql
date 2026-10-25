@@ -267,6 +267,7 @@ pub(all) enum DiagnosticEvent {
   RetryStarted(Endpoint, Int)
   RpcFinished(RpcScope, RequestEvent, Bool)
   ConnectionFailure(Endpoint, RequestOutcome, Bool)
+  RpcTimeline(RequestTimeline)
 } derive(@debug.Debug)
 pub fn DiagnosticEvent::to_repr(Self) -> @debug.Repr
 
@@ -633,6 +634,17 @@ pub(all) enum RequestStage {
 pub fn RequestStage::equal(Self, Self) -> Bool
 pub fn RequestStage::not_equal(Self, Self) -> Bool
 pub fn RequestStage::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RequestTimeline {
+  request_id : Int64
+  endpoint : Endpoint
+  opcode : Int
+  queued_at_ms : Int64
+  sending_at_ms : Int64?
+  completed_at_ms : Int64
+  outcome : RequestOutcome
+} derive(@debug.Debug)
+pub fn RequestTimeline::to_repr(Self) -> @debug.Repr
 
 pub struct ResponseLimits {
   body_bytes : Int

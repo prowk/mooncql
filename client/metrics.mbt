@@ -128,10 +128,27 @@ pub(all) enum DiagnosticEvent {
   RetryStarted(Endpoint, Int)
   RpcFinished(RpcScope, RequestEvent, Bool)
   ConnectionFailure(Endpoint, RequestOutcome, Bool)
+  RpcTimeline(RequestTimeline)
 } derive(@debug.Debug)
 
 ///|
 pub extend DiagnosticEvent with @debug.Debug::{to_repr}
+
+///|
+/// 毫秒单调时钟；sending_at_ms 是首次进入 socket 写入的时刻，未发送为 None。
+/// request_id 在同一个 Metrics 实例内唯一，不包含查询、参数或认证数据。
+pub(all) struct RequestTimeline {
+  request_id : Int64
+  endpoint : Endpoint
+  opcode : Int
+  queued_at_ms : Int64
+  sending_at_ms : Int64?
+  completed_at_ms : Int64
+  outcome : RequestOutcome
+} derive(@debug.Debug)
+
+///|
+pub extend RequestTimeline with @debug.Debug::{to_repr}
 
 ///|
 pub(all) struct OperationMetricsSnapshot {
@@ -595,6 +612,7 @@ fn WaitObservation::finish(self : WaitObservation) -> Unit {
 
 ///|
 priv struct RequestObservation {
+  request_id : Int64
   scope : RpcScope
   metrics : Metrics
   endpoint : Endpoint
@@ -602,6 +620,7 @@ priv struct RequestObservation {
   bytes : Int64
   started : Int64
   mut executing : Int64?
+  mut sending : Int64?
   mut outcome : RequestOutcome
   mut session_budget : Bool
 }
@@ -617,8 +636,10 @@ fn RequestObservation::new(
   let bytes = request.body.length().to_int64() + 9L
   let started = @async.now()
   metrics.data.requests_started += 1L
+  let request_id = metrics.data.requests_started
   metrics.emit(RequestStarted(endpoint, request.opcode, bytes))
   {
+    request_id,
     scope,
     metrics,
     endpoint,
@@ -626,6 +647,7 @@ fn RequestObservation::new(
     bytes,
     started,
     executing: None,
+    sending: None,
     outcome: Cancelled,
     session_budget: false,
   }
@@ -670,6 +692,17 @@ fn RequestObservation::finish(
   self.metrics.emit(RequestFinished(event))
   self.metrics.emit_diagnostic(
     RpcFinished(self.scope, event, self.session_budget),
+  )
+  self.metrics.emit_diagnostic(
+    RpcTimeline({
+      request_id: self.request_id,
+      endpoint: self.endpoint,
+      opcode: self.opcode,
+      queued_at_ms: self.started,
+      sending_at_ms: self.sending,
+      completed_at_ms: finished,
+      outcome: self.outcome,
+    }),
   )
 }
 

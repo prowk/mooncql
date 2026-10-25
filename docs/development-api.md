@@ -1,8 +1,8 @@
-# 开发分支接口
+# 认证、批处理与优雅排空
 
 [文档目录](README.md) · [稳定版教程](getting-started.md) · [版本说明](versions.md)
 
-本页仅适用于当前源码分支，尚未包含在 Mooncakes 的 0.2.0 中。稳定版和历史版仍使用各自标签中的接口；不要将以下代码复制到只安装 0.2.0 的项目。
+本页接口自 0.2.1 提供。扩展配置使用 ConnectionBuilder／SessionBuilder，原 Config／SessionConfig 及作用域入口继续兼容 0.2.0。
 
 多节点 DDL 可配置 [schema agreement](schema-agreement.md) 等待；结果与等待状态分开保留，已成功的 DDL 不会因为等待超时而重放。
 

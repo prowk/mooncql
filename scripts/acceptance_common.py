@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import signal
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,21 +19,37 @@ def write_json(path, value):
 
 def run(command, folder, name, *, cwd=ROOT, env=None, timeout=240):
     folder.mkdir(parents=True, exist_ok=True)
+    process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               encoding='utf-8', errors='replace', start_new_session=os.name != 'nt',
+                               creationflags=(subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP) if os.name == 'nt' else 0)
     try:
-        result = subprocess.run(command, cwd=cwd, env=env, capture_output=True,
-                                encoding='utf-8', errors='replace', timeout=timeout,
-                                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
-    except subprocess.TimeoutExpired as error:
-        for suffix, data in [('stdout', error.stdout), ('stderr', error.stderr)]:
-            if isinstance(data, bytes):
-                data = data.decode('utf-8', errors='replace')
-            (folder / f'{name}.{suffix}.log').write_text(data or '', encoding='utf-8')
-        raise RuntimeError(f'{name} timed out after {timeout}s; see {folder}') from None
-    (folder / f'{name}.stdout.log').write_text(result.stdout, encoding='utf-8')
-    (folder / f'{name}.stderr.log').write_text(result.stderr, encoding='utf-8')
-    if result.returncode:
-        raise RuntimeError(f'{name} exited {result.returncode}; see {folder}')
-    return result.stdout.strip()
+        stdout, stderr = process.communicate(timeout=timeout)
+    except BaseException as error:
+        # 仅清理本次尚存活的进程组，不按进程名或端口终止其他实例。
+        if process.poll() is None:
+            if os.name == 'nt':
+                subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                               capture_output=True, timeout=20, creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                os.killpg(process.pid, signal.SIGTERM)
+        try:
+            stdout, stderr = process.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            if os.name != 'nt':
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+            stdout, stderr = process.communicate(timeout=20)
+        (folder / f'{name}.stdout.log').write_text(stdout or '', encoding='utf-8')
+        (folder / f'{name}.stderr.log').write_text(stderr or '', encoding='utf-8')
+        if isinstance(error, subprocess.TimeoutExpired):
+            raise RuntimeError(f'{name} timed out after {timeout}s; see {folder}') from None
+        raise
+    (folder / f'{name}.stdout.log').write_text(stdout, encoding='utf-8')
+    (folder / f'{name}.stderr.log').write_text(stderr, encoding='utf-8')
+    if process.returncode:
+        raise RuntimeError(f'{name} exited {process.returncode}; see {folder}')
+    return stdout.strip()
 
 
 def provenance(folder):

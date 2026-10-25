@@ -178,6 +178,11 @@
     },
     {
       "package": "client",
+      "symbol": "fn RequestTimeline::to_repr",
+      "signature_sha256": "21981d861f86d7151a342bf0064aa536f1c3496039a4846b8d92a792576baa78"
+    },
+    {
+      "package": "client",
       "symbol": "fn ResponseLimits::new",
       "signature_sha256": "d0fad51d127066d876fcf93ceb236605aaeda86a32786c2c32ec579257f1943d"
     },
@@ -494,7 +499,7 @@
     {
       "package": "client",
       "symbol": "type DiagnosticEvent",
-      "signature_sha256": "16d3deb709593c57aabe0b9199f332f55732a0ddb0c4ce1512fde5b44c276db8"
+      "signature_sha256": "fdc05fdb63739c65107236f345f8b3249b203d02323f7bb73a2c93a20a51b18f"
     },
     {
       "package": "client",
@@ -550,6 +555,11 @@
       "package": "client",
       "symbol": "type ReceiveMemorySnapshot",
       "signature_sha256": "118aaa946d7778948b55c63f22f771cea6ed80dba5ccf574f972570dcc4655da"
+    },
+    {
+      "package": "client",
+      "symbol": "type RequestTimeline",
+      "signature_sha256": "cd50c0e040eb68a0c7be28b91a2278a8e27af4de28bb20052f1bb2a3bd9adc6b"
     },
     {
       "package": "client",

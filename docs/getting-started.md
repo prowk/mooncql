@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [连接配置](configuration.md)
 
-本教程使用 0.2.0，在专用单节点 Cassandra 5.0.5 上创建表，写入三条事件并逐页读取。默认地址为 127.0.0.1:9042。
+本教程使用 0.2.1，在专用单节点 Cassandra 5.0.5 上创建表，写入三条事件并逐页读取。默认地址为 127.0.0.1:9042。
 
 ## 1. 准备数据库
 
@@ -25,7 +25,7 @@ docker compose up -d --wait --wait-timeout 360
 ```sh
 moon new mooncql-demo
 cd mooncql-demo
-moon add prowk/mooncql@0.2.0
+moon add prowk/mooncql@0.2.1
 moon add moonbitlang/async@0.22.3
 ```
 

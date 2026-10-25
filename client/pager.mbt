@@ -211,7 +211,11 @@ pub async fn Pager::next_with_info(
         deadline~,
       )
     PreparedQuery(statement, values) =>
-      statement.execute_with_info(values, options~, deadline~)
+      statement.execute_frozen(
+        values,
+        prepared_options(options, statement.keyspace),
+        deadline,
+      )
     SessionQuery(session, cql, values) =>
       session.query_with_profile_info(
         cql,

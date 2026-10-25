@@ -1,0 +1,12 @@
+import {
+  "prowk/mooncql/client",
+  "moonbitlang/async",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "clock.c" ],
+)

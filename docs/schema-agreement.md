@@ -1,8 +1,8 @@
 # Schema agreement
 
-[文档目录](README.md) · [开发分支接口](development-api.md) · [执行信息](execution-info.md)
+[文档目录](README.md) · [批处理与生命周期](development-api.md) · [执行信息](execution-info.md)
 
-本页接口适用于开发分支，尚未包含在已发布的 0.2.0 中。
+本页接口自 0.2.1 提供，0.2.0 不包含这些接口。
 
 ## 显式检查和等待
 

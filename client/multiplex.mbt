@@ -135,6 +135,9 @@ async fn Connection::exchange(
       }
       context.phase = Sending
       self.wire.send(stream, request, on_write=() => {
+        if observation is Some(observation) && observation.sending is None {
+          observation.sending = Some(@async.now())
+        }
         context.sent = true
         if pending.stage != Received {
           pending.stage = Sending

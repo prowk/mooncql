@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.0。默认每个业务请求只尝试一次；连接自动恢复不会重放失败的请求。只有调用方明确声明 `idempotent=true` 后，Session.query、Session.request 的 QUERY / EXECUTE 和 SessionPrepared.execute 才启用 RetryPolicy。驱动不分析 CQL，也不根据 SELECT 等前缀推断幂等性。
+本文适用于 0.2.1。默认每个业务请求只尝试一次；连接自动恢复不会重放失败的请求。只有调用方明确声明 `idempotent=true` 后，Session.query、Session.request 的 QUERY / EXECUTE 和 SessionPrepared.execute 才启用 RetryPolicy。驱动不分析 CQL，也不根据 SELECT 等前缀推断幂等性。
 
 ```moonbit
 let result = session.query(
@@ -25,7 +25,7 @@ counter、自增、集合追加和条件写入不能据此获得至多一次或�
 
 开启执行信息后，成功重试的前次响应保存在 info.previous；最终 RetryExhausted 的 AttemptFailure.execution_info 保存相应响应，error 保留原始错误原因。见[执行信息](execution-info.md)。
 
-## 开发分支的分类退避
+## 0.2.1 的分类退避
 
 在 `ExecutionProfile::new(backoff=RetryBackoff::new(...))` 显式启用。省略 `backoff` 时仍使用 RetryPolicy.delay_ms 的固定延迟；启用时由分类退避替代固定延迟，次数上限、幂等声明和同一 Deadline 均不改变，RetryPolicy 的公开记录字段保持不变。
 
