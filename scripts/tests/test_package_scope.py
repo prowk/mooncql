@@ -21,7 +21,7 @@ class PackageScopeTest(unittest.TestCase):
         self.assertFalse(self.changed(['client/session.mbt', 'client/session_test.mbt', 'docs/session.md']))
 
     def test_consumers_dependencies_and_release_contract_require_full_acceptance(self):
-        for path in ['examples/device-events/main.mbt', 'cmd/new/moon.pkg', 'moon.mod', 'fixtures/releases.json', 'docs/getting-started.md', 'scripts/requirements-metrics.txt']:
+        for path in ['.github/workflows/ci.yml', 'examples/device-events/main.mbt', 'cmd/new/moon.pkg', 'moon.mod', 'fixtures/releases.json', 'docs/getting-started.md', 'scripts/requirements-metrics.txt']:
             with self.subTest(path=path):
                 self.assertTrue(self.changed([path]))
 

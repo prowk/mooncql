@@ -29,7 +29,7 @@ def required():
     if result.returncode:
         return True
     paths = result.stdout.decode('utf-8').split('\0')
-    relevant = {'README.md', 'docs/getting-started.md', 'docs/versions.md', 'fixtures/releases.json',
+    relevant = {'.github/workflows/ci.yml', 'README.md', 'docs/getting-started.md', 'docs/versions.md', 'fixtures/releases.json',
                 'scripts/package_acceptance.py', 'scripts/package_scope.py'}
     return any(path in relevant or path.startswith('examples/') or (Path(path).name.startswith('requirements') and path.endswith('.txt')) or Path(path).name in
                {'moon.mod', 'moon.mod.json', 'moon.pkg', 'moon.pkg.json', 'moon.lock'} for path in paths if path)

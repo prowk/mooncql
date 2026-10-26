@@ -22,6 +22,7 @@ jobs:
           version: '0.10.14+7d59c7ec9'
           core-version: '0.10.14+7d59c7ec9'
       - run: moon update
+      - run: moon check --target native --deny-warn
       - run: python scripts/protocol_reference.py
       - run: python scripts/conversion_reference.py --check
       - run: python scripts/check_docs.py
@@ -33,7 +34,6 @@ jobs:
         run: moon package --frozen
       - if: steps.package_scope.outputs.required == 'true'
         run: python scripts/patch_compatibility.py
-      - run: moon check --target native --deny-warn
       - run: moon test --target native --deny-warn
       - run: moon test client/state_machine_test.mbt --target native --deny-warn
         env:
