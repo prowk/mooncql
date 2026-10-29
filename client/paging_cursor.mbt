@@ -112,7 +112,7 @@ fn new_pager(
   binding : Bytes,
   cursor : PagingCursor?,
   profile? : ExecutionProfile,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   traversal_deadline? : Deadline,
 ) -> Pager raise DriverError {

@@ -24,8 +24,8 @@ async fn auth_start(peer : Peer) -> Unit {
 ///|
 async fn auth_token(
   peer : Peer,
-  stream : Int,
-  opcode : Int,
+  stream : Int32,
+  opcode : Int32,
   token : Bytes?,
 ) -> Unit {
   let body = @codec.Writer::new()

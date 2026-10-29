@@ -1,7 +1,7 @@
 ///|
 fn occupied_stream(
   admission : Admission,
-  abandoned? : Bool = false,
+  abandoned~ : Bool = false,
 ) -> Pending raise {
   {
     reply: @async.Queue(kind=Blocking(1)),
@@ -20,7 +20,7 @@ fn occupied_stream(
 ///|
 test "stream allocation wraps 32767 skips active and abandoned IDs and only reuses retired IDs" {
   let admission = Admission::new(ConnectionBuilder::new())
-  let pending : Map[Int, Pending] = Map([])
+  let pending : Map[Int32, Pending] = Map([])
   pending[32766] = occupied_stream(admission)
   pending[32767] = occupied_stream(admission, abandoned=true)
   pending[0] = occupied_stream(admission)
@@ -37,7 +37,7 @@ test "stream allocation wraps 32767 skips active and abandoned IDs and only reus
   admission.release(retained.reservation)
   assert_eq(free_stream(pending, 32767), (32767, 0))
   // 新连接代次有自己的编号空间，不被旧连接的废弃编号污染。
-  let fresh : Map[Int, Pending] = Map([])
+  let fresh : Map[Int32, Pending] = Map([])
   assert_eq(free_stream(fresh, 32766), (32766, 32767))
   assert_eq(free_stream(fresh, 32767), (32767, 0))
   for item in pending.values() {
@@ -51,7 +51,7 @@ test "stream allocation wraps 32767 skips active and abandoned IDs and only reus
 test "all occupied stream IDs fail without opening real connections" {
   let admission = Admission::new(ConnectionBuilder::new())
   let item = occupied_stream(admission)
-  let pending : Map[Int, Pending] = Map([])
+  let pending : Map[Int32, Pending] = Map([])
   for id in 0..<32768 {
     pending[id] = item
   }

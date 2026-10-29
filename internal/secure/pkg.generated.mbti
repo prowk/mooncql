@@ -32,7 +32,7 @@ pub async fn[Inner : @io.Reader + @io.Writer] Tls::client(Inner, verify? : Bool,
 pub async fn[R : @io.Reader, W : @io.Writer] Tls::client_from_pair(R, W, verify? : Bool, host? : String, sni? : Bool, trust? : TrustedRoot, identity? : ClientIdentity) -> Self
 pub fn Tls::close(Self) -> Unit
 pub fn Tls::get_peer_certificate(Self) -> Bytes? raise
-pub async fn Tls::read_exactly(Self, Int) -> Bytes
+pub async fn Tls::read_exactly(Self, Int32) -> Bytes
 pub async fn Tls::read_some(Self) -> Bytes?
 pub fn Tls::server_endpoint_channel_binding(Self) -> Bytes raise
 pub async fn Tls::shutdown(Self) -> Unit

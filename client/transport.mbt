@@ -91,7 +91,7 @@ fn Transport::close(self : Transport) -> Unit {
 }
 
 ///|
-async fn Transport::read_exactly(self : Transport, length : Int) -> Bytes {
+async fn Transport::read_exactly(self : Transport, length : Int32) -> Bytes {
   if self.closed {
     raise Closed
   }

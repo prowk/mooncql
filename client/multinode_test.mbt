@@ -1,5 +1,5 @@
 ///|
-async fn wait_session_nodes(session : @client.Session, count : Int) -> Unit {
+async fn wait_session_nodes(session : @client.Session, count : Int32) -> Unit {
   while session.nodes().filter(node => node.status.state == Ready).length() !=
         count {
     @async.sleep(1)
@@ -10,7 +10,7 @@ async fn wait_session_nodes(session : @client.Session, count : Int) -> Unit {
 fn changed_session_row(
   name : String,
   metadata : Bytes,
-  value : Int,
+  value : Int32,
 ) -> Bytes raise {
   let w = @codec.Writer::new()
   w.i32(2)

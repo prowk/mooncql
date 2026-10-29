@@ -1,7 +1,7 @@
 ///|
 fn retry_server_error(
-  code : Int,
-  detail? : @protocol.ErrorDetail = Other(b""),
+  code : Int32,
+  detail~ : @protocol.ErrorDetail = Other(b""),
 ) -> Error {
   Server({ code, message: "busy", detail, })
 }
@@ -17,7 +17,7 @@ test "backoff class exponential cap and seeded full jitter bounds" {
     max_delay_ms=100,
     jitter=0.0,
   )
-  let cases : Array[(Error, Int)] = [
+  let cases : Array[(Error, Int32)] = [
     (SessionOverloaded(ByteLimit), 2),
     (
       TimedOut({ phase: WaitingSlot, scope: Queue, may_have_been_sent: false, }),
@@ -42,7 +42,7 @@ test "backoff class exponential cap and seeded full jitter bounds" {
   let jitter = RetryBackoff::new(overloaded_ms=100, max_delay_ms=1000)
   let first = @random.Rand::chacha8(seed=b"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
   let replay = @random.Rand::chacha8(seed=b"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-  let distinct : Map[Int, Bool] = Map([])
+  let distinct : Map[Int32, Bool] = Map([])
   for _ in 0..<64 {
     let delay = jitter.delay(retry_server_error(0x1001), 2, first.double())
     assert_eq(

@@ -1,8 +1,8 @@
 ///|
 pub fn read_type_limited(
   r : @codec.Reader,
-  depth? : Int = 0,
-  max_depth? : Int = 32,
+  depth~ : Int32 = 0,
+  max_depth~ : Int32 = 32,
 ) -> CqlType raise @codec.CodecError {
   if max_depth < 1 || max_depth > 32 || depth < 0 || depth >= max_depth {
     raise @codec.CodecError("type nesting exceeds limit")
@@ -61,7 +61,7 @@ pub fn read_type_limited(
 ///|
 pub fn read_type(
   r : @codec.Reader,
-  depth? : Int = 0,
+  depth~ : Int32 = 0,
 ) -> CqlType raise @codec.CodecError {
   read_type_limited(r, depth~)
 }

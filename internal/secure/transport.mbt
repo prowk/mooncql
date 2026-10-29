@@ -1,3 +1,6 @@
+// 修改声明：prowk/mooncql 基于 moonbitlang/async 0.22.3 修改。
+// 隔离 FFI 符号，补充经证书与名称验证的客户端 TLS 及凭据适配。来源及上游原始哈希见 internal/secure/NOTICE.md 和 UPSTREAM.json。
+
 // Copyright 2025 International Digital Economy Academy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,5 +1,5 @@
 ///|
-fn integer_env(name : String, fallback : Int) -> Int raise {
+fn integer_env(name : String, fallback : Int32) -> Int32 raise {
   match @env.get_env_var(name) {
     Some(value) => @string.parse_int(value)
     None => fallback
@@ -102,7 +102,7 @@ async fn main {
     let mut seen = 0
     let mut page_count = 0
     let mut simple_checksum = 0L
-    let page_sizes : Array[Int] = []
+    let page_sizes : Array[Int32] = []
     let terminal_states : Array[Bool] = []
     while pager.next() is Some(page) {
       page_count += 1
@@ -225,7 +225,7 @@ async fn main {
     println(
       "PASS rows=\{count} simple_pages=\{page_count} prepared_rows=\{prepared_count} checksum=\{checksum} write_ms=\{write_ms}",
     )
-    report = "{\"rows\":\{count},\"checksum\":\{checksum},\"simple_checksum\":\{simple_checksum},\"simple_pages\":\{page_count},\"prepared_pages\":\{prepared_page_count},\"page_size\":113,\"page_sizes\":\{page_sizes.to_json().stringify()},\"terminal_states\":\{terminal_states.to_json().stringify()},\"paging_ended\":true,\"server\":\{release.to_json().stringify()},\"authenticator\":\{authenticator.to_json().stringify()},\"compression\":\{config.compression},\"protocol\":5,\"large_payload_bytes\":400000,\"large_payload_two_way\":true,\"batch\":[\"logged\",\"unlogged\",\"counter\"],\"ttl\":true,\"metadata_updated\":true,\"field_checks\":true,\"write_ms\":\{write_ms}}"
+    report = "{\"rows\":\{count},\"checksum\":\{checksum},\"simple_checksum\":\{simple_checksum},\"simple_pages\":\{page_count},\"prepared_pages\":\{prepared_page_count},\"page_size\":113,\"page_sizes\":\{Json(page_sizes).stringify()},\"terminal_states\":\{Json(terminal_states).stringify()},\"paging_ended\":true,\"server\":\{Json(release).stringify()},\"authenticator\":\{Json(authenticator).stringify()},\"compression\":\{config.compression},\"protocol\":5,\"large_payload_bytes\":400000,\"large_payload_two_way\":true,\"batch\":[\"logged\",\"unlogged\",\"counter\"],\"ttl\":true,\"metadata_updated\":true,\"field_checks\":true,\"write_ms\":\{write_ms}}"
     connection
   })
   assert_true(connection.is_closed())

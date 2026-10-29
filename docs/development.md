@@ -4,7 +4,7 @@
 
 ## 工具链与本地回归
 
-当前验收工具链为 moonc 0.10.14+7d59c7ec9、moon 0.1.20260920、moonbitlang/async 0.22.3，默认目标 native。所有文本文件使用 UTF-8，新代码注释使用中文。
+当前验收工具链为 moonc 0.10.18+6c83a7f62、moon 0.1.20261028、moonbitlang/async 0.22.3，默认目标 native。所有文本文件使用 UTF-8，新代码注释使用中文。
 
 CI 安装前通过 `scripts/precache_nushell.py` 按固定 Nu 0.112.2 发布资产和 SHA256SUMS 校验填充工具缓存，避免上游安装器只搜索第一页 Release 导致冷缓存失败；MoonBit 编译器与 core 版本仍固定为上述版本。
 
@@ -12,6 +12,7 @@ CI 安装前通过 `scripts/precache_nushell.py` 按固定 Nu 0.112.2 发布资�
 moon update
 python -m pip install -r scripts/requirements-reference.txt
 moon check --target native --deny-warn
+moon build --target native --deny-warn
 moon test --target native --deny-warn
 moon info
 moon fmt --check
@@ -89,3 +90,5 @@ CI 覆盖 Windows 与 Linux 本地回归、无认证与密码认证、普通帧�
 ## 验证边界
 
 兼容声明限于实际验收的 Cassandra 5.0.5。短时集成和故障测试不等同于长期稳定性证明；连续六小时混合负载及长期内存趋势尚未执行，只有明确安排时才运行[长期验证](long-run.md)。
+
+工具链升级会将内建类型 Int／UInt 的源码和生成接口规范化为 Int32／UInt32，两组名称分别是同一内建类型的别名。API 审计只在类型表达式中统一这些名称，仍检查枚举分支、字段、参数标签和限定类型的真实变化；旧完整记录与穷尽匹配还须通过候选归档实编译。

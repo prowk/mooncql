@@ -1,3 +1,6 @@
+// 修改声明：prowk/mooncql 基于 moonbitlang/async 0.22.3 修改。
+// 隔离辅助包与 FFI 符号，适配驱动自有内存及系统字符串接口。来源及上游原始哈希见 internal/secure/NOTICE.md 和 UPSTREAM.json。
+
 // Copyright 2025 International Digital Economy Academy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,13 +18,13 @@
 ///|
 pub(all) struct Buffer {
   mut buf : FixedArray[Byte]
-  mut start : Int
-  mut len : Int
+  mut start : Int32
+  mut len : Int32
 }
 
 ///|
 #as_free_fn
-pub fn Buffer::new(size : Int) -> Buffer {
+pub fn Buffer::new(size : Int32) -> Buffer {
   { buf: FixedArray::make(size, 0), start: 0, len: 0, }
 }
 
@@ -36,7 +39,7 @@ pub fn Buffer::clear(buf : Buffer) -> Unit {
 const SEGMENT_SIZE = 1024
 
 ///|
-pub fn Buffer::enlarge_to(self : Buffer, n : Int) -> Unit {
+pub fn Buffer::enlarge_to(self : Buffer, n : Int32) -> Unit {
   let capacity = self.buf.length()
   if self.start + n <= capacity {
     return
@@ -55,7 +58,7 @@ pub fn Buffer::enlarge_to(self : Buffer, n : Int) -> Unit {
 }
 
 ///|
-pub fn Buffer::drop(self : Buffer, n : Int) -> Unit {
+pub fn Buffer::drop(self : Buffer, n : Int32) -> Unit {
   guard! n <= self.len
   self.len -= n
   if self.len == 0 {

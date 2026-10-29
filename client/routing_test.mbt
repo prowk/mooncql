@@ -1,14 +1,14 @@
 ///|
 async fn with_routing_fixture(
   local_dc : String,
-  allow_remote? : Bool = false,
-  remote_dc? : Bool = false,
-  expired? : Bool = false,
-  unsupported? : Bool = false,
-  local_in_flight? : Int = 128,
+  allow_remote~ : Bool = false,
+  remote_dc~ : Bool = false,
+  expired~ : Bool = false,
+  unsupported~ : Bool = false,
+  local_in_flight~ : Int32 = 128,
   held? : @async.Queue[Unit],
   release? : @async.Queue[Unit],
-  body : async (@client.Session, Int, Int) -> Unit,
+  body : async (@client.Session, Int32, Int32) -> Unit,
 ) -> Unit {
   @async.with_timeout(6000, () => {
     @async.with_task_group(group => {

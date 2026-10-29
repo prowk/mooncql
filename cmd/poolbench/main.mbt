@@ -8,12 +8,12 @@ extern "C" fn cpu_ns() -> Int64 = "prowk_mooncql_bench_cpu_ns"
 extern "C" fn peak_bytes() -> Int64 = "prowk_mooncql_bench_peak_bytes"
 
 ///|
-fn integer_env(name : String, fallback : String) -> Int raise {
+fn integer_env(name : String, fallback : String) -> Int32 raise {
   @string.parse_int(@env.get_env_var(name).unwrap_or(fallback))
 }
 
 ///|
-fn percentile(values : Array[Int64], percent : Int) -> Int64 {
+fn percentile(values : Array[Int64], percent : Int32) -> Int64 {
   if values.is_empty() {
     0L
   } else {
@@ -22,7 +22,7 @@ fn percentile(values : Array[Int64], percent : Int) -> Int64 {
 }
 
 ///|
-fn payload(size : Int, entropy : String) -> Bytes {
+fn payload(size : Int32, entropy : String) -> Bytes {
   let mut random = 2026101821U
   Bytes::from_array(
     Array::makei(size, index => {

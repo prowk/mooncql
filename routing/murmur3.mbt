@@ -1,5 +1,5 @@
 ///|
-fn rotate(value : UInt64, bits : Int) -> UInt64 {
+fn rotate(value : UInt64, bits : Int32) -> UInt64 {
   (value << bits) | (value >> (64 - bits))
 }
 
@@ -13,7 +13,7 @@ fn mix(value : UInt64) -> UInt64 {
 }
 
 ///|
-fn block(bytes : Bytes, start : Int) -> UInt64 {
+fn block(bytes : Bytes, start : Int32) -> UInt64 {
   let mut word = 0UL
   for index in 0..<8 {
     word = word | (bytes[start + index].to_int().to_uint64() << (index * 8))
@@ -78,13 +78,13 @@ pub fn murmur3_token(key : Bytes) -> Int64 {
 ///|
 pub fn routing_key(
   values : Array[@types.Value],
-  indices : Array[Int],
+  indices : Array[Int32],
 ) -> Bytes? raise @codec.CodecError {
   if indices.is_empty() {
     return None
   }
   let components = []
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[Int32, Bool] = Map([])
   for index in indices {
     if index < 0 || index >= values.length() || seen.contains(index) {
       return None

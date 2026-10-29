@@ -1,5 +1,5 @@
 ///|
-fn model_random(state : Array[UInt], bound : Int) -> Int {
+fn model_random(state : Array[UInt32], bound : Int32) -> Int32 {
   state[0] = state[0] * 1664525U + 1013904223U
   ((state[0] >> 1) % bound.reinterpret_as_uint()).reinterpret_as_int()
 }

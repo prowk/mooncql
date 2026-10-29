@@ -16,7 +16,7 @@ async fn main {
       let snapshot = session.schema_metadata(
         options=@client.SchemaOptions::new(keyspaces=names),
       )
-      let report = "{\"schema_version\":\"\{@hex.encode(snapshot.schema_version())}\",\"keyspaces\":\{snapshot.keyspaces().to_json().stringify()},\"tables\":\{snapshot.tables().to_json().stringify()},\"user_types\":\{snapshot.user_types().to_json().stringify()}}"
+      let report = "{\"schema_version\":\"\{@hex.encode(snapshot.schema_version())}\",\"keyspaces\":\{Json(snapshot.keyspaces()).stringify()},\"tables\":\{Json(snapshot.tables()).stringify()},\"user_types\":\{Json(snapshot.user_types()).stringify()}}"
       if @env.get_env_var("CQL_SCHEMA_REPORT") is Some(path) {
         @fs.write_file(path, report + "\n")
       } else {

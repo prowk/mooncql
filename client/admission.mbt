@@ -71,9 +71,9 @@ struct Admission {
   turns : Array[AdmissionTurn]
   scheduling : SchedulingCounters
   mut closed : Bool
-  mut in_flight : Int
+  mut in_flight : Int32
   mut bytes : Int64
-  mut waiting : Int
+  mut waiting : Int32
   mut waiting_bytes : Int64
 }
 
@@ -88,7 +88,7 @@ priv struct SchedulingCounters {
 pub(all) struct SchedulingSnapshot {
   broadcasts : Int64
   wakeups : Int64
-  queued : Int
+  queued : Int32
 }
 
 ///|
@@ -136,8 +136,8 @@ fn Admission::new(
   config : ConnectionBuilder,
   parent? : Admission,
   changed? : @async.CondVar,
-  session? : Bool = false,
-  enforce? : Bool = true,
+  session~ : Bool = false,
+  enforce~ : Bool = true,
 ) -> Admission {
   {
     config,
@@ -228,7 +228,11 @@ fn Admission::waiting_reason(self : Admission, bytes : Int64) -> Error? {
 
 ///|
 // 子连接与 Session 在同一同步步骤记账，等待、取消及迟到响应使用同一所有权。
-fn Admission::change_wait(self : Admission, bytes : Int64, delta : Int) -> Unit {
+fn Admission::change_wait(
+  self : Admission,
+  bytes : Int64,
+  delta : Int32,
+) -> Unit {
   self.waiting += delta
   self.waiting_bytes += bytes * delta.to_int64()
   if self.config.metrics is Some(metrics) {
@@ -243,7 +247,7 @@ fn Admission::change_wait(self : Admission, bytes : Int64, delta : Int) -> Unit 
 fn Admission::change_active(
   self : Admission,
   bytes : Int64,
-  delta : Int,
+  delta : Int32,
 ) -> Unit {
   self.in_flight += delta
   self.bytes += bytes * delta.to_int64()
@@ -373,12 +377,12 @@ fn Admission::close(self : Admission) -> Unit {
 }
 
 ///|
-pub fn Connection::waiting_count(self : Connection) -> Int {
+pub fn Connection::waiting_count(self : Connection) -> Int32 {
   self.admission.waiting
 }
 
 ///|
-pub fn Connection::in_flight_count(self : Connection) -> Int {
+pub fn Connection::in_flight_count(self : Connection) -> Int32 {
   self.admission.in_flight
 }
 

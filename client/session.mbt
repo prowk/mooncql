@@ -29,7 +29,7 @@ fn endpoint_config(
 fn session_node(
   base : ConnectionBuilder,
   endpoint : Endpoint,
-  connections_per_node : Int,
+  connections_per_node : Int32,
 ) -> SessionNode raise DriverError {
   {
     endpoint,
@@ -63,7 +63,7 @@ pub extend NodeState with @debug.Debug::{to_repr}
 ///|
 pub(all) struct Endpoint {
   host : String
-  port : Int
+  port : Int32
   server_name : String?
 } derive(@debug.Debug)
 
@@ -72,8 +72,8 @@ pub extend Endpoint with @debug.Debug::{to_repr}
 
 ///|
 pub fn Endpoint::new(
-  host? : String = "127.0.0.1",
-  port? : Int = 9042,
+  host~ : String = "127.0.0.1",
+  port~ : Int32 = 9042,
   server_name? : String,
 ) -> Endpoint {
   { host, port, server_name, }
@@ -84,33 +84,33 @@ pub(all) struct SessionBuilder {
   enforce_limits : Bool
   connection : ConnectionBuilder
   contact_points : Array[Endpoint]
-  backoff_initial_ms : Int
-  backoff_max_ms : Int
+  backoff_initial_ms : Int32
+  backoff_max_ms : Int32
   jitter : Double
-  stable_reset_ms : Int
+  stable_reset_ms : Int32
   routing : RoutingConfig?
   discovery : DiscoveryConfig?
   schema_agreement : SchemaAgreementConfig
   execution_profile : ExecutionProfile?
   limits : SessionLimits
-  connections_per_node : Int
+  connections_per_node : Int32
 }
 
 ///|
 /// 默认每节点单连接并共享固定 limits；发现与 DDL 后等待须显式启用。
 pub fn SessionBuilder::new(
-  connection? : ConnectionBuilder = ConnectionBuilder::new(),
-  contact_points? : Array[Endpoint] = [],
-  backoff_initial_ms? : Int = 25,
-  backoff_max_ms? : Int = 2000,
-  jitter? : Double = 0.2,
-  stable_reset_ms? : Int = 1000,
+  connection~ : ConnectionBuilder = ConnectionBuilder::new(),
+  contact_points~ : Array[Endpoint] = [],
+  backoff_initial_ms~ : Int32 = 25,
+  backoff_max_ms~ : Int32 = 2000,
+  jitter~ : Double = 0.2,
+  stable_reset_ms~ : Int32 = 1000,
   discovery? : DiscoveryConfig,
   routing? : RoutingConfig,
-  schema_agreement? : SchemaAgreementConfig = SchemaAgreementConfig::new(),
+  schema_agreement~ : SchemaAgreementConfig = SchemaAgreementConfig::new(),
   execution_profile? : ExecutionProfile,
-  limits? : SessionLimits = SessionLimits::new(),
-  connections_per_node? : Int = 1,
+  limits~ : SessionLimits = SessionLimits::new(),
+  connections_per_node~ : Int32 = 1,
 ) -> SessionBuilder {
   {
     enforce_limits: true,
@@ -132,8 +132,8 @@ pub fn SessionBuilder::new(
 ///|
 pub(all) struct NodeStatus {
   state : NodeState
-  generation : Int
-  attempts : Int
+  generation : Int32
+  attempts : Int32
 }
 
 ///|
@@ -148,13 +148,13 @@ struct SessionNode {
   endpoint : Endpoint
   config : ConnectionBuilder
   slots : Array[PoolSlot]
-  mut next_slot : Int
+  mut next_slot : Int32
   connect_gate : @async.Mutex
-  mut connecting : Int
+  mut connecting : Int32
   mut host_id : Bytes?
   mut worker : @async.Task[Unit]?
-  mut generation : Int
-  mut attempts : Int
+  mut generation : Int32
+  mut attempts : Int32
   mut last_error : Error?
 }
 
@@ -168,11 +168,11 @@ pub struct Session {
   mut closed : Bool
   mut draining : Bool
   mut drain_outcome : DrainOutcome?
-  mut generation : Int
-  mut next_node : Int
+  mut generation : Int32
+  mut next_node : Int32
   mut last_error : Error?
-  mut active : Int
-  mut waiting : Int
+  mut active : Int32
+  mut waiting : Int32
   mut waiting_bytes : Int64
   control : ControlState?
   schema_cache : SchemaCache
@@ -181,7 +181,7 @@ pub struct Session {
 
 ///|
 pub async fn[T] with_session_builder(
-  config? : SessionBuilder = SessionBuilder::new(),
+  config~ : SessionBuilder = SessionBuilder::new(),
   response_limits? : ResponseLimits,
   body : async (Session) -> T,
 ) -> T {
@@ -225,7 +225,7 @@ pub async fn[T] with_session_builder(
     let session = Session::{
       config,
       response_limits,
-      retry_random: @random.Rand::new(),
+      retry_random: @random.Rand(),
       changed,
       nodes,
       closed: false,
@@ -401,12 +401,12 @@ pub fn Session::last_error(self : Session) -> Error? {
 }
 
 ///|
-pub fn Session::waiting_count(self : Session) -> Int {
+pub fn Session::waiting_count(self : Session) -> Int32 {
   self.waiting
 }
 
 ///|
-pub fn Session::active_count(self : Session) -> Int {
+pub fn Session::active_count(self : Session) -> Int32 {
   self.active
 }
 
@@ -421,7 +421,7 @@ async fn[G] Session::maintain_slot(
     slot.state = Stopped
     self.changed.broadcast()
   }
-  let random = @random.Rand::new()
+  let random = @random.Rand()
   let mut backoff = self.config.backoff_initial_ms
   while !self.closed && !self.draining {
     slot.state = Connecting
@@ -521,7 +521,7 @@ async fn Session::select(
   deadline : Deadline,
   bytes : Int64,
   hint? : RoutingHint,
-  attempted? : Array[String] = [],
+  attempted~ : Array[String] = [],
 ) -> Connection {
   if self.closed {
     raise Closed
@@ -663,8 +663,8 @@ pub async fn Session::request(
   self : Session,
   request : @protocol.Request,
   deadline? : Deadline,
-  idempotent? : Bool = false,
-  retry? : RetryPolicy = RetryPolicy::new(),
+  idempotent~ : Bool = false,
+  retry~ : RetryPolicy = RetryPolicy::new(),
   routing? : RoutingHint,
 ) -> Reply {
   let deadline = self.operation_deadline(deadline)
@@ -734,10 +734,10 @@ async fn Session::request_accepted(
 pub async fn Session::query_with_profile(
   self : Session,
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   routing? : RoutingHint,
   profile? : ExecutionProfile,
@@ -761,10 +761,10 @@ pub async fn Session::query_with_profile(
 pub async fn Session::query(
   self : Session,
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   routing? : RoutingHint,
 ) -> @protocol.ResultSet {

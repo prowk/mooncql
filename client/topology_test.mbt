@@ -1,13 +1,13 @@
 ///|
 fn topology_rows(
-  index : Int,
+  index : Int32,
   is_local : Bool,
   included : Bool,
-  invalid? : Bool = false,
-  data_center? : String = "dc1",
-  wide_tokens? : Bool = false,
-  partitioner? : String = "org.apache.cassandra.dht.Murmur3Partitioner",
-  identity? : Int,
+  invalid~ : Bool = false,
+  data_center~ : String = "dc1",
+  wide_tokens~ : Bool = false,
+  partitioner~ : String = "org.apache.cassandra.dht.Murmur3Partitioner",
+  identity? : Int32,
   address? : Bytes,
   rack? : String,
   token_values? : Array[String],
@@ -97,7 +97,7 @@ fn topology_rows(
 }
 
 ///|
-fn replication_rows(simple? : Bool = false, factor? : Int = 1) -> Bytes raise {
+fn replication_rows(simple~ : Bool = false, factor~ : Int32 = 1) -> Bytes raise {
   let w = @codec.Writer::new()
   w.i32(2)
   w.i32(1)
@@ -137,8 +137,8 @@ fn replication_rows(simple? : Bool = false, factor? : Int = 1) -> Bytes raise {
 ///|
 async fn wait_topology(
   session : @client.Session,
-  count : Int,
-  revision : Int,
+  count : Int32,
+  revision : Int32,
 ) -> @client.TopologySnapshot {
   @async.with_timeout(5000, () => {
     while true {

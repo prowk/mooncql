@@ -1,7 +1,7 @@
 ///|
 struct Place {
   street : String
-  coordinate : (Int, String?)
+  coordinate : (Int32, String?)
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -9,7 +9,7 @@ fn place_codec() -> @mapping.ValueCodec[Place] raise {
   let number = @mapping.int_codec()
   let text = @mapping.text_codec()
   let optional_text = text.optional()
-  let coordinate : @mapping.ValueCodec[(Int, String?)] = @mapping.ValueCodec::new(
+  let coordinate : @mapping.ValueCodec[(Int32, String?)] = @mapping.ValueCodec::new(
     Tuple([Int, Varchar]),
     (value, context) => {
       TupleValue([
@@ -293,12 +293,12 @@ suberror MappingCallbackFailure {
 
 ///|
 test "nested callback errors and quoted column names preserve paths without exposing application values" {
-  let broken : @mapping.ValueCodec[Int] = @mapping.ValueCodec::new(
+  let broken : @mapping.ValueCodec[Int32] = @mapping.ValueCodec::new(
     Int,
     (_, _) => raise MappingCallbackFailure("private value"),
     _ => raise MappingCallbackFailure("private value"),
   )
-  let parent : @mapping.ValueCodec[Int] = @mapping.ValueCodec::new(
+  let parent : @mapping.ValueCodec[Int32] = @mapping.ValueCodec::new(
     Udt("app", "test", [("nested", Int)]),
     (value, context) => {
       UdtValue([("nested", context.field("nested", broken, value))])

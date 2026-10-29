@@ -42,7 +42,7 @@ fn Histogram::write(
 }
 
 ///|
-fn outcome_index(outcome : @client.RequestOutcome) -> Int {
+fn outcome_index(outcome : @client.RequestOutcome) -> Int32 {
   match outcome {
     Succeeded => 0
     ServerError(0x2500) => 2
@@ -68,7 +68,7 @@ fn outcome_names() -> Array[String] {
 }
 
 ///|
-fn operation_index(kind : @client.OperationKind) -> Int {
+fn operation_index(kind : @client.OperationKind) -> Int32 {
   match kind {
     QueryOperation => 0
     PrepareOperation => 1
@@ -82,7 +82,7 @@ fn operation_index(kind : @client.OperationKind) -> Int {
 }
 
 ///|
-fn opcode_index(opcode : Int) -> Int {
+fn opcode_index(opcode : Int32) -> Int32 {
   match opcode {
     7 => 0
     9 => 1
@@ -95,7 +95,7 @@ fn opcode_index(opcode : Int) -> Int {
 }
 
 ///|
-fn scope_index(scope : @client.RpcScope) -> Int {
+fn scope_index(scope : @client.RpcScope) -> Int32 {
   match scope {
     Data => 0
     Control => 1
@@ -106,8 +106,8 @@ fn scope_index(scope : @client.RpcScope) -> Int {
 ///|
 fn overload_index(
   reason : @client.OverloadReason,
-  session_budget? : Bool = false,
-) -> Int {
+  session_budget~ : Bool = false,
+) -> Int32 {
   let index = match reason {
     InFlightLimit => 0
     ByteLimit => 1
@@ -155,7 +155,7 @@ fn NodeCounters::new() -> NodeCounters {
 ///|
 struct Meter {
   nodes : Map[String, NodeCounters]
-  max_nodes : Int
+  max_nodes : Int32
   logical : Array[Int64]
   started : Array[Int64]
   logical_latency : Array[Histogram]
@@ -165,7 +165,7 @@ struct Meter {
 }
 
 ///|
-fn Meter::new(max_nodes? : Int = 32) -> Meter raise @client.DriverError {
+fn Meter::new(max_nodes~ : Int32 = 32) -> Meter raise @client.DriverError {
   if max_nodes < 1 || max_nodes > 256 {
     raise @client.Configuration("max_nodes must be 1-256")
   }
@@ -201,7 +201,7 @@ fn Meter::node_key(self : Meter, endpoint : @client.Endpoint) -> String {
 fn Meter::node(
   self : Meter,
   endpoint : @client.Endpoint,
-  event? : Bool = true,
+  event~ : Bool = true,
 ) -> NodeCounters {
   let key = self.node_key(endpoint)
   if event && key == "other" {

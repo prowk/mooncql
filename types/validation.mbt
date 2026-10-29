@@ -10,7 +10,7 @@ pub fn validate(typ : CqlType, value : Value) -> Unit raise @codec.CodecError {
 fn validate_at(
   typ : CqlType,
   value : Value,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise @codec.CodecError {
   if depth >= 32 {
     raise @codec.CodecError("value nesting exceeds limit")

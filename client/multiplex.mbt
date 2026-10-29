@@ -60,7 +60,7 @@ fn Connection::fail(self : Connection, error : Error) -> Unit {
 }
 
 ///|
-fn Connection::allocate_stream(self : Connection) -> Int raise DriverError {
+fn Connection::allocate_stream(self : Connection) -> Int32 raise DriverError {
   let (id, next) = free_stream(self.pending, self.next_stream)
   self.next_stream = next
   id
@@ -68,9 +68,9 @@ fn Connection::allocate_stream(self : Connection) -> Int raise DriverError {
 
 ///|
 fn free_stream(
-  pending : Map[Int, Pending],
-  start : Int,
-) -> (Int, Int) raise DriverError {
+  pending : Map[Int32, Pending],
+  start : Int32,
+) -> (Int32, Int32) raise DriverError {
   let mut next = start & 32767
   for i = 0; i < 32768; i = i + 1 {
     let id = next
@@ -235,7 +235,7 @@ async fn Connection::receive_loop(self : Connection) -> Unit {
 
 ///|
 pub async fn[T] with_connection_builder(
-  config? : ConnectionBuilder = ConnectionBuilder::new(),
+  config~ : ConnectionBuilder = ConnectionBuilder::new(),
   response_limits? : ResponseLimits,
   body : async (Connection) -> T,
 ) -> T {
@@ -248,7 +248,7 @@ pub async fn[T] with_connection_builder(
 
 ///|
 pub async fn[T] with_serial_connection_builder(
-  config? : ConnectionBuilder = ConnectionBuilder::new(),
+  config~ : ConnectionBuilder = ConnectionBuilder::new(),
   response_limits? : ResponseLimits,
   body : async (Connection) -> T,
 ) -> T {
@@ -282,7 +282,7 @@ fn Connection::release_resources(self : Connection, pending : Pending) -> Unit {
 ///|
 fn Connection::retire(
   self : Connection,
-  stream : Int,
+  stream : Int32,
   pending : Pending,
 ) -> Unit {
   self.pending.remove(stream)
@@ -296,7 +296,7 @@ fn Connection::retire(
 ///|
 fn Connection::abandon(
   self : Connection,
-  stream : Int,
+  stream : Int32,
   pending : Pending,
 ) -> Unit {
   if self.closed {

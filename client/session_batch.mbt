@@ -14,7 +14,7 @@ pub struct SessionBatchStatement {
 /// 构造普通批处理语句；未限定的表名使用整批 options.keyspace。
 pub fn SessionBatchStatement::query(
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
 ) -> SessionBatchStatement raise {
   { binding: Query(cql, @types.snapshot(values)), }
 }
@@ -40,8 +40,8 @@ pub fn SessionPrepared::bind_batch(
 pub async fn Session::batch_with_info(
   self : Session,
   statements : Array[SessionBatchStatement],
-  kind? : @protocol.BatchType = Logged,
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  kind~ : @protocol.BatchType = Logged,
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
   routing? : RoutingHint,
 ) -> Execution[Unit] {
@@ -110,8 +110,8 @@ pub async fn Session::batch_with_info(
 pub async fn Session::batch(
   self : Session,
   statements : Array[SessionBatchStatement],
-  kind? : @protocol.BatchType = Logged,
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  kind~ : @protocol.BatchType = Logged,
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
   routing? : RoutingHint,
 ) -> Unit {

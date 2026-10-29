@@ -1,21 +1,21 @@
 ///|
 /// 所有已建立连接共享固定总额度；增加节点不会扩大此预算。
 pub(all) struct SessionLimits {
-  max_in_flight : Int
-  max_in_flight_bytes : Int
-  max_waiting : Int
-  max_waiting_bytes : Int
+  max_in_flight : Int32
+  max_in_flight_bytes : Int32
+  max_waiting : Int32
+  max_waiting_bytes : Int32
   overload_policy : OverloadPolicy
 }
 
 ///|
 /// 默认 128 个 RPC／64 MiB 在途和 64 个等待者／64 MiB 等待；with_session_builder 统一校验配置。
 pub fn SessionLimits::new(
-  max_in_flight? : Int = 128,
-  max_in_flight_bytes? : Int = 67108864,
-  max_waiting? : Int = 64,
-  max_waiting_bytes? : Int = 67108864,
-  overload_policy? : OverloadPolicy = Wait,
+  max_in_flight~ : Int32 = 128,
+  max_in_flight_bytes~ : Int32 = 67108864,
+  max_waiting~ : Int32 = 64,
+  max_waiting_bytes~ : Int32 = 67108864,
+  overload_policy~ : OverloadPolicy = Wait,
 ) -> SessionLimits {
   {
     max_in_flight,
@@ -62,9 +62,9 @@ fn SessionLimits::as_config(
 
 ///|
 pub(all) struct SessionBudget {
-  in_flight : Int
+  in_flight : Int32
   in_flight_bytes : Int64
-  waiting : Int
+  waiting : Int32
   waiting_bytes : Int64
   limits : SessionLimits?
 }

@@ -1,7 +1,7 @@
 ///|
 pub(all) enum RequestOutcome {
   Succeeded
-  ServerError(Int)
+  ServerError(Int32)
   Timeout(TimeoutInfo)
   Cancelled
   LocalOverload(OverloadReason)
@@ -91,7 +91,7 @@ pub extend OperationEvent with @debug.Debug::{to_repr}
 ///|
 pub(all) struct RequestEvent {
   endpoint : Endpoint
-  opcode : Int
+  opcode : Int32
   request_bytes : Int64
   outcome : RequestOutcome
   phase : TimeoutPhase
@@ -105,13 +105,13 @@ pub extend RequestEvent with @debug.Debug::{to_repr}
 
 ///|
 pub(all) enum MetricEvent {
-  RequestStarted(Endpoint, Int, Int64)
+  RequestStarted(Endpoint, Int32, Int64)
   RequestFinished(RequestEvent)
   ConnectionAttempt(Endpoint)
   ConnectionEstablished(Endpoint)
   ConnectionFailed(Endpoint, RequestOutcome)
   ConnectionClosed(Endpoint)
-  Reconnected(Endpoint, Int, Bool)
+  Reconnected(Endpoint, Int32, Bool)
   Cache(Endpoint, CacheEvent)
   WaitFinished(WaitScope, Int64, Int64, RequestOutcome)
 } derive(@debug.Debug)
@@ -125,7 +125,7 @@ pub(all) enum DiagnosticEvent {
   Legacy(MetricEvent)
   OperationStarted(OperationKind)
   OperationFinished(OperationEvent)
-  RetryStarted(Endpoint, Int)
+  RetryStarted(Endpoint, Int32)
   RpcFinished(RpcScope, RequestEvent, Bool)
   ConnectionFailure(Endpoint, RequestOutcome, Bool)
   RpcTimeline(RequestTimeline)
@@ -140,7 +140,7 @@ pub extend DiagnosticEvent with @debug.Debug::{to_repr}
 pub(all) struct RequestTimeline {
   request_id : Int64
   endpoint : Endpoint
-  opcode : Int
+  opcode : Int32
   queued_at_ms : Int64
   sending_at_ms : Int64?
   completed_at_ms : Int64
@@ -410,7 +410,7 @@ fn Metrics::cache(
 ///|
 pub async fn[G] connect_builder(
   group : @async.TaskGroup[G],
-  config? : ConnectionBuilder = ConnectionBuilder::new(),
+  config~ : ConnectionBuilder = ConnectionBuilder::new(),
   deadline? : Deadline,
   response_limits? : ResponseLimits,
 ) -> Connection {
@@ -616,7 +616,7 @@ priv struct RequestObservation {
   scope : RpcScope
   metrics : Metrics
   endpoint : Endpoint
-  opcode : Int
+  opcode : Int32
   bytes : Int64
   started : Int64
   mut executing : Int64?
@@ -710,7 +710,7 @@ fn RequestObservation::finish(
 pub async fn Connection::request(
   self : Connection,
   request : @protocol.Request,
-  cached? : Array[@protocol.Column] = [],
+  cached~ : Array[@protocol.Column] = [],
   deadline? : Deadline,
 ) -> Reply {
   // 先冻结外部缓存定义，再允许监听器、排队或 socket 等待观察可变输入。

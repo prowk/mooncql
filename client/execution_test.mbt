@@ -1,5 +1,5 @@
 ///|
-fn trace_bytes(index : Int) -> Bytes {
+fn trace_bytes(index : Int32) -> Bytes {
   Bytes::from_array(
     Array::makei(16, i => if i == 15 { index.to_byte() } else { b'\x00' }),
   )
@@ -111,10 +111,10 @@ async test "session prepared preserves initial and UNPREPARED recovery response 
 ///|
 async fn respond_info(
   peer : Peer,
-  stream : Int,
-  opcode : Int,
+  stream : Int32,
+  opcode : Int32,
   body : Bytes,
-  index : Int,
+  index : Int32,
 ) -> Unit {
   let w = @codec.Writer::new()
   w.raw(trace_bytes(index))
@@ -139,8 +139,8 @@ async fn respond_info(
 ///|
 fn assert_info(
   info : @client.ExecutionInfo,
-  port : Int,
-  index : Int,
+  port : Int32,
+  index : Int32,
 ) -> Unit raise {
   assert_eq(info.coordinator.port, port)
   assert_eq(info.tracing_id, Some(trace_bytes(index)))

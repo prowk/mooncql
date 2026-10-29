@@ -8,12 +8,12 @@ extern "C" fn cpu_ns() -> Int64 = "prowk_mooncql_bench_cpu_ns"
 extern "C" fn peak_bytes() -> Int64 = "prowk_mooncql_bench_peak_bytes"
 
 ///|
-fn integer_env(name : String, fallback : String) -> Int raise {
+fn integer_env(name : String, fallback : String) -> Int32 raise {
   @string.parse_int(@env.get_env_var(name).unwrap_or(fallback))
 }
 
 ///|
-fn percentile(sorted : Array[Int64], percent : Int) -> Int64 {
+fn percentile(sorted : Array[Int64], percent : Int32) -> Int64 {
   if sorted.is_empty() {
     0L
   } else {
@@ -22,7 +22,7 @@ fn percentile(sorted : Array[Int64], percent : Int) -> Int64 {
 }
 
 ///|
-fn payload(size : Int, entropy : String) -> Bytes {
+fn payload(size : Int32, entropy : String) -> Bytes {
   let mut random = 2026101821U
   Bytes::from_array(
     Array::makei(size, index => {
@@ -43,17 +43,17 @@ fn payload(size : Int, entropy : String) -> Bytes {
 fn print_result(
   mode : String,
   entropy : String,
-  size : Int,
+  size : Int32,
   compressed : Bool,
-  count : Int,
-  concurrency : Int,
-  page_size : Int,
+  count : Int32,
+  concurrency : Int32,
+  page_size : Int32,
   elapsed : Int64,
   cpu : Int64,
   samples : Array[Int64],
   pages : Array[Int64],
   version : String,
-  connections : Int,
+  connections : Int32,
 ) -> Unit {
   samples.sort()
   pages.sort()
@@ -321,7 +321,7 @@ async fn benchmark() -> Unit {
 // 嵌套既有作用域保证部分建连失败也关闭已打开连接，并保持旧基线 API 兼容。
 async fn with_bench_connections(
   config : @client.ConnectionBuilder,
-  remaining : Int,
+  remaining : Int32,
   connections : Array[@client.Connection],
   body : async (Array[@client.Connection]) -> Unit,
 ) -> Unit {

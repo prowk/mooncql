@@ -1,12 +1,12 @@
 ///|
 struct Wire {
   socket : Transport
-  max_body : Int
+  max_body : Int32
   compressed : Bool
   mut framed : Bool
   decoder : @protocol.EnvelopeDecoder
   mut messages : Array[@protocol.MessageEnvelope]
-  mut position : Int
+  mut position : Int32
   mut queued_bytes : Int64
   mut peak_bytes : Int64
   metrics : Metrics?
@@ -15,7 +15,7 @@ struct Wire {
 ///|
 fn Wire::new(
   socket : Transport,
-  max_body : Int,
+  max_body : Int32,
   compressed : Bool,
   metrics : Metrics?,
 ) -> Wire {
@@ -36,9 +36,9 @@ fn Wire::new(
 ///|
 async fn Wire::send(
   self : Wire,
-  stream : Int,
+  stream : Int32,
   request : @protocol.Request,
-  on_write? : () -> Unit = () => (),
+  on_write~ : () -> Unit = () => (),
 ) -> Unit {
   let bytes = @protocol.encode_envelope(
     stream,

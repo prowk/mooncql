@@ -1,7 +1,7 @@
 ///|
 pub(all) struct ExecutionInfo {
   coordinator : Endpoint
-  attempt_count : Int
+  attempt_count : Int32
   warnings : Array[String]
   tracing_id : Bytes?
   custom_payload : Map[String, Bytes?]
@@ -137,7 +137,7 @@ fn result_with_info(reply : Reply) -> Execution[@protocol.ResultSet] raise {
 pub async fn Connection::run_with_info(
   self : Connection,
   request : @protocol.Request,
-  cached? : Array[@protocol.Column] = [],
+  cached~ : Array[@protocol.Column] = [],
   deadline? : Deadline,
 ) -> Execution[@protocol.ResultSet] {
   let execution = result_with_info(self.request(request, cached~, deadline?))
@@ -152,8 +152,8 @@ pub async fn Connection::run_with_info(
 pub async fn Connection::query_with_info(
   self : Connection,
   cql : String,
-  values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  values~ : Array[@types.Value] = [],
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> Execution[@protocol.ResultSet] {
   let deadline = self.operation_deadline(deadline)
@@ -164,8 +164,8 @@ pub async fn Connection::query_with_info(
 pub async fn Connection::batch_with_info(
   self : Connection,
   statements : Array[@protocol.BatchStatement],
-  kind? : @protocol.BatchType = Logged,
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  kind~ : @protocol.BatchType = Logged,
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> Execution[Unit] {
   let deadline = self.operation_deadline(deadline)
@@ -186,10 +186,10 @@ pub async fn Connection::batch_with_info(
 pub async fn Session::query_with_profile_info(
   self : Session,
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   routing? : RoutingHint,
   profile? : ExecutionProfile,
@@ -211,10 +211,10 @@ pub async fn Session::query_with_profile_info(
 pub async fn Session::query_with_schema_info(
   self : Session,
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   routing? : RoutingHint,
   profile? : ExecutionProfile,
@@ -252,10 +252,10 @@ pub async fn Session::query_with_schema_info(
 pub async fn Session::query_with_info(
   self : Session,
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   routing? : RoutingHint,
 ) -> Execution[@protocol.ResultSet] {

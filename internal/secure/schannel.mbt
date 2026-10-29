@@ -1,3 +1,6 @@
+// 修改声明：prowk/mooncql 基于 moonbitlang/async 0.22.3 修改。
+// 隔离 FFI 符号，补充经证书与名称验证的客户端 TLS 及凭据适配。来源及上游原始哈希见 internal/secure/NOTICE.md 和 UPSTREAM.json。
+
 // Copyright 2025 International Digital Economy Academy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,32 +35,35 @@ extern "C" fn Schannel::init_client(
   ch : Schannel,
   verify~ : Bool,
   certificate_sha1 : Bytes?,
-) -> Int = "prowk_mooncql_secure_schannel_init_client"
+) -> Int32 = "prowk_mooncql_secure_schannel_init_client"
 
 ///|
 #cfg(platform="windows")
 #borrow(der)
-extern "C" fn Schannel::add_root_certificate(ch : Schannel, der : Bytes) -> Int = "prowk_mooncql_secure_schannel_add_root_certificate"
+extern "C" fn Schannel::add_root_certificate(
+  ch : Schannel,
+  der : Bytes,
+) -> Int32 = "prowk_mooncql_secure_schannel_add_root_certificate"
 
 ///|
 #cfg(platform="windows")
-extern "C" fn Schannel::bytes_read(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_bytes_read"
+extern "C" fn Schannel::bytes_read(ch : Schannel) -> Int32 = "prowk_mooncql_secure_schannel_bytes_read"
 
 ///|
 #cfg(platform="windows")
-extern "C" fn Schannel::bytes_to_write(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_bytes_to_write"
+extern "C" fn Schannel::bytes_to_write(ch : Schannel) -> Int32 = "prowk_mooncql_secure_schannel_bytes_to_write"
 
 ///|
 #cfg(platform="windows")
-extern "C" fn Schannel::header_size(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_header_size"
+extern "C" fn Schannel::header_size(ch : Schannel) -> Int32 = "prowk_mooncql_secure_schannel_header_size"
 
 ///|
 #cfg(platform="windows")
-extern "C" fn Schannel::trailer_size(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_trailer_size"
+extern "C" fn Schannel::trailer_size(ch : Schannel) -> Int32 = "prowk_mooncql_secure_schannel_trailer_size"
 
 ///|
 #cfg(platform="windows")
-fn Schannel::record_overhead(ch : Schannel) -> Int {
+fn Schannel::record_overhead(ch : Schannel) -> Int32 {
   ch.header_size() + ch.trailer_size()
 }
 
@@ -79,11 +85,11 @@ extern "C" fn Schannel::connect(
   ch : Schannel,
   host : @os_string.OsString?,
   in_buffer~ : Bytes,
-  in_buffer_offset~ : Int,
-  in_buffer_len~ : Int,
+  in_buffer_offset~ : Int32,
+  in_buffer_len~ : Int32,
   out_buffer~ : FixedArray[Byte],
-  out_buffer_offset~ : Int,
-  out_buffer_len~ : Int,
+  out_buffer_offset~ : Int32,
+  out_buffer_len~ : Int32,
 ) -> TlsState = "prowk_mooncql_secure_schannel_connect"
 
 ///|
@@ -92,7 +98,7 @@ extern "C" fn Schannel::connect(
 extern "C" fn Schannel::verify_peer_certificate(
   ch : Schannel,
   host : @os_string.OsString?,
-) -> Int = "prowk_mooncql_secure_schannel_verify_peer_certificate"
+) -> Int32 = "prowk_mooncql_secure_schannel_verify_peer_certificate"
 
 ///|
 #cfg(platform="windows")
@@ -100,11 +106,11 @@ extern "C" fn Schannel::verify_peer_certificate(
 extern "C" fn Schannel::accept(
   ch : Schannel,
   in_buffer~ : Bytes,
-  in_buffer_offset~ : Int,
-  in_buffer_len~ : Int,
+  in_buffer_offset~ : Int32,
+  in_buffer_len~ : Int32,
   out_buffer~ : FixedArray[Byte],
-  out_buffer_offset~ : Int,
-  out_buffer_len~ : Int,
+  out_buffer_offset~ : Int32,
+  out_buffer_len~ : Int32,
 ) -> TlsState = "prowk_mooncql_secure_schannel_accept"
 
 ///|
@@ -114,8 +120,8 @@ struct Tls {
   is_client : Bool
   host : String?
   transport : Transport
-  mut curr_msg_remaining : Int
-  mut curr_msg_trailer : Int
+  mut curr_msg_remaining : Int32
+  mut curr_msg_trailer : Int32
   mut shutdown : Bool
   mut closed : Bool
 }
@@ -190,9 +196,9 @@ async fn Tls::connect(self : Tls) -> Unit {
 pub async fn[R : @io.Reader, W : @io.Writer] Tls::client_from_pair(
   reader : R,
   writer : W,
-  verify? : Bool = true,
+  verify~ : Bool = true,
   host? : String,
-  sni? : Bool = true,
+  sni~ : Bool = true,
   trust? : TrustedRoot,
   identity? : ClientIdentity,
 ) -> Tls {
@@ -287,22 +293,22 @@ async fn Tls::accept(self : Tls) -> Unit {
 extern "C" fn Schannel::read(
   self : Schannel,
   buf : FixedArray[Byte],
-  offset~ : Int,
-  len~ : Int,
+  offset~ : Int32,
+  len~ : Int32,
 ) -> TlsState = "prowk_mooncql_secure_schannel_read"
 
 ///|
 #cfg(platform="windows")
-extern "C" fn Schannel::msg_trailer(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_msg_trailer"
+extern "C" fn Schannel::msg_trailer(ch : Schannel) -> Int32 = "prowk_mooncql_secure_schannel_msg_trailer"
 
 ///|
 #cfg(platform="windows")
 async fn Tls::read_raw(
   self : Tls,
   buf : FixedArray[Byte],
-  offset~ : Int,
-  max_len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  max_len~ : Int32,
+) -> Int32 {
   if self.closed {
     return 0
   }
@@ -364,8 +370,8 @@ async fn Tls::read_raw(
 extern "C" fn Schannel::write(
   self : Schannel,
   buf : FixedArray[Byte],
-  offset~ : Int, // `offset` marks the start of the whole message
-  len~ : Int, // `len` is the length of payload
+  offset~ : Int32, // `offset` marks the start of the whole message
+  len~ : Int32, // `len` is the length of payload
 ) -> TlsState = "prowk_mooncql_secure_schannel_write"
 
 ///|
@@ -373,9 +379,9 @@ extern "C" fn Schannel::write(
 async fn Tls::write_once(
   self : Tls,
   buf : Bytes,
-  offset~ : Int,
-  len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  len~ : Int32,
+) -> Int32 {
   if self.closed {
     raise ConnectionClosed
   }
@@ -405,7 +411,7 @@ async fn Tls::write_once(
 ///|
 #cfg(platform="windows")
 #borrow(ch)
-extern "C" fn Schannel::shutdown(ch : Schannel) -> Int = "prowk_mooncql_secure_schannel_shutdown"
+extern "C" fn Schannel::shutdown(ch : Schannel) -> Int32 = "prowk_mooncql_secure_schannel_shutdown"
 
 ///|
 #cfg(platform="windows")
@@ -437,7 +443,7 @@ extern "C" fn PeerCertificate::free(self : PeerCertificate) -> Unit = "prowk_moo
 
 ///|
 #cfg(platform="windows")
-extern "C" fn PeerCertificate::length(self : PeerCertificate) -> Int = "prowk_mooncql_secure_schannel_peer_certificate_length"
+extern "C" fn PeerCertificate::length(self : PeerCertificate) -> Int32 = "prowk_mooncql_secure_schannel_peer_certificate_length"
 
 ///|
 #cfg(platform="windows")
@@ -445,7 +451,7 @@ extern "C" fn PeerCertificate::length(self : PeerCertificate) -> Int = "prowk_mo
 extern "C" fn PeerCertificate::blit_to(
   self : PeerCertificate,
   buf : FixedArray[Byte],
-  len~ : Int,
+  len~ : Int32,
 ) -> Unit = "prowk_mooncql_secure_schannel_peer_certificate_blit_to"
 
 ///|
@@ -463,7 +469,7 @@ extern "C" fn ChannelBinding::free(self : ChannelBinding) -> Unit = "prowk_moonc
 
 ///|
 #cfg(platform="windows")
-extern "C" fn ChannelBinding::length(self : ChannelBinding) -> Int = "prowk_mooncql_secure_schannel_channel_binding_length"
+extern "C" fn ChannelBinding::length(self : ChannelBinding) -> Int32 = "prowk_mooncql_secure_schannel_channel_binding_length"
 
 ///|
 #cfg(platform="windows")
@@ -471,7 +477,7 @@ extern "C" fn ChannelBinding::length(self : ChannelBinding) -> Int = "prowk_moon
 extern "C" fn ChannelBinding::blit_to(
   self : ChannelBinding,
   buf : FixedArray[Byte],
-  len~ : Int,
+  len~ : Int32,
 ) -> Unit = "prowk_mooncql_secure_schannel_channel_binding_blit_to"
 
 ///|

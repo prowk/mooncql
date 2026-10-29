@@ -1,3 +1,6 @@
+// 修改声明：prowk/mooncql 基于 moonbitlang/async 0.22.3 修改。
+// 隔离辅助包与 FFI 符号，适配驱动自有内存及系统字符串接口。来源及上游原始哈希见 internal/secure/NOTICE.md 和 UPSTREAM.json。
+
 // Copyright 2025 International Digital Economy Academy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,13 +26,13 @@ struct OsString(String)
 
 ///|
 #cfg(not(platform="windows"))
-pub fn OsString::bytes_length(self : OsString) -> Int {
+pub fn OsString::bytes_length(self : OsString) -> Int32 {
   self.0.length()
 }
 
 ///|
 #cfg(platform="windows")
-pub fn OsString::bytes_length(self : OsString) -> Int {
+pub fn OsString::bytes_length(self : OsString) -> Int32 {
   self.0.length() * 2
 }
 
@@ -74,8 +77,8 @@ pub extend OsString with Show::{output}
 #cfg(not(platform="windows"))
 pub fn decode(
   os_str : @c_buffer.Buffer,
-  offset? : Int = 0,
-  len? : Int = os_str.strlen(offset~),
+  offset~ : Int32 = 0,
+  len~ : Int32 = os_str.strlen(offset~),
 ) -> String {
   let data = FixedArray::make(len, b'\x00')
   os_str.blit_to_bytes(dst=data, src_offset=offset, len~)
@@ -86,8 +89,8 @@ pub fn decode(
 #cfg(platform="windows")
 pub extern "C" fn decode(
   os_str : @c_buffer.Buffer,
-  offset? : Int = 0,
-  len? : Int = -1,
+  offset~ : Int32 = 0,
+  len~ : Int32 = -1,
 ) -> String = "prowk_mooncql_secure_c_buffer_as_string"
 
 ///|

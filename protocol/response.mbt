@@ -18,7 +18,7 @@ pub(all) struct Page {
 ///|
 pub fn Page::get(
   self : Page,
-  row : Int,
+  row : Int32,
   column : String,
 ) -> @types.Value raise @codec.CodecError {
   if row < 0 || row >= self.rows.length() {
@@ -36,20 +36,20 @@ pub fn Page::get(
 ///|
 pub(all) enum ErrorDetail {
   Other(Bytes)
-  Unavailable(Int, Int, Int)
-  ReadTimeout(Int, Int, Int, Bool)
-  WriteTimeout(Int, Int, Int, String, Int?)
-  ReadFailure(Int, Int, Int, Array[FailureReason], Bool)
-  WriteFailure(Int, Int, Int, Array[FailureReason], String)
+  Unavailable(Int32, Int32, Int32)
+  ReadTimeout(Int32, Int32, Int32, Bool)
+  WriteTimeout(Int32, Int32, Int32, String, Int32?)
+  ReadFailure(Int32, Int32, Int32, Array[FailureReason], Bool)
+  WriteFailure(Int32, Int32, Int32, Array[FailureReason], String)
   FunctionFailure(String, String, Array[String])
-  CasWriteUnknown(Int, Int, Int)
+  CasWriteUnknown(Int32, Int32, Int32)
   AlreadyExists(String, String)
   Unprepared(Bytes)
 } derive(@debug.Debug)
 
 ///|
 pub(all) struct ServerError {
-  code : Int
+  code : Int32
   message : String
   detail : ErrorDetail
 } derive(@debug.Debug)
@@ -118,9 +118,9 @@ pub extend Metadata with @debug.Debug::{to_repr}
 ///|
 fn read_columns(
   r : @codec.Reader,
-  flags : Int,
-  count : Int,
-  max_depth? : Int = 32,
+  flags : Int32,
+  count : Int32,
+  max_depth~ : Int32 = 32,
 ) -> Array[Column] raise @codec.CodecError {
   let shared = if (flags & 1) != 0 {
     Some((r.string(), r.string()))
@@ -147,9 +147,9 @@ fn read_columns(
 ///|
 pub fn read_metadata_limited(
   r : @codec.Reader,
-  cached? : Array[Column] = [],
-  max_columns? : Int = 65535,
-  max_depth? : Int = 32,
+  cached~ : Array[Column] = [],
+  max_columns~ : Int32 = 65535,
+  max_depth~ : Int32 = 32,
 ) -> Metadata raise @codec.CodecError {
   if max_depth < 1 || max_depth > 32 {
     raise @codec.CodecError("max_depth must be 1..32")
@@ -218,11 +218,11 @@ fn read_schema_change(
 ///|
 pub fn decode_result_limited(
   body : Bytes,
-  cached? : Array[Column] = [],
-  max_value_nodes? : Int = 1000000,
-  max_rows? : Int = 1000000,
-  max_columns? : Int = 65535,
-  max_depth? : Int = 32,
+  cached~ : Array[Column] = [],
+  max_value_nodes~ : Int32 = 1000000,
+  max_rows~ : Int32 = 1000000,
+  max_columns~ : Int32 = 65535,
+  max_depth~ : Int32 = 32,
 ) -> ResultSet raise @codec.CodecError {
   if max_rows < 0 ||
     max_rows > 1000000 ||
@@ -323,13 +323,13 @@ pub fn decode_error(body : Bytes) -> ServerError raise @codec.CodecError {
 
 ///|
 pub fn decode_response_limited(
-  opcode : Int,
+  opcode : Int32,
   body : Bytes,
-  cached? : Array[Column] = [],
-  max_value_nodes? : Int = 1000000,
-  max_rows? : Int = 1000000,
-  max_columns? : Int = 65535,
-  max_depth? : Int = 32,
+  cached~ : Array[Column] = [],
+  max_value_nodes~ : Int32 = 1000000,
+  max_rows~ : Int32 = 1000000,
+  max_columns~ : Int32 = 65535,
+  max_depth~ : Int32 = 32,
 ) -> Response raise @codec.CodecError {
   let r = @codec.Reader::new(body)
   match opcode {
@@ -371,7 +371,7 @@ pub fn decode_response_limited(
 ///|
 pub(all) struct FailureReason {
   endpoint : Bytes
-  code : Int
+  code : Int32
 } derive(@debug.Debug)
 
 ///|
@@ -398,9 +398,9 @@ fn read_reasons(
 
 ///|
 pub fn decode_response(
-  opcode : Int,
+  opcode : Int32,
   body : Bytes,
-  cached? : Array[Column] = [],
+  cached~ : Array[Column] = [],
 ) -> Response raise @codec.CodecError {
   decode_response_limited(opcode, body, cached~)
 }
@@ -408,8 +408,8 @@ pub fn decode_response(
 ///|
 pub fn decode_result(
   body : Bytes,
-  cached? : Array[Column] = [],
-  max_value_nodes? : Int = 1000000,
+  cached~ : Array[Column] = [],
+  max_value_nodes~ : Int32 = 1000000,
 ) -> ResultSet raise @codec.CodecError {
   decode_result_limited(body, cached~, max_value_nodes~)
 }
@@ -417,7 +417,7 @@ pub fn decode_result(
 ///|
 pub fn read_metadata(
   r : @codec.Reader,
-  cached? : Array[Column] = [],
+  cached~ : Array[Column] = [],
 ) -> Metadata raise @codec.CodecError {
   read_metadata_limited(r, cached~)
 }

@@ -1,21 +1,21 @@
 ///|
 pub(all) struct DiscoveryConfig {
-  refresh_interval_ms : Int
-  debounce_ms : Int
-  max_nodes : Int
-  max_keyspaces : Int
-  max_tokens_per_node : Int
+  refresh_interval_ms : Int32
+  debounce_ms : Int32
+  max_nodes : Int32
+  max_keyspaces : Int32
+  max_tokens_per_node : Int32
   address_mapper : (@protocol.InetEndpoint) -> Endpoint?
 }
 
 ///|
 pub fn DiscoveryConfig::new(
-  refresh_interval_ms? : Int = 30000,
-  debounce_ms? : Int = 100,
-  max_nodes? : Int = 1024,
-  max_keyspaces? : Int = 4096,
-  max_tokens_per_node? : Int = 4096,
-  address_mapper? : (@protocol.InetEndpoint) -> Endpoint? = native_endpoint,
+  refresh_interval_ms~ : Int32 = 30000,
+  debounce_ms~ : Int32 = 100,
+  max_nodes~ : Int32 = 1024,
+  max_keyspaces~ : Int32 = 4096,
+  max_tokens_per_node~ : Int32 = 4096,
+  address_mapper~ : (@protocol.InetEndpoint) -> Endpoint? = native_endpoint,
 ) -> DiscoveryConfig {
   {
     refresh_interval_ms,
@@ -40,7 +40,7 @@ pub(all) struct TopologyNode {
 
 ///|
 pub(all) struct TopologySnapshot {
-  revision : Int
+  revision : Int32
   refreshed_at : Int64
   cluster_name : String
   partitioner : String
@@ -55,9 +55,9 @@ struct ControlState {
   mut connection : Connection?
   mut snapshot : TopologySnapshot?
   mut stale : Bool
-  mut generation : Int
-  mut refreshes : Int
-  mut schema_epoch : Int
+  mut generation : Int32
+  mut refreshes : Int32
+  mut schema_epoch : Int32
   mut last_error : Error?
   mut ring : @routing.Ring?
   mut locations : Map[String, (String, Bytes)]
@@ -67,8 +67,8 @@ struct ControlState {
 pub(all) struct ControlStatus {
   connected : Bool
   endpoint : Endpoint?
-  generation : Int
-  refreshes : Int
+  generation : Int32
+  refreshes : Int32
   stale : Bool
   last_error : Error?
 }
@@ -134,7 +134,7 @@ fn native_endpoint(native : @protocol.InetEndpoint) -> Endpoint? {
 ///|
 fn topology_text(
   page : @protocol.Page,
-  row : Int,
+  row : Int32,
   name : String,
 ) -> String raise {
   guard page.get(row, name) is Text(value) && !value.is_empty() else {
@@ -146,7 +146,7 @@ fn topology_text(
 ///|
 fn topology_uuid(
   page : @protocol.Page,
-  row : Int,
+  row : Int32,
   name : String,
 ) -> Bytes raise {
   guard page.get(row, name) is Uuid(value) && value.length() == 16 else {
@@ -158,7 +158,7 @@ fn topology_uuid(
 ///|
 fn topology_node(
   page : @protocol.Page,
-  row : Int,
+  row : Int32,
   is_local : Bool,
   config : DiscoveryConfig,
   connected : Endpoint,
@@ -213,7 +213,7 @@ async fn read_topology(
   connection : Connection,
   endpoint : Endpoint,
   config : DiscoveryConfig,
-  revision : Int,
+  revision : Int32,
 ) -> TopologySnapshot {
   // 完整快照共用一个截止时间，失败时不发布半份成员列表。
   let deadline = Deadline::after(connection.config.operation_timeout_ms)
@@ -383,7 +383,7 @@ async fn[G] Session::maintain_control(
 ) -> Unit {
   let mut next = 0
   let mut backoff = self.config.backoff_initial_ms
-  let random = @random.Rand::new()
+  let random = @random.Rand()
   while !self.closed && !self.draining {
     let candidates = self.nodes.map(node => node.endpoint)
     if candidates.is_empty() {

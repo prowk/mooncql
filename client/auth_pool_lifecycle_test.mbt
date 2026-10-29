@@ -6,7 +6,7 @@ async test "pool auth failure and recovery create independent authentication ses
       defer server.close()
       let creates = [0]
       let initial_calls = [0]
-      let successes : Array[Int] = []
+      let successes : Array[Int32] = []
       let worker = group.spawn(() => {
         @async.with_task_group(handlers => {
           for index in 1..<4 {
@@ -76,7 +76,7 @@ async test "pool auth failure and recovery create independent authentication ses
           assert_eq(creates[0], 3)
           assert_eq(initial_calls[0], 3)
           assert_eq(successes, [2, 3])
-          let coordinators : Map[Int, Bool] = Map([])
+          let coordinators : Map[Int32, Bool] = Map([])
           for _ in 0..<12 {
             guard session.query("identify") is Rows(page) else {
               fail("missing row")

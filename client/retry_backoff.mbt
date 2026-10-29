@@ -1,24 +1,24 @@
 ///|
 /// 按失败类别选择起始延迟，指数增长后截断并施加有界随机抖动。
 pub struct RetryBackoff {
-  local_ms : Int
-  overloaded_ms : Int
-  bootstrapping_ms : Int
-  network_ms : Int
-  read_timeout_ms : Int
-  maximum : Int
+  local_ms : Int32
+  overloaded_ms : Int32
+  bootstrapping_ms : Int32
+  network_ms : Int32
+  read_timeout_ms : Int32
+  maximum : Int32
   jitter : Double
 }
 
 ///|
 pub fn RetryBackoff::new(
-  local_ms? : Int = 5,
-  overloaded_ms? : Int = 25,
-  bootstrapping_ms? : Int = 100,
-  network_ms? : Int = 10,
-  read_timeout_ms? : Int = 25,
-  max_delay_ms? : Int = 1000,
-  jitter? : Double = 1.0,
+  local_ms~ : Int32 = 5,
+  overloaded_ms~ : Int32 = 25,
+  bootstrapping_ms~ : Int32 = 100,
+  network_ms~ : Int32 = 10,
+  read_timeout_ms~ : Int32 = 25,
+  max_delay_ms~ : Int32 = 1000,
+  jitter~ : Double = 1.0,
 ) -> RetryBackoff raise DriverError {
   validate_range("max_delay_ms", max_delay_ms, 1, 2147483647)
   for
@@ -49,9 +49,9 @@ pub fn RetryBackoff::new(
 fn RetryBackoff::delay(
   self : RetryBackoff,
   error : Error,
-  attempt : Int,
+  attempt : Int32,
   random : Double,
-) -> Int {
+) -> Int32 {
   let base = if local_admission_failure(error) {
     self.local_ms
   } else {

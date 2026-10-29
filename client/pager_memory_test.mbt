@@ -68,7 +68,7 @@ async test "three slow pagers retain application pages while driver receive owne
             })
             let held : Array[@protocol.Page] = []
             for _ in 0..<2 {
-              async fn fetch(index : Int) -> Unit {
+              async fn fetch(index : Int32) -> Unit {
                 let page = pagers[index].next().unwrap()
                 assert_eq(page.row(0).bytes("blob").length(), 400000)
                 held.push(page)

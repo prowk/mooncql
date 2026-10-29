@@ -7,7 +7,7 @@ pub fn encode_value(value : Value) -> Bytes raise @codec.CodecError {
 fn write_nested(
   w : @codec.Writer,
   value : Value,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise @codec.CodecError {
   match value {
     Null => w.bytes(None)
@@ -17,7 +17,10 @@ fn write_nested(
 }
 
 ///|
-fn encode_value_at(value : Value, depth : Int) -> Bytes raise @codec.CodecError {
+fn encode_value_at(
+  value : Value,
+  depth : Int32,
+) -> Bytes raise @codec.CodecError {
   if depth >= 32 {
     raise @codec.CodecError("value nesting exceeds limit")
   }
@@ -65,7 +68,7 @@ fn encode_value_at(value : Value, depth : Int) -> Bytes raise @codec.CodecError 
 fn read_non_null(
   r : @codec.Reader,
   typ : CqlType,
-  depth : Int,
+  depth : Int32,
   budget : DecodeBudget,
 ) -> Value raise @codec.CodecError {
   let bytes = r.bytes()
@@ -78,8 +81,8 @@ fn read_non_null(
 ///|
 fn checked_count(
   r : @codec.Reader,
-  minimum_width : Int,
-) -> Int raise @codec.CodecError {
+  minimum_width : Int32,
+) -> Int32 raise @codec.CodecError {
   let count = r.i32()
   if count < 0 || count > 1000000 || count > r.remaining() / minimum_width {
     raise @codec.CodecError("invalid collection count")
@@ -91,7 +94,7 @@ fn checked_count(
 fn decode_composite(
   typ : CqlType,
   r : @codec.Reader,
-  depth : Int,
+  depth : Int32,
   budget : DecodeBudget,
 ) -> Value raise @codec.CodecError {
   match typ {
@@ -162,7 +165,7 @@ pub fn snapshot(values : Array[Value]) -> Array[Value] raise @codec.CodecError {
 }
 
 ///|
-fn snapshot_at(value : Value, depth : Int) -> Value raise @codec.CodecError {
+fn snapshot_at(value : Value, depth : Int32) -> Value raise @codec.CodecError {
   if depth >= 32 {
     raise @codec.CodecError("value nesting exceeds limit")
   }

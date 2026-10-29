@@ -8,12 +8,12 @@ extern "C" fn cpu_ns() -> Int64 = "prowk_mooncql_bench_cpu_ns"
 extern "C" fn peak_bytes() -> Int64 = "prowk_mooncql_bench_peak_bytes"
 
 ///|
-fn integer(name : String, fallback : String) -> Int raise {
+fn integer(name : String, fallback : String) -> Int32 raise {
   @string.parse_int(@env.get_env_var(name).unwrap_or(fallback))
 }
 
 ///|
-fn row_body(kind : Int, rows : Int) -> Bytes raise {
+fn row_body(kind : Int32, rows : Int32) -> Bytes raise {
   let w = @codec.Writer::new()
   w.i32(2)
   w.i32(1)
@@ -54,7 +54,7 @@ fn row_body(kind : Int, rows : Int) -> Bytes raise {
 }
 
 ///|
-async fn abandoned(rounds : Int) -> Array[Int64] {
+async fn abandoned(rounds : Int32) -> Array[Int64] {
   let large = row_body(0, 100000)
   let samples = []
   @async.with_task_group(group => {
@@ -108,7 +108,7 @@ async fn abandoned(rounds : Int) -> Array[Int64] {
 }
 
 ///|
-async fn mixed(rounds : Int) -> Array[Int64] {
+async fn mixed(rounds : Int32) -> Array[Int64] {
   let bodies = Array::makei(4, kind => row_body(kind, 1))
   let samples = []
   @async.with_task_group(group => {
@@ -137,7 +137,7 @@ async fn mixed(rounds : Int) -> Array[Int64] {
       config=@client.ConnectionBuilder::new(port=server.addr.port()),
       connection => {
         for _ in 0..<rounds {
-          async fn operation(id : Int) -> Unit {
+          async fn operation(id : Int32) -> Unit {
             let start = now_ns()
             guard connection.query(id.to_string()) is Rows(page) else {
               fail("missing mixed row")
@@ -168,7 +168,7 @@ async fn mixed(rounds : Int) -> Array[Int64] {
 }
 
 ///|
-async fn fairness(rounds : Int) -> Array[Int64] {
+async fn fairness(rounds : Int32) -> Array[Int64] {
   let samples = []
   let values : Array[@types.Value] = [Bytes(Bytes::make(10000, b'x'))]
   let limit = @protocol.query("large", values~).body.length() + 9
@@ -242,7 +242,7 @@ async fn fairness(rounds : Int) -> Array[Int64] {
 }
 
 ///|
-async fn retry(rounds : Int) -> Array[Int64] {
+async fn retry(rounds : Int32) -> Array[Int64] {
   let samples = []
   let metrics = @client.Metrics::new()
   @async.with_task_group(group => {

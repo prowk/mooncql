@@ -8,7 +8,7 @@ async fn marker(directory : String, name : String) -> Unit {
 }
 
 ///|
-async fn ready(session : @client.Session, count : Int) -> Unit {
+async fn ready(session : @client.Session, count : Int32) -> Unit {
   @async.with_timeout(60000, () => {
     while session.nodes().filter(node => node.status.state == Ready).length() !=
           count ||

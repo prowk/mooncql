@@ -10,6 +10,27 @@ from native_runner import ROOT
 CONTRACT = ROOT / 'fixtures/api-compatibility.json'
 
 
+def canonical_types(source):
+    # 新工具链把内建 Int／UInt 显示为 Int32／UInt32；只统一类型表达式。
+    # 保留限定类型和具名参数标签，不能掩盖用户类型或参数改名。
+    return re.sub(r'(?<![\w.@])(?:Int32|UInt32)\b(?!\s*[?~]?\s*:)',
+                  lambda match: {'Int32': 'Int', 'UInt32': 'UInt'}[match[0]], source)
+
+
+def canonical_member(line):
+    method = re.match(r'^\s*(?:async )?fn(?:\[[^\n]*?\])? ([^\s(]+)', line)
+    if method:
+        return line[:method.end()] + canonical_types(line[method.end():])
+    if ' : ' in line:
+        label, expression = line.split(' : ', 1)
+        return label + ' : ' + canonical_types(expression)
+    if '(' in line:
+        # 枚举分支名保持原样，只统一其载荷类型。
+        constructor, expression = line.split('(', 1)
+        return constructor + '(' + canonical_types(expression)
+    return line
+
+
 def declarations(source):
     result = {}
     lines = source.replace('\r\n', '\n').splitlines()
@@ -19,7 +40,8 @@ def declarations(source):
         function = re.match(r'^pub (?:async )?fn(?:\[[^\n]*?\])? ([^\s(]+)', line)
         typ = re.match(r'^pub(?:\(all\))? (struct|enum|suberror|type|trait) ([A-Za-z_][A-Za-z_0-9]*)', line)
         if function:
-            key, signature = 'fn ' + function[1], line
+            key = 'fn ' + function[1]
+            signature = line[:function.end()] + canonical_types(line[function.end():])
         elif line.startswith('pub impl '):
             key, signature = line.removeprefix('pub '), line
         elif typ:
@@ -32,7 +54,7 @@ def declarations(source):
                         raise ValueError('unterminated exported type')
                     body.append(lines[index])
                 if line.startswith('pub(all)') or typ[1] == 'trait':
-                    signature += '\n' + '\n'.join(body)
+                    signature += '\n' + '\n'.join(canonical_member(member) for member in body)
                 # pub struct 的字段对消费者不可见，只保留不透明类型头。
         else:
             if line.startswith('pub ') or line.startswith('pub('):

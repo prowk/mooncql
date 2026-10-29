@@ -8,12 +8,12 @@ extern "C" fn cpu_ns() -> Int64 = "prowk_mooncql_bench_cpu_ns"
 extern "C" fn peak_bytes() -> Int64 = "prowk_mooncql_bench_peak_bytes"
 
 ///|
-fn number(name : String, fallback : String) -> Int raise {
+fn number(name : String, fallback : String) -> Int32 raise {
   @string.parse_int(@env.get_env_var(name).unwrap_or(fallback))
 }
 
 ///|
-fn rank(sorted : Array[Int64], percent : Int) -> Int64 {
+fn rank(sorted : Array[Int64], percent : Int32) -> Int64 {
   if sorted.is_empty() {
     0L
   } else {

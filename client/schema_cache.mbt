@@ -1,14 +1,14 @@
 ///|
 priv struct SchemaCacheEntry {
   identity : Bytes
-  epoch : (Int, Int, Int)
+  epoch : (Int32, Int32, Int32)
   snapshot : SchemaSnapshot
 }
 
 ///|
 struct SchemaCache {
   mutex : @async.Mutex
-  mut invalidations : Int
+  mut invalidations : Int32
   mut entry : SchemaCacheEntry?
 }
 
@@ -18,7 +18,7 @@ fn SchemaCache::new() -> SchemaCache {
 }
 
 ///|
-fn Session::schema_epoch(self : Session) -> (Int, Int, Int) {
+fn Session::schema_epoch(self : Session) -> (Int32, Int32, Int32) {
   match self.control {
     Some(control) =>
       (self.schema_cache.invalidations, control.schema_epoch, control.refreshes)

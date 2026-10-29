@@ -26,7 +26,7 @@ async fn main {
     )
     let options = @protocol.QueryOptions::new(skip_metadata=true)
     assert_true(prepared.execute([], options~) is Rows(_))
-    let probes : Array[(@client.SessionPrepared, Int)] = []
+    let probes : Array[(@client.SessionPrepared, Int32)] = []
     for
       (keyspace, expected) in [
         ("mooncql_recovery_a", 101),
@@ -180,7 +180,7 @@ async fn verify_remaining_pages(pager : @client.Pager) -> Unit {
 ///|
 async fn verify_probe(
   statement : @client.SessionPrepared,
-  expected : Int,
+  expected : Int32,
   options : @protocol.QueryOptions,
 ) -> Unit {
   guard statement.execute([Integer(1)], options~) is Rows(page) else {

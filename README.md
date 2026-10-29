@@ -19,7 +19,7 @@ moon add prowk/mooncql@0.2.1
 moon add moonbitlang/async@0.22.3
 ```
 
-在应用的 `moon.pkg` 中导入 `moonbitlang/async` 和 `prowk/mooncql/client`；使用查询选项时再导入 `prowk/mooncql/protocol`。需要 MoonBit native 工具链；当前验收使用 moonc 0.10.14+7d59c7ec9。
+在应用的 `moon.pkg` 中导入 `moonbitlang/async` 和 `prowk/mooncql/client`；使用查询选项时再导入 `prowk/mooncql/protocol`。需要 MoonBit native 工具链；源码开发与 CI 固定使用 moonc 0.10.18+6c83a7f62。
 
 ## 快速示例
 

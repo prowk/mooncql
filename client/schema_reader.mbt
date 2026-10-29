@@ -5,7 +5,7 @@ async fn schema_catalog(
   projection : String,
   options : SchemaOptions,
   deadline : Deadline,
-  consume : (@protocol.Page, Int) -> Unit raise,
+  consume : (@protocol.Page, Int32) -> Unit raise,
 ) -> Unit {
   let (suffix, values) : (String, Array[@types.Value]) = if options.names.is_empty() {
     ("", [])

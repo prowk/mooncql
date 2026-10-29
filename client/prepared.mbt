@@ -5,7 +5,7 @@ pub struct Prepared {
   keyspace : String?
   mut metadata : @protocol.PreparedStatement
   refresh_mutex : @async.Mutex
-  mut generation : Int
+  mut generation : Int32
   request_options : @protocol.RequestOptions?
   mut origin_info : ExecutionInfo
 }
@@ -146,7 +146,7 @@ fn Prepared::validate_bindings(
 pub async fn Prepared::execute_with_info(
   self : Prepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> Execution[@protocol.ResultSet] {
   let deadline = self.connection.operation_deadline(deadline)
@@ -277,7 +277,7 @@ fn Prepared::accept_result(
 pub async fn Prepared::execute(
   self : Prepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> @protocol.ResultSet {
   self.execute_with_info(values, options~, deadline?).value catch {

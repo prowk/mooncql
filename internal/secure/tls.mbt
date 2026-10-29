@@ -1,3 +1,6 @@
+// 修改声明：prowk/mooncql 基于 moonbitlang/async 0.22.3 修改。
+// 隔离 FFI 符号，补充经证书与名称验证的客户端 TLS 及凭据适配。来源及上游原始哈希见 internal/secure/NOTICE.md 和 UPSTREAM.json。
+
 // Copyright 2025 International Digital Economy Academy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -90,9 +93,9 @@ pub(all) enum X509FileType {
 #label_migration(verify, fill=false, msg="use `trust` instead")
 pub async fn[Inner : @io.Reader + @io.Writer] Tls::client(
   inner : Inner,
-  verify? : Bool = true,
+  verify~ : Bool = true,
   host? : String,
-  sni? : Bool = true,
+  sni~ : Bool = true,
   trust? : TrustedRoot,
   identity? : ClientIdentity,
 ) -> Tls {
@@ -123,12 +126,12 @@ pub extend ConnectionClosed with ToJson::{to_json}
 
 ///|
 #cfg(platform="windows")
-fn platform_error(code : Int) -> String {
+fn platform_error(code : Int32) -> String {
   "TLS platform error: \{code}"
 }
 
 ///|
-pub async fn Tls::read_exactly(self : Tls, length : Int) -> Bytes {
+pub async fn Tls::read_exactly(self : Tls, length : Int32) -> Bytes {
   if length < 0 {
     raise TlsError("negative read length")
   }

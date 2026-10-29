@@ -39,7 +39,7 @@ async test "Connection and Session send oldest large query before continuous sma
         )
         async fn exercise(
           query : async (String, Array[@types.Value]) -> @protocol.ResultSet,
-          waiting : () -> Int,
+          waiting : () -> Int32,
         ) -> Unit {
           @async.with_task_group(requests => {
             let held = requests.spawn(() => query("held", []))

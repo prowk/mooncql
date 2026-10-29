@@ -68,7 +68,7 @@ pub struct Deadline {
 }
 
 ///|
-pub fn Deadline::after(milliseconds : Int) -> Deadline raise DriverError {
+pub fn Deadline::after(milliseconds : Int32) -> Deadline raise DriverError {
   if milliseconds <= 0 {
     raise Configuration("deadline_ms must be 1..2147483647")
   }
@@ -76,7 +76,7 @@ pub fn Deadline::after(milliseconds : Int) -> Deadline raise DriverError {
 }
 
 ///|
-pub fn Deadline::remaining_ms(self : Deadline) -> Int {
+pub fn Deadline::remaining_ms(self : Deadline) -> Int32 {
   let remaining = self.at - @async.now()
   if remaining <= 0L {
     0
@@ -98,7 +98,7 @@ priv suberror ClockExpired
 
 ///|
 async fn[T] timed(
-  milliseconds : Int,
+  milliseconds : Int32,
   scope : TimeoutScope,
   context : TimeoutContext,
   action : async () -> T,
@@ -123,7 +123,7 @@ async fn[T] timed(
 
 ///|
 async fn[T] timed_stage(
-  milliseconds : Int,
+  milliseconds : Int32,
   stage : OperationStage,
   scope : TimeoutScope,
   context : TimeoutContext,
@@ -142,7 +142,7 @@ async fn[T] Deadline::with_lock(
   body : async () -> T,
   metrics? : Metrics,
   admission? : Admission,
-  bytes? : Int64 = 0L,
+  bytes~ : Int64 = 0L,
 ) -> T {
   let observation = match metrics {
     Some(metrics) => Some(WaitObservation::new(metrics, Prepare, bytes))

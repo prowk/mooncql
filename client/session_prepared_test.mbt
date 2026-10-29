@@ -26,7 +26,7 @@ fn session_metadata(
 }
 
 ///|
-fn session_row(value : Int) -> Bytes raise {
+fn session_row(value : Int32) -> Bytes raise {
   let w = @codec.Writer::new()
   w.i32(2)
   w.i32(4)
@@ -51,7 +51,7 @@ fn assert_session_execute(
   frame : @protocol.MessageEnvelope,
   id : Bytes,
   metadata : Bytes,
-  value : Int,
+  value : Int32,
 ) -> Unit raise {
   assert_eq(frame.header.opcode, 10)
   let r = @codec.Reader::new(frame.body)

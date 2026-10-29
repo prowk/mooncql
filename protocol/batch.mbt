@@ -14,8 +14,8 @@ pub(all) enum BatchStatement {
 ///|
 pub fn batch(
   statements : Array[BatchStatement],
-  kind? : BatchType = Logged,
-  options? : QueryOptions = QueryOptions::new(),
+  kind~ : BatchType = Logged,
+  options~ : QueryOptions = QueryOptions::new(),
 ) -> Request raise @codec.CodecError {
   if statements.is_empty() ||
     options.page_size is Some(_) ||

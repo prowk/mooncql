@@ -1,15 +1,15 @@
 ///|
 async fn with_budget_fixture(
-  count : Int,
+  count : Int32,
   limits : @client.SessionLimits,
-  local_limit? : Int = 128,
-  queue_timeout_ms? : Int = 10000,
-  request_timeout_ms? : Int = 10000,
+  local_limit~ : Int32 = 128,
+  queue_timeout_ms~ : Int32 = 10000,
+  request_timeout_ms~ : Int32 = 10000,
   body : async (
     @client.Session,
-    @async.Queue[Int],
+    @async.Queue[Int32],
     Array[@async.Queue[Unit]],
-    Array[(Int, String)],
+    Array[(Int32, String)],
   ) -> Unit,
 ) -> Unit {
   @async.with_timeout(7000, () => {
@@ -21,11 +21,11 @@ async fn with_budget_fixture(
       defer (for server in servers {
         server.close()
       })
-      let seen : @async.Queue[Int] = @async.Queue(kind=Blocking(count))
+      let seen : @async.Queue[Int32] = @async.Queue(kind=Blocking(count))
       let releases : Array[@async.Queue[Unit]] = Array::makei(count, _ => {
         @async.Queue(kind=Blocking(1))
       })
-      let received : Array[(Int, String)] = []
+      let received : Array[(Int32, String)] = []
       let workers = []
       for index in 0..<count {
         workers.push(

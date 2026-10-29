@@ -11,12 +11,12 @@ async test "pool connection recovery is serialized while sibling serves and sche
       let recovery_release : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
       let schema_seen : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
       let schema_release : @async.Queue[Unit] = @async.Queue(kind=Blocking(1))
-      let identified : Array[Int] = []
+      let identified : Array[Int32] = []
       let peer_workers : Array[@async.Task[Unit]] = []
       let metrics = @client.Metrics::new()
       let worker = group.spawn(() => {
         @async.with_task_group(handlers => {
-          async fn serve(peer : Peer, index : Int) -> Unit {
+          async fn serve(peer : Peer, index : Int32) -> Unit {
             while true {
               let request = Some(receive(peer)) catch { _ => None }
               guard request is Some(request) else { return }

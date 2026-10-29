@@ -8,7 +8,7 @@ async fn wait_marker(directory : String, marker : String) -> Unit {
 }
 
 ///|
-async fn wait_ready(session : @client.Session, expected : Int) -> Unit {
+async fn wait_ready(session : @client.Session, expected : Int32) -> Unit {
   @async.with_timeout(180000, () => {
     while session.nodes().filter(node => node.status.state == Ready).length() !=
           expected {

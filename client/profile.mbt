@@ -2,8 +2,8 @@
 /// 可复用的执行策略；幂等性属于每次调用，不能由配置默认开启。
 pub struct ExecutionProfile {
   settings : @protocol.QueryOptions
-  timeout : Int?
-  traversal_timeout : Int?
+  timeout : Int32?
+  traversal_timeout : Int32?
   policy : RetryPolicy
   backoff : RetryBackoff?
 }
@@ -11,12 +11,12 @@ pub struct ExecutionProfile {
 ///|
 /// 默认 LOCAL_ONE；显式页大小与预算须为正。重试策略不替代每次调用的幂等声明。
 pub fn ExecutionProfile::new(
-  consistency? : @protocol.Consistency = LocalOne,
-  page_size? : Int,
+  consistency~ : @protocol.Consistency = LocalOne,
+  page_size? : Int32,
   serial_consistency? : @protocol.Consistency,
-  timeout_ms? : Int,
-  traversal_timeout_ms? : Int,
-  retry? : RetryPolicy = RetryPolicy::new(),
+  timeout_ms? : Int32,
+  traversal_timeout_ms? : Int32,
+  retry~ : RetryPolicy = RetryPolicy::new(),
   backoff? : RetryBackoff,
 ) -> ExecutionProfile raise DriverError {
   if page_size is Some(value) {
@@ -59,13 +59,15 @@ pub fn ExecutionProfile::options(
 
 ///|
 /// 返回单次查询／取页预算；None 表示继承连接的操作预算。
-pub fn ExecutionProfile::timeout_ms(self : ExecutionProfile) -> Int? {
+pub fn ExecutionProfile::timeout_ms(self : ExecutionProfile) -> Int32? {
   self.timeout
 }
 
 ///|
 /// 返回整个遍历的预算；None 表示不附加遍历期限，单页仍有操作预算。
-pub fn ExecutionProfile::traversal_timeout_ms(self : ExecutionProfile) -> Int? {
+pub fn ExecutionProfile::traversal_timeout_ms(
+  self : ExecutionProfile,
+) -> Int32? {
   self.traversal_timeout
 }
 
@@ -79,7 +81,7 @@ pub fn ExecutionProfile::retry_policy(self : ExecutionProfile) -> RetryPolicy {
 fn profile_options(
   profile : ExecutionProfile?,
   explicit : @protocol.QueryOptions?,
-  paging? : Bool = false,
+  paging~ : Bool = false,
 ) -> @protocol.QueryOptions {
   if explicit is Some(options) {
     return options.snapshot()
@@ -98,7 +100,7 @@ fn profile_options(
 fn profile_deadline(
   profile : ExecutionProfile?,
   explicit : Deadline?,
-  fallback : Int,
+  fallback : Int32,
 ) -> Deadline raise DriverError {
   explicit.unwrap_or_else(() => {
     Deadline::after(

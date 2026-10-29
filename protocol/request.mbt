@@ -20,7 +20,7 @@ pub extend Consistency with Eq::{equal, not_equal}
 pub extend Consistency with @debug.Debug::{to_repr}
 
 ///|
-pub fn Consistency::code(self : Consistency) -> Int {
+pub fn Consistency::code(self : Consistency) -> Int32 {
   match self {
     Any => 0
     One => 1
@@ -39,12 +39,12 @@ pub fn Consistency::code(self : Consistency) -> Int {
 ///|
 pub(all) struct QueryOptions {
   consistency : Consistency
-  page_size : Int?
+  page_size : Int32?
   paging_state : Bytes?
   serial_consistency : Consistency?
   timestamp : Int64?
   keyspace : String?
-  now_in_seconds : Int?
+  now_in_seconds : Int32?
   value_names : Array[String]?
   skip_metadata : Bool
   request_options : RequestOptions?
@@ -55,15 +55,15 @@ pub extend QueryOptions with @debug.Debug::{to_repr}
 
 ///|
 pub fn QueryOptions::new(
-  consistency? : Consistency = LocalOne,
-  page_size? : Int,
+  consistency~ : Consistency = LocalOne,
+  page_size? : Int32,
   paging_state? : Bytes,
   serial_consistency? : Consistency,
   timestamp? : Int64,
   keyspace? : String,
-  now_in_seconds? : Int,
+  now_in_seconds? : Int32,
   value_names? : Array[String],
-  skip_metadata? : Bool = false,
+  skip_metadata~ : Bool = false,
   request_options? : RequestOptions,
 ) -> QueryOptions {
   {
@@ -82,9 +82,9 @@ pub fn QueryOptions::new(
 
 ///|
 pub(all) struct Request {
-  opcode : Int
+  opcode : Int32
   body : Bytes
-  flags : Int
+  flags : Int32
 } derive(@debug.Debug)
 
 ///|
@@ -97,8 +97,8 @@ pub fn options() -> Request {
 
 ///|
 pub fn startup(
-  compression? : Bool = false,
-  throw_on_overload? : Bool = false,
+  compression~ : Bool = false,
+  throw_on_overload~ : Bool = false,
 ) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.u16(
@@ -235,8 +235,8 @@ fn write_parameters(
 ///|
 pub fn query(
   cql : String,
-  values? : Array[@types.Value] = [],
-  options? : QueryOptions = QueryOptions::new(),
+  values~ : Array[@types.Value] = [],
+  options~ : QueryOptions = QueryOptions::new(),
 ) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.long_string(cql)

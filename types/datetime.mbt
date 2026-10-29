@@ -16,8 +16,8 @@ fn leap_year(year : Int64) -> Bool {
 ///|
 fn civil_days(
   year : Int64,
-  month : Int,
-  day : Int,
+  month : Int32,
+  day : Int32,
 ) -> Int64 raise ConversionError {
   if year < -1000000000L || year > 1000000000L || month < 1 || month > 12 {
     raise ConversionError("calendar year or month out of range")
@@ -39,7 +39,7 @@ fn civil_days(
 }
 
 ///|
-fn civil_parts(days : Int64) -> (Int64, Int, Int) {
+fn civil_parts(days : Int64) -> (Int64, Int32, Int32) {
   let z = days + 719468L
   let era = floor_div(z, 146097L)
   let doe = z - era * 146097L
@@ -68,8 +68,8 @@ fn date_string(days : Int64) -> String {
 ///|
 fn decimal_digits(
   data : Bytes,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Int64 raise ConversionError {
   if start < 0 || end > data.length() || start >= end || end - start > 12 {
     raise ConversionError("invalid date/time digits")
@@ -112,7 +112,7 @@ fn parse_date(text : String) -> Int64 raise ConversionError {
 
 ///|
 pub struct CqlDate {
-  days : Int
+  days : Int32
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -122,12 +122,12 @@ pub extend CqlDate with Eq::{equal, not_equal}
 pub extend CqlDate with @debug.Debug::{to_repr}
 
 ///|
-pub fn CqlDate::from_days(days : Int) -> CqlDate {
+pub fn CqlDate::from_days(days : Int32) -> CqlDate {
   { days, }
 }
 
 ///|
-pub fn CqlDate::days(self : CqlDate) -> Int {
+pub fn CqlDate::days(self : CqlDate) -> Int32 {
   self.days
 }
 

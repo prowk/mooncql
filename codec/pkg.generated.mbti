@@ -17,26 +17,26 @@ pub fn CodecError::to_repr(Self) -> @debug.Repr
 // Types and methods
 pub struct Reader {
   data : Bytes
-  mut offset : Int
+  mut offset : Int32
 }
 pub fn Reader::bytes(Self) -> Bytes? raise CodecError
 pub fn Reader::finish(Self) -> Unit raise CodecError
-pub fn Reader::i32(Self) -> Int raise CodecError
+pub fn Reader::i32(Self) -> Int32 raise CodecError
 pub fn Reader::i64(Self) -> Int64 raise CodecError
 pub fn Reader::long_string(Self) -> String raise CodecError
 pub fn Reader::new(Bytes) -> Self
-pub fn Reader::remaining(Self) -> Int
+pub fn Reader::remaining(Self) -> Int32
 pub fn Reader::short_bytes(Self) -> Bytes raise CodecError
 pub fn Reader::string(Self) -> String raise CodecError
-pub fn Reader::take(Self, Int) -> Bytes raise CodecError
-pub fn Reader::u16(Self) -> Int raise CodecError
-pub fn Reader::u8(Self) -> Int raise CodecError
+pub fn Reader::take(Self, Int32) -> Bytes raise CodecError
+pub fn Reader::u16(Self) -> Int32 raise CodecError
+pub fn Reader::u8(Self) -> Int32 raise CodecError
 
 pub struct Writer {
   buffer : @buffer.Buffer
 }
 pub fn Writer::bytes(Self, Bytes?) -> Unit
-pub fn Writer::i32(Self, Int) -> Unit
+pub fn Writer::i32(Self, Int32) -> Unit
 pub fn Writer::i64(Self, Int64) -> Unit
 pub fn Writer::long_string(Self, String) -> Unit
 pub fn Writer::new() -> Self
@@ -44,8 +44,8 @@ pub fn Writer::raw(Self, Bytes) -> Unit
 pub fn Writer::short_bytes(Self, Bytes) -> Unit raise CodecError
 pub fn Writer::string(Self, String) -> Unit raise CodecError
 pub fn Writer::to_bytes(Self) -> Bytes
-pub fn Writer::u16(Self, Int) -> Unit raise CodecError
-pub fn Writer::u8(Self, Int) -> Unit
+pub fn Writer::u16(Self, Int32) -> Unit raise CodecError
+pub fn Writer::u8(Self, Int32) -> Unit
 
 // Type aliases
 

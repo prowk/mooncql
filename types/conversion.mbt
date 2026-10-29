@@ -63,19 +63,19 @@ pub fn CqlUuid::to_value(self : CqlUuid) -> Value {
 }
 
 ///|
-fn conversion_limit(limit : Int) -> Unit raise ConversionError {
+fn conversion_limit(limit : Int32) -> Unit raise ConversionError {
   if limit < 1 || limit > 1000000 {
     raise ConversionError("conversion limit must be between 1 and 1000000")
   }
 }
 
 ///|
-fn zeros(count : Int) -> String {
+fn zeros(count : Int32) -> String {
   Array::make(count, "0").join("")
 }
 
 ///|
-fn pad(text : String, width : Int) -> String {
+fn pad(text : String, width : Int32) -> String {
   if text.length() >= width {
     text
   } else {
@@ -112,7 +112,7 @@ pub fn CqlVarInt::to_value(self : CqlVarInt) -> Value {
 ///|
 pub fn CqlVarInt::from_decimal_string(
   text : String,
-  max_digits? : Int = 10000,
+  max_digits~ : Int32 = 10000,
 ) -> CqlVarInt raise ConversionError {
   conversion_limit(max_digits)
   if text.is_empty() || text.length() > max_digits + 1 {
@@ -188,7 +188,7 @@ pub fn CqlVarInt::from_decimal_string(
 ///|
 pub fn CqlVarInt::to_decimal_string(
   self : CqlVarInt,
-  max_digits? : Int = 10000,
+  max_digits~ : Int32 = 10000,
 ) -> String raise ConversionError {
   conversion_limit(max_digits)
   let negative = self.bytes[0].to_int() >= 128
@@ -258,7 +258,7 @@ pub fn CqlVarInt::to_decimal_string(
 
 ///|
 pub struct CqlDecimal {
-  scale : Int
+  scale : Int32
   unscaled : CqlVarInt
 } derive(@debug.Debug)
 
@@ -267,14 +267,14 @@ pub extend CqlDecimal with @debug.Debug::{to_repr}
 
 ///|
 pub fn CqlDecimal::from_parts(
-  scale : Int,
+  scale : Int32,
   unscaled : Bytes,
 ) -> CqlDecimal raise ConversionError {
   { scale, unscaled: CqlVarInt::from_bytes(unscaled), }
 }
 
 ///|
-pub fn CqlDecimal::scale(self : CqlDecimal) -> Int {
+pub fn CqlDecimal::scale(self : CqlDecimal) -> Int32 {
   self.scale
 }
 
@@ -291,7 +291,7 @@ pub fn CqlDecimal::to_value(self : CqlDecimal) -> Value {
 ///|
 pub fn CqlDecimal::to_scientific_string(
   self : CqlDecimal,
-  max_digits? : Int = 10000,
+  max_digits~ : Int32 = 10000,
 ) -> String raise ConversionError {
   let coefficient = self.unscaled.to_decimal_string(max_digits~)
   if self.scale == 0 {
@@ -304,7 +304,7 @@ pub fn CqlDecimal::to_scientific_string(
 ///|
 pub fn CqlDecimal::to_plain_string(
   self : CqlDecimal,
-  max_chars? : Int = 10000,
+  max_chars~ : Int32 = 10000,
 ) -> String raise ConversionError {
   conversion_limit(max_chars)
   let coefficient = self.unscaled.to_decimal_string(max_digits=max_chars)
@@ -337,7 +337,7 @@ pub fn CqlDecimal::to_plain_string(
 ///|
 pub fn CqlDecimal::from_string(
   text : String,
-  max_digits? : Int = 10000,
+  max_digits~ : Int32 = 10000,
 ) -> CqlDecimal raise ConversionError {
   conversion_limit(max_digits)
   if text.is_empty() || text.length() > max_digits + 32 {

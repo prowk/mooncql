@@ -67,7 +67,7 @@ pub extend SchemaTarget with @debug.Debug::{to_repr}
 ///|
 pub(all) struct InetEndpoint {
   address : Bytes
-  port : Int
+  port : Int32
 } derive(Eq, @debug.Debug)
 
 ///|

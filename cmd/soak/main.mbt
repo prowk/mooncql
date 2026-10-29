@@ -12,7 +12,7 @@ struct Counters {
   errors : Map[String, Int64]
   latency : Array[Int64]
   mut max_latency_ms : Int64
-  mut cache_peak : Int
+  mut cache_peak : Int32
   mut stopping : Bool
 }
 
@@ -85,8 +85,8 @@ async fn observed(
 
 ///|
 fn values(
-  device : Int,
-  id : Int,
+  device : Int32,
+  id : Int32,
   small : Bytes,
   large : Bytes,
 ) -> Array[@types.Value] {
@@ -102,9 +102,9 @@ fn values(
 ///|
 fn check_row(
   page : @protocol.Page,
-  index : Int,
-  device : Int,
-  id : Int,
+  index : Int32,
+  device : Int32,
+  id : Int32,
   small : Bytes,
   large : Bytes,
 ) -> Unit raise {
@@ -171,7 +171,7 @@ async fn sample(
     .control_status()
     .map(status => status.generation)
     .unwrap_or(0)
-  let json = "{\"elapsed_ms\":\{elapsed},\"successful\":\{counters.successful},\"failed\":\{counters.failed},\"operations\":\{counters.operations.to_json().stringify()},\"errors\":\{counters.errors.to_json().stringify()},\"memory_bytes\":\{memory},\"private_bytes\":\{private_memory},\"cache_peak\":\{counters.cache_peak},\"control_generation\":\{control_generation},\"resources\":\{resources.to_json().stringify()},\"metrics\":\{metrics.snapshot().to_json().stringify()},\"latency_bounds_ms\":\{latency_bounds.to_json().stringify()},\"latency_counts\":\{counters.latency.to_json().stringify()},\"max_latency_ms\":\{counters.max_latency_ms}}"
+  let json = "{\"elapsed_ms\":\{elapsed},\"successful\":\{counters.successful},\"failed\":\{counters.failed},\"operations\":\{Json(counters.operations).stringify()},\"errors\":\{Json(counters.errors).stringify()},\"memory_bytes\":\{memory},\"private_bytes\":\{private_memory},\"cache_peak\":\{counters.cache_peak},\"control_generation\":\{control_generation},\"resources\":\{resources.to_json().stringify()},\"metrics\":\{metrics.snapshot().to_json().stringify()},\"latency_bounds_ms\":\{Json(latency_bounds).stringify()},\"latency_counts\":\{Json(counters.latency).stringify()},\"max_latency_ms\":\{counters.max_latency_ms}}"
   persist_sample(directory, json)
 }
 
@@ -534,7 +534,7 @@ async fn run() -> Unit {
       final_metrics.connections_established,
       final_metrics.connections_closed,
     )
-    "{\"load_elapsed_ms\":\{load_elapsed},\"background_joined\":true,\"active\":0,\"waiting\":0,\"pending\":0,\"cache_peak\":\{counters.cache_peak},\"cache_capacity\":16,\"successful\":\{counters.successful},\"failed\":\{counters.failed},\"operations\":\{counters.operations.to_json().stringify()},\"errors\":\{counters.errors.to_json().stringify()},\"quiet_resources\":\{quiet.to_json().stringify()},\"closed_resources\":\{closed.to_json().stringify()},\"final_metrics\":\{final_metrics.to_json().stringify()}}"
+    "{\"load_elapsed_ms\":\{load_elapsed},\"background_joined\":true,\"active\":0,\"waiting\":0,\"pending\":0,\"cache_peak\":\{counters.cache_peak},\"cache_capacity\":16,\"successful\":\{counters.successful},\"failed\":\{counters.failed},\"operations\":\{Json(counters.operations).stringify()},\"errors\":\{Json(counters.errors).stringify()},\"quiet_resources\":\{quiet.to_json().stringify()},\"closed_resources\":\{closed.to_json().stringify()},\"final_metrics\":\{final_metrics.to_json().stringify()}}"
   })
   // 外层 Session 任务组已经退出后才发布最终报告，确保作用域任务都已等待结束。
   @fs.write_file("\{directory}/result.json", report + "\n")

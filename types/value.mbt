@@ -34,7 +34,7 @@ pub(all) enum Value {
   Unset
   Empty
   Text(String)
-  Integer(Int)
+  Integer(Int32)
   BigInteger(Int64)
   Bytes(Bytes)
   Boolean(Bool)
@@ -42,14 +42,14 @@ pub(all) enum Value {
   Single(Float)
   Uuid(Bytes)
   Timestamp(Int64)
-  Date(Int)
+  Date(Int32)
   Time(Int64)
-  SmallInteger(Int)
-  TinyInteger(Int)
+  SmallInteger(Int32)
+  TinyInteger(Int32)
   Inet(Bytes)
-  Decimal(Int, Bytes)
+  Decimal(Int32, Bytes)
   VarInt(Bytes)
-  Duration(Int, Int, Int64)
+  Duration(Int32, Int32, Int64)
   ListValue(Array[Value])
   SetValue(Array[Value])
   MapValue(Array[(Value, Value)])
@@ -168,7 +168,7 @@ pub fn decode_value(
 fn decode_value_at(
   typ : CqlType,
   bytes : Bytes?,
-  depth : Int,
+  depth : Int32,
   budget : DecodeBudget,
 ) -> Value raise @codec.CodecError {
   if depth >= budget.depth {

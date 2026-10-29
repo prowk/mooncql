@@ -1,14 +1,14 @@
 ///|
 pub(all) struct SessionResources {
-  active : Int
-  pending : Int
-  abandoned : Int
-  in_flight : Int
+  active : Int32
+  pending : Int32
+  abandoned : Int32
+  in_flight : Int32
   in_flight_bytes : Int64
-  waiting : Int
+  waiting : Int32
   waiting_bytes : Int64
-  cache_sizes : Array[Int]
-  background_task_handles : Int
+  cache_sizes : Array[Int32]
+  background_task_handles : Int32
 } derive(@debug.Debug, ToJson)
 
 ///|

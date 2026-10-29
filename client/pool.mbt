@@ -1,16 +1,16 @@
 ///|
 priv struct PoolSlot {
-  index : Int
+  index : Int32
   mut current : Connection?
   mut state : NodeState
-  mut generation : Int
-  mut attempts : Int
+  mut generation : Int32
+  mut attempts : Int32
   mut last_error : Error?
   mut worker : @async.Task[Unit]?
 }
 
 ///|
-fn PoolSlot::new(index : Int) -> PoolSlot {
+fn PoolSlot::new(index : Int32) -> PoolSlot {
   {
     index,
     current: None,
@@ -154,27 +154,27 @@ async fn[G] Session::maintain(
 
 ///|
 pub(all) struct PoolConnectionStatus {
-  slot : Int
+  slot : Int32
   state : NodeState
-  generation : Int
-  attempts : Int
-  pending : Int
-  abandoned : Int
-  available_streams : Int
-  in_flight : Int
+  generation : Int32
+  attempts : Int32
+  pending : Int32
+  abandoned : Int32
+  available_streams : Int32
+  in_flight : Int32
   in_flight_bytes : Int64
-  waiting : Int
+  waiting : Int32
   waiting_bytes : Int64
-  cache_size : Int
+  cache_size : Int32
   last_error : Error?
 }
 
 ///|
 pub(all) struct PoolStatus {
   endpoint : Endpoint
-  configured_connections : Int
-  ready : Int
-  connecting : Int
+  configured_connections : Int32
+  ready : Int32
+  connecting : Int32
   connections : Array[PoolConnectionStatus]
 }
 

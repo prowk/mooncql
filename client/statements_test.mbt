@@ -23,9 +23,9 @@ fn prepared_result(id : Bytes) -> Bytes raise @codec.CodecError {
 
 ///|
 fn rows_result(
-  values : Array[Int],
+  values : Array[Int32],
   state : Bytes?,
-  omit_metadata? : Bool = false,
+  omit_metadata~ : Bool = false,
 ) -> Bytes raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.i32(2)

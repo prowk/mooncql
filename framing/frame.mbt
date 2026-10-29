@@ -1,7 +1,7 @@
 ///|
 pub(all) struct Header {
-  payload_length : Int
-  uncompressed_length : Int
+  payload_length : Int32
+  uncompressed_length : Int32
   self_contained : Bool
 }
 
@@ -21,7 +21,7 @@ fn little(bytes : Bytes) -> Int64 {
 }
 
 ///|
-fn write_little(w : @codec.Writer, value : Int64, count : Int) -> Unit {
+fn write_little(w : @codec.Writer, value : Int64, count : Int32) -> Unit {
   for i = 0; i < count; i = i + 1 {
     w.u8((value >> (8 * i)).to_int())
   }
@@ -30,7 +30,7 @@ fn write_little(w : @codec.Writer, value : Int64, count : Int) -> Unit {
 ///|
 pub fn decode_header(
   bytes : Bytes,
-  compressed? : Bool = false,
+  compressed~ : Bool = false,
 ) -> Header raise @codec.CodecError {
   let width = if compressed { 5 } else { 3 }
   if bytes.length() != width + 3 {
@@ -82,7 +82,7 @@ pub fn decode_payload(
 ///|
 pub fn decode(
   bytes : Bytes,
-  compressed? : Bool = false,
+  compressed~ : Bool = false,
 ) -> Frame raise @codec.CodecError {
   let r = @codec.Reader::new(bytes)
   let header = decode_header(
@@ -95,8 +95,8 @@ pub fn decode(
 ///|
 pub fn encode(
   payload : Bytes,
-  self_contained? : Bool = true,
-  compressed? : Bool = false,
+  self_contained~ : Bool = true,
+  compressed~ : Bool = false,
 ) -> Bytes raise @codec.CodecError {
   if payload.length() > 131071 {
     raise @codec.CodecError("v5 frame payload exceeds 128 KiB limit")
@@ -121,7 +121,7 @@ pub fn encode(
 ///|
 pub fn split(
   envelope : Bytes,
-  compressed? : Bool = false,
+  compressed~ : Bool = false,
 ) -> Array[Bytes] raise @codec.CodecError {
   let frames = []
   let mut offset = 0

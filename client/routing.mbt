@@ -2,14 +2,14 @@
 pub(all) struct RoutingConfig {
   local_dc : String
   allow_remote : Bool
-  max_metadata_age_ms : Int
+  max_metadata_age_ms : Int32
 }
 
 ///|
 pub fn RoutingConfig::new(
   local_dc : String,
-  allow_remote? : Bool = false,
-  max_metadata_age_ms? : Int = 60000,
+  allow_remote~ : Bool = false,
+  max_metadata_age_ms~ : Int32 = 60000,
 ) -> RoutingConfig {
   { local_dc, allow_remote, max_metadata_age_ms, }
 }
@@ -30,7 +30,7 @@ fn Session::plan_indices(
   self : Session,
   hint : RoutingHint?,
   attempted : Array[String],
-) -> Array[Int] {
+) -> Array[Int32] {
   if self.closed {
     return []
   }
@@ -51,7 +51,7 @@ fn Session::plan_indices(
       }
     }
   }
-  let tiers : Array[Array[Int]] = Array::makei(8, _ => [])
+  let tiers : Array[Array[Int32]] = Array::makei(8, _ => [])
   for offset in 0..<self.nodes.length() {
     let index = (self.next_node + offset) % self.nodes.length()
     let node = self.nodes[index]

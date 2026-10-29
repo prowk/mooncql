@@ -9,8 +9,8 @@ pub extend RequestOptions with @debug.Debug::{to_repr}
 
 ///|
 pub fn RequestOptions::new(
-  tracing? : Bool = false,
-  custom_payload? : Map[String, Bytes?] = Map([]),
+  tracing~ : Bool = false,
+  custom_payload~ : Map[String, Bytes?] = Map([]),
 ) -> RequestOptions {
   { tracing, custom_payload, }.snapshot()
 }

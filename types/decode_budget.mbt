@@ -1,13 +1,13 @@
 ///|
 pub struct DecodeBudget {
-  priv mut remaining : Int
-  priv depth : Int
+  priv mut remaining : Int32
+  priv depth : Int32
 }
 
 ///|
 pub fn DecodeBudget::new_limited(
-  max_nodes? : Int = 1000000,
-  max_depth? : Int = 32,
+  max_nodes~ : Int32 = 1000000,
+  max_depth~ : Int32 = 32,
 ) -> DecodeBudget raise @codec.CodecError {
   if max_nodes < 1 || max_nodes > 1000000 {
     raise @codec.CodecError("decoded value node budget must be 1..1000000")
@@ -19,14 +19,14 @@ pub fn DecodeBudget::new_limited(
 }
 
 ///|
-pub fn DecodeBudget::remaining_nodes(self : DecodeBudget) -> Int {
+pub fn DecodeBudget::remaining_nodes(self : DecodeBudget) -> Int32 {
   self.remaining
 }
 
 ///|
 fn DecodeBudget::require(
   self : DecodeBudget,
-  count : Int,
+  count : Int32,
 ) -> Unit raise @codec.CodecError {
   if count < 0 || count > self.remaining {
     raise @codec.CodecError("decoded value node limit exceeded")
@@ -41,7 +41,7 @@ fn DecodeBudget::take(self : DecodeBudget) -> Unit raise @codec.CodecError {
 
 ///|
 pub fn DecodeBudget::new(
-  max_nodes? : Int = 1000000,
+  max_nodes~ : Int32 = 1000000,
 ) -> DecodeBudget raise @codec.CodecError {
   DecodeBudget::new_limited(max_nodes~)
 }

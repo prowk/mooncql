@@ -9,10 +9,10 @@ pub struct Authenticator {
 ///|
 pub fn Authenticator::new(
   initial_response : async () -> Bytes?,
-  evaluate_challenge? : async (Bytes?) -> Bytes? = _ => {
+  evaluate_challenge~ : async (Bytes?) -> Bytes? = _ => {
     raise Authentication("challenge not supported")
   },
-  on_success? : async (Bytes?) -> Unit = _ => (),
+  on_success~ : async (Bytes?) -> Unit = _ => (),
 ) -> Authenticator {
   { initial_response, evaluate_challenge, on_success, }
 }
@@ -56,7 +56,7 @@ async fn[T] auth_callback(callback : async () -> T) -> T {
 }
 
 ///|
-fn check_auth_token(token : Bytes?, maximum : Int) -> Unit raise DriverError {
+fn check_auth_token(token : Bytes?, maximum : Int32) -> Unit raise DriverError {
   if token is Some(token) && token.length() > maximum {
     raise Authentication("authentication token exceeds limit")
   }

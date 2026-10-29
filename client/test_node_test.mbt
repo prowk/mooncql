@@ -5,11 +5,11 @@ struct Peer {
   compressed : Bool
   decoder : @protocol.EnvelopeDecoder
   mut messages : Array[@protocol.MessageEnvelope]
-  mut position : Int
+  mut position : Int32
 }
 
 ///|
-fn Peer::new(tcp : @socket.Tcp, compressed? : Bool = false) -> Peer {
+fn Peer::new(tcp : @socket.Tcp, compressed~ : Bool = false) -> Peer {
   {
     tcp,
     framed: false,
@@ -62,8 +62,8 @@ async fn receive(socket : Peer) -> @protocol.MessageEnvelope {
 ///|
 async fn respond(
   socket : Peer,
-  stream : Int,
-  opcode : Int,
+  stream : Int32,
+  opcode : Int32,
   body : Bytes,
 ) -> Unit {
   let envelope = @protocol.encode_envelope(stream, opcode, body, response=true)
@@ -79,7 +79,7 @@ async fn respond(
 ///|
 async fn handshake(
   socket : Peer,
-  auth? : Bool = false,
+  auth~ : Bool = false,
   throw_on_overload? : Bool,
   options_barrier? : FaultBarrier,
   startup_barrier? : FaultBarrier,
@@ -155,11 +155,14 @@ struct FaultBarrier {
   phase : String
   reached : @async.Queue[Unit]
   resumed : @async.Queue[Unit]
-  timeout_ms : Int
+  timeout_ms : Int32
 }
 
 ///|
-fn FaultBarrier::new(phase : String, timeout_ms? : Int = 3000) -> FaultBarrier {
+fn FaultBarrier::new(
+  phase : String,
+  timeout_ms~ : Int32 = 3000,
+) -> FaultBarrier {
   {
     phase,
     reached: @async.Queue(kind=Blocking(1)),
@@ -202,7 +205,7 @@ async fn FaultBarrier::release(self : FaultBarrier) -> Unit {
 async fn Peer::write_chunks(
   self : Peer,
   bytes : Bytes,
-  width : Int,
+  width : Int32,
   after_first? : FaultBarrier,
 ) -> Unit {
   if width < 1 {

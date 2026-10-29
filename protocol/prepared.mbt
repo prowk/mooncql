@@ -3,7 +3,7 @@ pub(all) struct PreparedStatement {
   id : Bytes
   result_metadata_id : Bytes
   parameters : Array[Column]
-  partition_key_indices : Array[Int]
+  partition_key_indices : Array[Int32]
   result_columns : Array[Column]
 } derive(@debug.Debug)
 
@@ -30,7 +30,7 @@ pub fn execute(
   id : Bytes,
   result_metadata_id : Bytes,
   values : Array[@types.Value],
-  options? : QueryOptions = QueryOptions::new(),
+  options~ : QueryOptions = QueryOptions::new(),
 ) -> Request raise @codec.CodecError {
   let w = @codec.Writer::new()
   w.short_bytes(id)
@@ -45,8 +45,8 @@ pub fn execute(
 ///|
 fn read_prepared(
   r : @codec.Reader,
-  max_columns? : Int = 65535,
-  max_depth? : Int = 32,
+  max_columns~ : Int32 = 65535,
+  max_depth~ : Int32 = 32,
 ) -> PreparedStatement raise @codec.CodecError {
   let id = r.short_bytes()
   let result_metadata_id = r.short_bytes()

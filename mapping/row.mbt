@@ -33,7 +33,7 @@ pub fn[T] RowCodec::new(decode : (RowReader) -> T raise) -> RowCodec[T] {
 pub fn[T] RowCodec::decode(
   self : RowCodec[T],
   row : @protocol.Row,
-  missing? : MissingColumnPolicy = RejectMissing,
+  missing~ : MissingColumnPolicy = RejectMissing,
 ) -> T raise MappingError {
   let columns = row.columns_snapshot()
   let values = []

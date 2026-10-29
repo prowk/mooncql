@@ -1,5 +1,5 @@
 ///|
-fn node_id(index : Int) -> Bytes {
+fn node_id(index : Int32) -> Bytes {
   Bytes::from_array(
     Array::makei(16, i => if i == 15 { index.to_byte() } else { b'\x00' }),
   )

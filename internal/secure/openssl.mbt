@@ -1,3 +1,6 @@
+// 修改声明：prowk/mooncql 基于 moonbitlang/async 0.22.3 修改。
+// 隔离 FFI 符号，补充经证书与名称验证的客户端 TLS 及凭据适配。来源及上游原始哈希见 internal/secure/NOTICE.md 和 UPSTREAM.json。
+
 // Copyright 2025 International Digital Economy Academy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +35,10 @@ extern "C" fn SSL_CTX::free_ffi(self : SSL_CTX) = "prowk_mooncql_secure_tls_ssl_
 ///|
 #cfg(not(platform="windows"))
 #borrow(der)
-extern "C" fn SSL_CTX::add_root_certificate(self : SSL_CTX, der : Bytes) -> Int = "prowk_mooncql_secure_tls_ssl_ctx_add_root_certificate"
+extern "C" fn SSL_CTX::add_root_certificate(
+  self : SSL_CTX,
+  der : Bytes,
+) -> Int32 = "prowk_mooncql_secure_tls_ssl_ctx_add_root_certificate"
 
 // Lazy singletons: the shared client/server contexts (and the system CA read
 // they trigger) are built on first use, not before a TLS connection is made.
@@ -65,17 +71,17 @@ extern "C" fn SSL::new(ctx : SSL_CTX, rbio : BIO, wbio : BIO) -> SSL = "prowk_mo
 
 ///|
 #cfg(not(platform="windows"))
-extern "C" fn SSL::connect(self : SSL) -> Int = "prowk_mooncql_secure_tls_ssl_connect"
+extern "C" fn SSL::connect(self : SSL) -> Int32 = "prowk_mooncql_secure_tls_ssl_connect"
 
 ///|
 #cfg(not(platform="windows"))
 #borrow(host)
-extern "C" fn SSL::set_host(self : SSL, host : Bytes) -> Int = "prowk_mooncql_secure_tls_ssl_set_host"
+extern "C" fn SSL::set_host(self : SSL, host : Bytes) -> Int32 = "prowk_mooncql_secure_tls_ssl_set_host"
 
 ///|
 #cfg(not(platform="windows"))
 #borrow(host)
-extern "C" fn SSL::set_sni(self : SSL, host : Bytes) -> Int = "prowk_mooncql_secure_tls_ssl_set_sni"
+extern "C" fn SSL::set_sni(self : SSL, host : Bytes) -> Int32 = "prowk_mooncql_secure_tls_ssl_set_sni"
 
 ///|
 #cfg(not(platform="windows"))
@@ -91,7 +97,7 @@ extern "C" fn PeerCertificate::free(self : PeerCertificate) -> Unit = "prowk_moo
 
 ///|
 #cfg(not(platform="windows"))
-extern "C" fn PeerCertificate::length(self : PeerCertificate) -> Int = "prowk_mooncql_secure_tls_peer_certificate_length"
+extern "C" fn PeerCertificate::length(self : PeerCertificate) -> Int32 = "prowk_mooncql_secure_tls_peer_certificate_length"
 
 ///|
 #cfg(not(platform="windows"))
@@ -99,7 +105,7 @@ extern "C" fn PeerCertificate::length(self : PeerCertificate) -> Int = "prowk_mo
 extern "C" fn PeerCertificate::blit_to(
   self : PeerCertificate,
   buf : FixedArray[Byte],
-  len~ : Int,
+  len~ : Int32,
 ) -> Unit = "prowk_mooncql_secure_tls_peer_certificate_blit_to"
 
 ///|
@@ -107,7 +113,7 @@ extern "C" fn PeerCertificate::blit_to(
 #borrow(len)
 extern "C" fn PeerCertificate::server_endpoint_hash(
   self : PeerCertificate,
-  len~ : Ref[Int],
+  len~ : Ref[Int32],
 ) -> @c_buffer.Buffer = "prowk_mooncql_secure_tls_hash_server_endpoint_certificate"
 
 ///|
@@ -122,7 +128,7 @@ extern "C" fn SSL::get_certificate(
 extern "C" fn SSL::unique_channel_binding_length(
   self : SSL,
   is_client~ : Bool,
-) -> Int = "prowk_mooncql_secure_tls_ssl_unique_channel_binding_length"
+) -> Int32 = "prowk_mooncql_secure_tls_ssl_unique_channel_binding_length"
 
 ///|
 #cfg(not(platform="windows"))
@@ -130,7 +136,7 @@ extern "C" fn SSL::unique_channel_binding_length(
 extern "C" fn SSL::unique_channel_binding(
   self : SSL,
   buf : FixedArray[Byte],
-  len~ : Int,
+  len~ : Int32,
   is_client~ : Bool,
 ) -> Unit = "prowk_mooncql_secure_tls_ssl_unique_channel_binding"
 
@@ -141,7 +147,7 @@ extern "C" fn SSL::use_private_key_file(
   self : SSL,
   file : Bytes,
   file_type : X509FileType,
-) -> Int = "prowk_mooncql_secure_tls_ssl_use_private_key_file"
+) -> Int32 = "prowk_mooncql_secure_tls_ssl_use_private_key_file"
 
 ///|
 #cfg(not(platform="windows"))
@@ -149,9 +155,9 @@ extern "C" fn SSL::use_private_key_file(
 extern "C" fn SSL::read(
   self : SSL,
   buf : FixedArray[Byte],
-  offset : Int,
-  len : Int,
-) -> Int = "prowk_mooncql_secure_tls_ssl_read"
+  offset : Int32,
+  len : Int32,
+) -> Int32 = "prowk_mooncql_secure_tls_ssl_read"
 
 ///|
 #cfg(not(platform="windows"))
@@ -159,13 +165,13 @@ extern "C" fn SSL::read(
 extern "C" fn SSL::write(
   self : SSL,
   buf : Bytes,
-  offset : Int,
-  len : Int,
-) -> Int = "prowk_mooncql_secure_tls_ssl_write"
+  offset : Int32,
+  len : Int32,
+) -> Int32 = "prowk_mooncql_secure_tls_ssl_write"
 
 ///|
 #cfg(not(platform="windows"))
-extern "C" fn SSL::shutdown(self : SSL) -> Int = "prowk_mooncql_secure_tls_ssl_shutdown"
+extern "C" fn SSL::shutdown(self : SSL) -> Int32 = "prowk_mooncql_secure_tls_ssl_shutdown"
 
 ///|
 #cfg(not(platform="windows"))
@@ -173,7 +179,7 @@ extern "C" fn SSL::free(self : SSL) = "prowk_mooncql_secure_tls_ssl_free"
 
 ///|
 #cfg(not(platform="windows"))
-extern "C" fn SSL::get_error(self : SSL, ret : Int) -> Int = "prowk_mooncql_secure_tls_ssl_get_error"
+extern "C" fn SSL::get_error(self : SSL, ret : Int32) -> Int32 = "prowk_mooncql_secure_tls_ssl_get_error"
 
 ///|
 #cfg(not(platform="windows"))
@@ -202,7 +208,7 @@ extern "C" fn err_peek_error_code() -> UInt64 = "prowk_mooncql_secure_tls_peek_e
 ///|
 #cfg(not(platform="windows"))
 #borrow(buf)
-extern "C" fn err_get_error_ffi(buf : Bytes) -> Int = "prowk_mooncql_secure_tls_get_error"
+extern "C" fn err_get_error_ffi(buf : Bytes) -> Int32 = "prowk_mooncql_secure_tls_get_error"
 
 ///|
 #cfg(not(platform="windows"))
@@ -223,7 +229,7 @@ extern "C" fn BIO::get_endpoint(bio : BIO) -> Transport = "prowk_mooncql_secure_
 
 ///|
 #cfg(not(platform="windows"))
-extern "C" fn BIO::set_flags(bio : BIO, flags : Int) = "prowk_mooncql_secure_tls_bio_set_flags"
+extern "C" fn BIO::set_flags(bio : BIO, flags : Int32) = "prowk_mooncql_secure_tls_bio_set_flags"
 
 ///|
 // Also the sole consumer of the BIO method table `load_openssl` registers.
@@ -245,7 +251,7 @@ const BIO_FLAGS_SHOULD_RETRY = 0x08
 
 ///|
 #cfg(not(platform="windows"))
-fn BIO::read(bio : BIO, dst : @c_buffer.Buffer, len : Int) -> Int {
+fn BIO::read(bio : BIO, dst : @c_buffer.Buffer, len : Int32) -> Int32 {
   let ep = bio.get_endpoint()
   match ep.state {
     Normal => ()
@@ -269,7 +275,7 @@ fn BIO::read(bio : BIO, dst : @c_buffer.Buffer, len : Int) -> Int {
 
 ///|
 #cfg(not(platform="windows"))
-fn BIO::write(bio : BIO, src : @c_buffer.Buffer, len : Int) -> Int {
+fn BIO::write(bio : BIO, src : @c_buffer.Buffer, len : Int32) -> Int32 {
   let ep = bio.get_endpoint()
   guard ep.state is Normal else { -1 }
   let end = ep.write_buf.start + ep.write_buf.len
@@ -334,7 +340,7 @@ async fn SSL_CTX::client_with_custom_root(root_cert : String) -> SSL_CTX {
 
 ///|
 #cfg(not(platform="windows"))
-async fn Tls::handle_error(self : Tls, err : Int) -> Unit {
+async fn Tls::handle_error(self : Tls, err : Int32) -> Unit {
   match err {
     SSL_ERROR_WANT_READ => {
       self.transport.flush_write()
@@ -366,9 +372,9 @@ async fn Tls::handle_error(self : Tls, err : Int) -> Unit {
 pub async fn[R : @io.Reader, W : @io.Writer] Tls::client_from_pair(
   r : R,
   w : W,
-  verify? : Bool = true,
+  verify~ : Bool = true,
   host? : String,
-  sni? : Bool = true,
+  sni~ : Bool = true,
   trust? : TrustedRoot,
   identity? : ClientIdentity,
 ) -> Tls {
@@ -420,9 +426,9 @@ pub async fn[R : @io.Reader, W : @io.Writer] Tls::client_from_pair(
 async fn Tls::read_raw(
   self : Tls,
   buf : FixedArray[Byte],
-  offset~ : Int,
-  max_len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  max_len~ : Int32,
+) -> Int32 {
   let n = while ({
                   if self.closed {
                     raise ConnectionClosed
@@ -460,9 +466,9 @@ async fn Tls::read_raw(
 async fn Tls::write_once(
   self : Tls,
   buf : Bytes,
-  offset~ : Int,
-  len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  len~ : Int32,
+) -> Int32 {
   let n = while ({
                   if self.closed {
                     raise ConnectionClosed
@@ -621,8 +627,11 @@ let _unused : Unit = {
 ///|
 #cfg(not(platform="windows"))
 #borrow(file)
-extern "C" fn SSL::use_certificate_chain_file(self : SSL, file : Bytes) -> Int = "prowk_mooncql_secure_tls_ssl_use_certificate_chain_file"
+extern "C" fn SSL::use_certificate_chain_file(
+  self : SSL,
+  file : Bytes,
+) -> Int32 = "prowk_mooncql_secure_tls_ssl_use_certificate_chain_file"
 
 ///|
 #cfg(not(platform="windows"))
-extern "C" fn SSL::check_private_key(self : SSL) -> Int = "prowk_mooncql_secure_tls_ssl_check_private_key"
+extern "C" fn SSL::check_private_key(self : SSL) -> Int32 = "prowk_mooncql_secure_tls_ssl_check_private_key"

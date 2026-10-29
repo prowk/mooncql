@@ -15,8 +15,8 @@ pub struct Pager {
   mut busy : Bool
   mut columns : Array[@protocol.Column]
   binding : Bytes
-  timeout_ms : Int
-  traversal_timeout_ms : Int?
+  timeout_ms : Int32
+  traversal_timeout_ms : Int32?
   mut traversal_deadline : Deadline?
   idempotent : Bool
   retry : RetryPolicy
@@ -27,8 +27,8 @@ pub struct Pager {
 pub fn Connection::pages_with_options(
   self : Connection,
   cql : String,
-  values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+  values~ : Array[@types.Value] = [],
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
   cursor? : PagingCursor,
@@ -56,7 +56,7 @@ pub fn Connection::pages_with_options(
 pub fn Prepared::pages_with_options(
   self : Prepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
   cursor? : PagingCursor,
@@ -82,11 +82,11 @@ pub fn Prepared::pages_with_options(
 pub fn Session::pages_with_options(
   self : Session,
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
   options? : @protocol.QueryOptions,
   cursor? : PagingCursor,
   profile? : ExecutionProfile,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   traversal_deadline? : Deadline,
 ) -> Pager raise {
@@ -112,7 +112,7 @@ pub fn SessionPrepared::pages_with_options(
   options? : @protocol.QueryOptions,
   cursor? : PagingCursor,
   profile? : ExecutionProfile,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   traversal_deadline? : Deadline,
 ) -> Pager raise {
@@ -275,8 +275,8 @@ pub async fn Pager::next(self : Pager, deadline? : Deadline) -> @protocol.Page? 
 pub fn Connection::pages(
   self : Connection,
   cql : String,
-  values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+  values~ : Array[@types.Value] = [],
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
   cursor? : PagingCursor,
@@ -288,7 +288,7 @@ pub fn Connection::pages(
 pub fn Prepared::pages(
   self : Prepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(
     page_size=1000,
   ),
   cursor? : PagingCursor,
@@ -300,7 +300,7 @@ pub fn Prepared::pages(
 pub fn Session::pages(
   self : Session,
   cql : String,
-  values? : Array[@types.Value] = [],
+  values~ : Array[@types.Value] = [],
   options? : @protocol.QueryOptions,
   cursor? : PagingCursor,
 ) -> Pager raise {

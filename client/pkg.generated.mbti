@@ -75,7 +75,7 @@ pub fn SessionOverloaded::to_repr(Self) -> @debug.Repr
 type Admission
 
 pub(all) struct AttemptFailure {
-  attempt : Int
+  attempt : Int32
   endpoint : Endpoint?
   error : Error
   may_have_been_sent : Bool
@@ -118,32 +118,32 @@ pub fn ConditionalResult::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Config {
   host : String
-  port : Int
+  port : Int32
   username : String?
   password : String?
-  timeout_ms : Int
-  connect_timeout_ms : Int
-  queue_timeout_ms : Int
-  operation_timeout_ms : Int
-  max_frame_bytes : Int
-  max_in_flight : Int
-  max_in_flight_bytes : Int
-  max_waiting : Int
-  max_waiting_bytes : Int
+  timeout_ms : Int32
+  connect_timeout_ms : Int32
+  queue_timeout_ms : Int32
+  operation_timeout_ms : Int32
+  max_frame_bytes : Int32
+  max_in_flight : Int32
+  max_in_flight_bytes : Int32
+  max_waiting : Int32
+  max_waiting_bytes : Int32
   overload_policy : OverloadPolicy
   throw_on_overload : Bool
   compression : Bool
   tls : TlsConfig?
-  prepared_cache_capacity : Int
-  max_abandoned : Int
-  abandoned_timeout_ms : Int
-  event_capacity : Int
-  heartbeat_interval_ms : Int
-  heartbeat_timeout_ms : Int
+  prepared_cache_capacity : Int32
+  max_abandoned : Int32
+  abandoned_timeout_ms : Int32
+  event_capacity : Int32
+  heartbeat_interval_ms : Int32
+  heartbeat_timeout_ms : Int32
   metrics : Metrics?
 }
 pub fn Config::builder(Self) -> ConnectionBuilder
-pub fn Config::new(host? : String, port? : Int, username? : String, password? : String, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
+pub fn Config::new(host? : String, port? : Int32, username? : String, password? : String, timeout_ms? : Int32, connect_timeout_ms? : Int32, queue_timeout_ms? : Int32, operation_timeout_ms? : Int32, max_frame_bytes? : Int32, max_in_flight? : Int32, max_in_flight_bytes? : Int32, max_waiting? : Int32, max_waiting_bytes? : Int32, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int32, max_abandoned? : Int32, abandoned_timeout_ms? : Int32, event_capacity? : Int32, heartbeat_interval_ms? : Int32, heartbeat_timeout_ms? : Int32, metrics? : Metrics) -> Self
 
 pub struct Connection {
   socket : Transport
@@ -160,21 +160,21 @@ pub struct Connection {
   mut closed : Bool
   mut draining : Bool
   mut drain_outcome : DrainOutcome?
-  mut active_requests : Int
+  mut active_requests : Int32
   closed_changed : @cond_var.Cond
   mut failure : Error?
-  mut generation : Int
-  mut pool_slot : Int
+  mut generation : Int32
+  mut pool_slot : Int32
   mut rpc_scope : RpcScope
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
   mut health_task : @async.Task[Unit]?
   mut last_received : Int64
-  mut abandoned : Int
-  pending : Map[Int, Pending]
+  mut abandoned : Int32
+  pending : Map[Int32, Pending]
   admission : Admission
-  mut next_stream : Int
+  mut next_stream : Int32
   prepared_cache : PreparedCache
   preparing : Map[Bytes, PrepareFlight]
   mut preparing_bytes : Int64
@@ -182,23 +182,23 @@ pub struct Connection {
   events : @aqueue.Queue[@protocol.ServerEvent]
   mut dropped_events : Int64
 }
-pub fn Connection::abandoned_count(Self) -> Int
+pub fn Connection::abandoned_count(Self) -> Int32
 pub async fn Connection::batch(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline) -> Unit
 pub async fn Connection::batch_with_info(Self, Array[@protocol.BatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline) -> Execution[Unit]
 pub fn Connection::close(Self) -> Unit
 pub async fn Connection::drain(Self, Deadline) -> DrainOutcome
 pub fn Connection::dropped_event_count(Self) -> Int64
 pub fn Connection::in_flight_bytes(Self) -> Int64
-pub fn Connection::in_flight_count(Self) -> Int
+pub fn Connection::in_flight_count(Self) -> Int32
 pub fn Connection::is_closed(Self) -> Bool
 pub fn Connection::is_draining(Self) -> Bool
 pub async fn Connection::next_event(Self) -> @protocol.ServerEvent
 pub fn Connection::pages(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor) -> Pager raise
 pub fn Connection::pages_with_options(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, cursor? : PagingCursor, traversal_deadline? : Deadline) -> Pager raise
-pub fn Connection::pending_count(Self) -> Int
+pub fn Connection::pending_count(Self) -> Int32
 pub async fn Connection::prepare(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Prepared
 pub async fn Connection::prepare_with_info(Self, String, keyspace? : String, deadline? : Deadline, request_options? : @protocol.RequestOptions) -> Execution[Prepared]
-pub fn Connection::prepared_cache_size(Self) -> Int
+pub fn Connection::prepared_cache_size(Self) -> Int32
 pub async fn Connection::query(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> @protocol.ResultSet
 pub async fn Connection::query_conditional(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> ConditionalResult
 pub async fn Connection::query_with_info(Self, String, values? : Array[@types.Value], options? : @protocol.QueryOptions, deadline? : Deadline) -> Execution[@protocol.ResultSet]
@@ -210,46 +210,46 @@ pub async fn Connection::run_with_info(Self, @protocol.Request, cached? : Array[
 pub fn Connection::scheduling(Self) -> SchedulingSnapshot
 pub async fn Connection::shutdown(Self) -> Unit
 pub fn Connection::waiting_bytes(Self) -> Int64
-pub fn Connection::waiting_count(Self) -> Int
+pub fn Connection::waiting_count(Self) -> Int32
 
 pub(all) struct ConnectionBuilder {
   host : String
-  port : Int
+  port : Int32
   username : String?
   password : String?
   auth_provider : AuthProvider?
-  max_auth_rounds : Int
-  max_auth_token_bytes : Int
-  timeout_ms : Int
-  connect_timeout_ms : Int
-  queue_timeout_ms : Int
-  operation_timeout_ms : Int
-  max_frame_bytes : Int
-  max_in_flight : Int
-  max_in_flight_bytes : Int
-  max_waiting : Int
-  max_waiting_bytes : Int
+  max_auth_rounds : Int32
+  max_auth_token_bytes : Int32
+  timeout_ms : Int32
+  connect_timeout_ms : Int32
+  queue_timeout_ms : Int32
+  operation_timeout_ms : Int32
+  max_frame_bytes : Int32
+  max_in_flight : Int32
+  max_in_flight_bytes : Int32
+  max_waiting : Int32
+  max_waiting_bytes : Int32
   overload_policy : OverloadPolicy
   throw_on_overload : Bool
   compression : Bool
   tls : TlsConfig?
-  prepared_cache_capacity : Int
-  max_abandoned : Int
-  abandoned_timeout_ms : Int
-  event_capacity : Int
-  heartbeat_interval_ms : Int
-  heartbeat_timeout_ms : Int
+  prepared_cache_capacity : Int32
+  max_abandoned : Int32
+  abandoned_timeout_ms : Int32
+  event_capacity : Int32
+  heartbeat_interval_ms : Int32
+  heartbeat_timeout_ms : Int32
   metrics : Metrics?
 }
-pub fn ConnectionBuilder::new(host? : String, port? : Int, username? : String, password? : String, auth_provider? : AuthProvider, max_auth_rounds? : Int, max_auth_token_bytes? : Int, timeout_ms? : Int, connect_timeout_ms? : Int, queue_timeout_ms? : Int, operation_timeout_ms? : Int, max_frame_bytes? : Int, max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int, max_abandoned? : Int, abandoned_timeout_ms? : Int, event_capacity? : Int, heartbeat_interval_ms? : Int, heartbeat_timeout_ms? : Int, metrics? : Metrics) -> Self
+pub fn ConnectionBuilder::new(host? : String, port? : Int32, username? : String, password? : String, auth_provider? : AuthProvider, max_auth_rounds? : Int32, max_auth_token_bytes? : Int32, timeout_ms? : Int32, connect_timeout_ms? : Int32, queue_timeout_ms? : Int32, operation_timeout_ms? : Int32, max_frame_bytes? : Int32, max_in_flight? : Int32, max_in_flight_bytes? : Int32, max_waiting? : Int32, max_waiting_bytes? : Int32, overload_policy? : OverloadPolicy, throw_on_overload? : Bool, compression? : Bool, tls? : TlsConfig, prepared_cache_capacity? : Int32, max_abandoned? : Int32, abandoned_timeout_ms? : Int32, event_capacity? : Int32, heartbeat_interval_ms? : Int32, heartbeat_timeout_ms? : Int32, metrics? : Metrics) -> Self
 
 type ControlState
 
 pub(all) struct ControlStatus {
   connected : Bool
   endpoint : Endpoint?
-  generation : Int
-  refreshes : Int
+  generation : Int32
+  refreshes : Int32
   stale : Bool
   last_error : Error?
 }
@@ -257,14 +257,14 @@ pub(all) struct ControlStatus {
 pub struct Deadline {
   at : Int64
 }
-pub fn Deadline::after(Int) -> Self raise DriverError
-pub fn Deadline::remaining_ms(Self) -> Int
+pub fn Deadline::after(Int32) -> Self raise DriverError
+pub fn Deadline::remaining_ms(Self) -> Int32
 
 pub(all) enum DiagnosticEvent {
   Legacy(MetricEvent)
   OperationStarted(OperationKind)
   OperationFinished(OperationEvent)
-  RetryStarted(Endpoint, Int)
+  RetryStarted(Endpoint, Int32)
   RpcFinished(RpcScope, RequestEvent, Bool)
   ConnectionFailure(Endpoint, RequestOutcome, Bool)
   RpcTimeline(RequestTimeline)
@@ -272,19 +272,19 @@ pub(all) enum DiagnosticEvent {
 pub fn DiagnosticEvent::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DiscoveryConfig {
-  refresh_interval_ms : Int
-  debounce_ms : Int
-  max_nodes : Int
-  max_keyspaces : Int
-  max_tokens_per_node : Int
+  refresh_interval_ms : Int32
+  debounce_ms : Int32
+  max_nodes : Int32
+  max_keyspaces : Int32
+  max_tokens_per_node : Int32
   address_mapper : (@protocol.InetEndpoint) -> Endpoint?
 }
-pub fn DiscoveryConfig::new(refresh_interval_ms? : Int, debounce_ms? : Int, max_nodes? : Int, max_keyspaces? : Int, max_tokens_per_node? : Int, address_mapper? : (@protocol.InetEndpoint) -> Endpoint?) -> Self
+pub fn DiscoveryConfig::new(refresh_interval_ms? : Int32, debounce_ms? : Int32, max_nodes? : Int32, max_keyspaces? : Int32, max_tokens_per_node? : Int32, address_mapper? : (@protocol.InetEndpoint) -> Endpoint?) -> Self
 
 pub(all) enum DrainOutcome {
   Drained
-  DeadlineReached(Int)
-  Interrupted(Int)
+  DeadlineReached(Int32)
+  Interrupted(Int32)
 } derive(Eq, @debug.Debug)
 pub fn DrainOutcome::equal(Self, Self) -> Bool
 pub fn DrainOutcome::not_equal(Self, Self) -> Bool
@@ -292,10 +292,10 @@ pub fn DrainOutcome::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Endpoint {
   host : String
-  port : Int
+  port : Int32
   server_name : String?
 } derive(@debug.Debug)
-pub fn Endpoint::new(host? : String, port? : Int, server_name? : String) -> Self
+pub fn Endpoint::new(host? : String, port? : Int32, server_name? : String) -> Self
 pub fn Endpoint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Execution[T] {
@@ -305,7 +305,7 @@ pub(all) struct Execution[T] {
 
 pub(all) struct ExecutionInfo {
   coordinator : Endpoint
-  attempt_count : Int
+  attempt_count : Int32
   warnings : Array[String]
   tracing_id : Bytes?
   custom_payload : Map[String, Bytes?]
@@ -315,25 +315,25 @@ pub(all) struct ExecutionInfo {
 
 pub struct ExecutionProfile {
   settings : @protocol.QueryOptions
-  timeout : Int?
-  traversal_timeout : Int?
+  timeout : Int32?
+  traversal_timeout : Int32?
   policy : RetryPolicy
   backoff : RetryBackoff?
 }
-pub fn ExecutionProfile::new(consistency? : @protocol.Consistency, page_size? : Int, serial_consistency? : @protocol.Consistency, timeout_ms? : Int, traversal_timeout_ms? : Int, retry? : RetryPolicy, backoff? : RetryBackoff) -> Self raise DriverError
+pub fn ExecutionProfile::new(consistency? : @protocol.Consistency, page_size? : Int32, serial_consistency? : @protocol.Consistency, timeout_ms? : Int32, traversal_timeout_ms? : Int32, retry? : RetryPolicy, backoff? : RetryBackoff) -> Self raise DriverError
 pub fn ExecutionProfile::options(Self) -> @protocol.QueryOptions
 pub fn ExecutionProfile::retry_policy(Self) -> RetryPolicy
-pub fn ExecutionProfile::timeout_ms(Self) -> Int?
-pub fn ExecutionProfile::traversal_timeout_ms(Self) -> Int?
+pub fn ExecutionProfile::timeout_ms(Self) -> Int32?
+pub fn ExecutionProfile::traversal_timeout_ms(Self) -> Int32?
 
 pub(all) enum MetricEvent {
-  RequestStarted(Endpoint, Int, Int64)
+  RequestStarted(Endpoint, Int32, Int64)
   RequestFinished(RequestEvent)
   ConnectionAttempt(Endpoint)
   ConnectionEstablished(Endpoint)
   ConnectionFailed(Endpoint, RequestOutcome)
   ConnectionClosed(Endpoint)
-  Reconnected(Endpoint, Int, Bool)
+  Reconnected(Endpoint, Int32, Bool)
   Cache(Endpoint, CacheEvent)
   WaitFinished(WaitScope, Int64, Int64, RequestOutcome)
 } derive(@debug.Debug)
@@ -428,8 +428,8 @@ pub fn NodeState::to_repr(Self) -> @debug.Repr
 
 pub(all) struct NodeStatus {
   state : NodeState
-  generation : Int
-  attempts : Int
+  generation : Int32
+  attempts : Int32
 }
 
 pub(all) struct OperationEvent {
@@ -503,8 +503,8 @@ pub struct Pager {
   mut busy : Bool
   mut columns : Array[@protocol.Column]
   binding : Bytes
-  timeout_ms : Int
-  traversal_timeout_ms : Int?
+  timeout_ms : Int32
+  traversal_timeout_ms : Int32?
   mut traversal_deadline : Deadline?
   idempotent : Bool
   retry : RetryPolicy
@@ -526,26 +526,26 @@ pub fn PagingCursor::to_repr(Self) -> @debug.Repr
 type Pending
 
 pub(all) struct PoolConnectionStatus {
-  slot : Int
+  slot : Int32
   state : NodeState
-  generation : Int
-  attempts : Int
-  pending : Int
-  abandoned : Int
-  available_streams : Int
-  in_flight : Int
+  generation : Int32
+  attempts : Int32
+  pending : Int32
+  abandoned : Int32
+  available_streams : Int32
+  in_flight : Int32
   in_flight_bytes : Int64
-  waiting : Int
+  waiting : Int32
   waiting_bytes : Int64
-  cache_size : Int
+  cache_size : Int32
   last_error : Error?
 }
 
 pub(all) struct PoolStatus {
   endpoint : Endpoint
-  configured_connections : Int
-  ready : Int
-  connecting : Int
+  configured_connections : Int32
+  ready : Int32
+  connecting : Int32
   connections : Array[PoolConnectionStatus]
 }
 
@@ -557,7 +557,7 @@ pub struct Prepared {
   keyspace : String?
   mut metadata : @protocol.PreparedStatement
   refresh_mutex : @async.Mutex
-  mut generation : Int
+  mut generation : Int32
   request_options : @protocol.RequestOptions?
   mut origin_info : ExecutionInfo
 }
@@ -573,7 +573,7 @@ type PreparedCache
 
 pub(all) struct ReceiveMemorySnapshot {
   endpoint : Endpoint
-  pool_slot : Int
+  pool_slot : Int32
   scope : RpcScope
   reassembling_bytes : Int64
   queued_envelope_bytes : Int64
@@ -592,14 +592,14 @@ pub(all) struct Reply {
   tracing_id : Bytes?
   custom_payload : Map[String, Bytes?]
   coordinator : Endpoint
-  attempt_count : Int
+  attempt_count : Int32
   previous : Array[ExecutionInfo]
 }
 pub fn Reply::execution_info(Self) -> ExecutionInfo
 
 pub(all) struct RequestEvent {
   endpoint : Endpoint
-  opcode : Int
+  opcode : Int32
   request_bytes : Int64
   outcome : RequestOutcome
   phase : TimeoutPhase
@@ -611,7 +611,7 @@ pub fn RequestEvent::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RequestOutcome {
   Succeeded
-  ServerError(Int)
+  ServerError(Int32)
   Timeout(TimeoutInfo)
   Cancelled
   LocalOverload(OverloadReason)
@@ -638,7 +638,7 @@ pub fn RequestStage::to_repr(Self) -> @debug.Repr
 pub(all) struct RequestTimeline {
   request_id : Int64
   endpoint : Endpoint
-  opcode : Int
+  opcode : Int32
   queued_at_ms : Int64
   sending_at_ms : Int64?
   completed_at_ms : Int64
@@ -647,37 +647,37 @@ pub(all) struct RequestTimeline {
 pub fn RequestTimeline::to_repr(Self) -> @debug.Repr
 
 pub struct ResponseLimits {
-  body_bytes : Int
-  rows : Int
-  columns : Int
-  value_nodes : Int
-  depth : Int
+  body_bytes : Int32
+  rows : Int32
+  columns : Int32
+  value_nodes : Int32
+  depth : Int32
 }
-pub fn ResponseLimits::new(max_body_bytes? : Int, max_rows? : Int, max_columns? : Int, max_value_nodes? : Int, max_depth? : Int) -> Self raise DriverError
+pub fn ResponseLimits::new(max_body_bytes? : Int32, max_rows? : Int32, max_columns? : Int32, max_value_nodes? : Int32, max_depth? : Int32) -> Self raise DriverError
 
 pub struct RetryBackoff {
-  local_ms : Int
-  overloaded_ms : Int
-  bootstrapping_ms : Int
-  network_ms : Int
-  read_timeout_ms : Int
-  maximum : Int
+  local_ms : Int32
+  overloaded_ms : Int32
+  bootstrapping_ms : Int32
+  network_ms : Int32
+  read_timeout_ms : Int32
+  maximum : Int32
   jitter : Double
 }
-pub fn RetryBackoff::new(local_ms? : Int, overloaded_ms? : Int, bootstrapping_ms? : Int, network_ms? : Int, read_timeout_ms? : Int, max_delay_ms? : Int, jitter? : Double) -> Self raise DriverError
+pub fn RetryBackoff::new(local_ms? : Int32, overloaded_ms? : Int32, bootstrapping_ms? : Int32, network_ms? : Int32, read_timeout_ms? : Int32, max_delay_ms? : Int32, jitter? : Double) -> Self raise DriverError
 
 pub(all) struct RetryPolicy {
-  max_attempts : Int
-  delay_ms : Int
+  max_attempts : Int32
+  delay_ms : Int32
 }
-pub fn RetryPolicy::new(max_attempts? : Int, delay_ms? : Int) -> Self
+pub fn RetryPolicy::new(max_attempts? : Int32, delay_ms? : Int32) -> Self
 
 pub(all) struct RoutingConfig {
   local_dc : String
   allow_remote : Bool
-  max_metadata_age_ms : Int
+  max_metadata_age_ms : Int32
 }
-pub fn RoutingConfig::new(String, allow_remote? : Bool, max_metadata_age_ms? : Int) -> Self
+pub fn RoutingConfig::new(String, allow_remote? : Bool, max_metadata_age_ms? : Int32) -> Self
 
 pub(all) struct RoutingHint {
   keyspace : String
@@ -697,7 +697,7 @@ pub fn RpcScope::to_repr(Self) -> @debug.Repr
 pub(all) struct SchedulingSnapshot {
   broadcasts : Int64
   wakeups : Int64
-  queued : Int
+  queued : Int32
 }
 
 pub(all) struct SchemaAgreement {
@@ -712,11 +712,11 @@ pub(all) struct SchemaAgreement {
 
 pub(all) struct SchemaAgreementConfig {
   wait_after_ddl : Bool
-  timeout_ms : Int
-  poll_interval_ms : Int
-  max_nodes : Int
+  timeout_ms : Int32
+  poll_interval_ms : Int32
+  max_nodes : Int32
 }
-pub fn SchemaAgreementConfig::new(wait_after_ddl? : Bool, timeout_ms? : Int, poll_interval_ms? : Int, max_nodes? : Int) -> Self
+pub fn SchemaAgreementConfig::new(wait_after_ddl? : Bool, timeout_ms? : Int32, poll_interval_ms? : Int32, max_nodes? : Int32) -> Self
 
 pub(all) enum SchemaAgreementState {
   Unknown
@@ -733,7 +733,7 @@ pub(all) struct SchemaColumn {
   name : String
   cql_type : String
   kind : SchemaColumnKind
-  position : Int
+  position : Int32
   clustering_order : String
 } derive(ToJson)
 pub fn SchemaColumn::to_json(Self) -> Json
@@ -765,16 +765,16 @@ pub fn SchemaKeyspace::to_json(Self) -> Json
 
 pub struct SchemaOptions {
   names : Array[String]
-  max_keyspaces : Int
-  max_tables : Int
-  max_columns : Int
-  max_types : Int
-  max_fields : Int
-  max_bytes : Int
+  max_keyspaces : Int32
+  max_tables : Int32
+  max_columns : Int32
+  max_types : Int32
+  max_fields : Int32
+  max_bytes : Int32
   identity : Bytes
 }
 pub fn SchemaOptions::keyspaces(Self) -> Array[String]
-pub fn SchemaOptions::new(keyspaces? : Array[String], max_keyspaces? : Int, max_tables? : Int, max_columns? : Int, max_types? : Int, max_fields? : Int, max_bytes? : Int) -> Self raise DriverError
+pub fn SchemaOptions::new(keyspaces? : Array[String], max_keyspaces? : Int32, max_tables? : Int32, max_columns? : Int32, max_types? : Int32, max_fields? : Int32, max_bytes? : Int32) -> Self raise DriverError
 
 pub struct SchemaSnapshot {
   version : Bytes
@@ -812,7 +812,7 @@ pub fn SchemaUserType::to_json(Self) -> Json
 
 pub(all) struct SchemaVersionObservation {
   endpoint : Endpoint
-  generation : Int
+  generation : Int32
   version : Bytes?
   error : Error?
 }
@@ -826,17 +826,17 @@ pub struct Session {
   mut closed : Bool
   mut draining : Bool
   mut drain_outcome : DrainOutcome?
-  mut generation : Int
-  mut next_node : Int
+  mut generation : Int32
+  mut next_node : Int32
   mut last_error : Error?
-  mut active : Int
-  mut waiting : Int
+  mut active : Int32
+  mut waiting : Int32
   mut waiting_bytes : Int64
   control : ControlState?
   schema_cache : SchemaCache
   admission : Admission
 }
-pub fn Session::active_count(Self) -> Int
+pub fn Session::active_count(Self) -> Int32
 pub async fn Session::batch(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Unit
 pub async fn Session::batch_with_info(Self, Array[SessionBatchStatement], kind? : @protocol.BatchType, options? : @protocol.QueryOptions, deadline? : Deadline, routing? : RoutingHint) -> Execution[Unit]
 pub fn Session::budget(Self) -> SessionBudget
@@ -870,7 +870,7 @@ pub async fn Session::schema_metadata(Self, options? : SchemaOptions, deadline? 
 pub fn Session::status(Self) -> NodeStatus
 pub fn Session::topology(Self) -> TopologySnapshot?
 pub async fn Session::wait_schema_agreement(Self, deadline? : Deadline) -> SchemaAgreement
-pub fn Session::waiting_count(Self) -> Int
+pub fn Session::waiting_count(Self) -> Int32
 
 type SessionBatchBinding
 
@@ -880,9 +880,9 @@ pub struct SessionBatchStatement {
 pub fn SessionBatchStatement::query(String, values? : Array[@types.Value]) -> Self raise
 
 pub(all) struct SessionBudget {
-  in_flight : Int
+  in_flight : Int32
   in_flight_bytes : Int64
-  waiting : Int
+  waiting : Int32
   waiting_bytes : Int64
   limits : SessionLimits?
 }
@@ -891,40 +891,40 @@ pub(all) struct SessionBuilder {
   enforce_limits : Bool
   connection : ConnectionBuilder
   contact_points : Array[Endpoint]
-  backoff_initial_ms : Int
-  backoff_max_ms : Int
+  backoff_initial_ms : Int32
+  backoff_max_ms : Int32
   jitter : Double
-  stable_reset_ms : Int
+  stable_reset_ms : Int32
   routing : RoutingConfig?
   discovery : DiscoveryConfig?
   schema_agreement : SchemaAgreementConfig
   execution_profile : ExecutionProfile?
   limits : SessionLimits
-  connections_per_node : Int
+  connections_per_node : Int32
 }
-pub fn SessionBuilder::new(connection? : ConnectionBuilder, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig, execution_profile? : ExecutionProfile, limits? : SessionLimits, connections_per_node? : Int) -> Self
+pub fn SessionBuilder::new(connection? : ConnectionBuilder, contact_points? : Array[Endpoint], backoff_initial_ms? : Int32, backoff_max_ms? : Int32, jitter? : Double, stable_reset_ms? : Int32, discovery? : DiscoveryConfig, routing? : RoutingConfig, schema_agreement? : SchemaAgreementConfig, execution_profile? : ExecutionProfile, limits? : SessionLimits, connections_per_node? : Int32) -> Self
 
 pub(all) struct SessionConfig {
   connection : Config
   contact_points : Array[Endpoint]
-  backoff_initial_ms : Int
-  backoff_max_ms : Int
+  backoff_initial_ms : Int32
+  backoff_max_ms : Int32
   jitter : Double
-  stable_reset_ms : Int
+  stable_reset_ms : Int32
   routing : RoutingConfig?
   discovery : DiscoveryConfig?
 }
 pub fn SessionConfig::builder(Self) -> SessionBuilder
-pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int, backoff_max_ms? : Int, jitter? : Double, stable_reset_ms? : Int, discovery? : DiscoveryConfig, routing? : RoutingConfig) -> Self
+pub fn SessionConfig::new(connection? : Config, contact_points? : Array[Endpoint], backoff_initial_ms? : Int32, backoff_max_ms? : Int32, jitter? : Double, stable_reset_ms? : Int32, discovery? : DiscoveryConfig, routing? : RoutingConfig) -> Self
 
 pub(all) struct SessionLimits {
-  max_in_flight : Int
-  max_in_flight_bytes : Int
-  max_waiting : Int
-  max_waiting_bytes : Int
+  max_in_flight : Int32
+  max_in_flight_bytes : Int32
+  max_waiting : Int32
+  max_waiting_bytes : Int32
   overload_policy : OverloadPolicy
 }
-pub fn SessionLimits::new(max_in_flight? : Int, max_in_flight_bytes? : Int, max_waiting? : Int, max_waiting_bytes? : Int, overload_policy? : OverloadPolicy) -> Self
+pub fn SessionLimits::new(max_in_flight? : Int32, max_in_flight_bytes? : Int32, max_waiting? : Int32, max_waiting_bytes? : Int32, overload_policy? : OverloadPolicy) -> Self
 
 type SessionNode
 
@@ -936,7 +936,7 @@ pub struct SessionPrepared {
   profile : ExecutionProfile?
   states : Map[String, SessionPreparedState]
   mut parameters : Array[@protocol.Column]
-  mut partition_key_indices : Array[Int]
+  mut partition_key_indices : Array[Int32]
   mut routing_keyspace : String?
 }
 pub fn SessionPrepared::bind_batch(Self, Array[@types.Value]) -> SessionBatchStatement raise
@@ -953,15 +953,15 @@ pub fn SessionPrepared::parameters(Self) -> Array[@protocol.Column]
 type SessionPreparedState
 
 pub(all) struct SessionResources {
-  active : Int
-  pending : Int
-  abandoned : Int
-  in_flight : Int
+  active : Int32
+  pending : Int32
+  abandoned : Int32
+  in_flight : Int32
   in_flight_bytes : Int64
-  waiting : Int
+  waiting : Int32
   waiting_bytes : Int64
-  cache_sizes : Array[Int]
-  background_task_handles : Int
+  cache_sizes : Array[Int32]
+  background_task_handles : Int32
 } derive(ToJson, @debug.Debug)
 pub fn SessionResources::to_json(Self) -> Json
 pub fn SessionResources::to_repr(Self) -> @debug.Repr
@@ -1015,7 +1015,7 @@ pub(all) struct TopologyNode {
 }
 
 pub(all) struct TopologySnapshot {
-  revision : Int
+  revision : Int32
   refreshed_at : Int64
   cluster_name : String
   partitioner : String

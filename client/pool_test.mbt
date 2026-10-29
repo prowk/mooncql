@@ -1,8 +1,8 @@
 ///|
 async fn wait_pool_ready(
   session : @client.Session,
-  nodes : Int,
-  size : Int,
+  nodes : Int32,
+  size : Int32,
 ) -> Unit {
   while session.pools().length() != nodes ||
         !session.pools().all(pool => pool.ready == size) {

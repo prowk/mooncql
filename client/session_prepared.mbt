@@ -1,7 +1,7 @@
 ///|
 struct SessionPreparedState {
   mutex : @async.Mutex
-  mut generation : Int
+  mut generation : Int32
   mut prepared : Prepared?
 }
 
@@ -14,7 +14,7 @@ pub struct SessionPrepared {
   profile : ExecutionProfile?
   states : Map[String, SessionPreparedState]
   mut parameters : Array[@protocol.Column]
-  mut partition_key_indices : Array[Int]
+  mut partition_key_indices : Array[Int32]
   mut routing_keyspace : String?
 }
 
@@ -163,7 +163,7 @@ pub async fn SessionPrepared::execute_with_profile_info(
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   profile? : ExecutionProfile,
 ) -> Execution[@protocol.ResultSet] {
@@ -268,7 +268,7 @@ pub async fn SessionPrepared::execute_with_profile(
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
   profile? : ExecutionProfile,
 ) -> @protocol.ResultSet {
@@ -335,7 +335,7 @@ pub async fn SessionPrepared::execute(
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
 ) -> @protocol.ResultSet {
   self.execute_with_profile(values, options?, deadline?, idempotent~, retry?)
@@ -357,7 +357,7 @@ pub async fn SessionPrepared::execute_with_info(
   values : Array[@types.Value],
   options? : @protocol.QueryOptions,
   deadline? : Deadline,
-  idempotent? : Bool = false,
+  idempotent~ : Bool = false,
   retry? : RetryPolicy,
 ) -> Execution[@protocol.ResultSet] {
   self.execute_with_profile_info(

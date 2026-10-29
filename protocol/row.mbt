@@ -1,7 +1,7 @@
 ///|
 struct ColumnIndex {
   columns : Array[Column]
-  mut lookup : Map[String, Int]?
+  mut lookup : Map[String, Int32]?
 }
 
 ///|
@@ -10,11 +10,11 @@ impl @debug.Debug for ColumnIndex with fn to_repr(_) {
 }
 
 ///|
-fn ColumnIndex::index(self : ColumnIndex, name : String) -> Int? {
+fn ColumnIndex::index(self : ColumnIndex, name : String) -> Int32? {
   let lookup = match self.lookup {
     Some(value) => value
     None => {
-      let value : Map[String, Int] = Map([])
+      let value : Map[String, Int32] = Map([])
       for i, column in self.columns {
         if !value.contains(column.name) {
           value[column.name] = i
@@ -50,9 +50,9 @@ fn copy_type(typ : @types.CqlType) -> @types.CqlType {
 ///|
 fn type_size(
   typ : @types.CqlType,
-  depth : Int,
-  budget : Array[Int],
-  max_depth? : Int = 32,
+  depth : Int32,
+  budget : Array[Int32],
+  max_depth~ : Int32 = 32,
 ) -> Unit raise @codec.CodecError {
   if depth >= max_depth || budget[0] <= 0 {
     raise @codec.CodecError("row metadata exceeds snapshot limit")
@@ -101,8 +101,8 @@ pub fn checked_columns_snapshot(
 pub fn Page::new(
   columns : Array[Column],
   rows : Array[Array[@types.Value]],
-  paging_state? : Bytes? = None,
-  new_metadata_id? : Bytes? = None,
+  paging_state~ : Bytes? = None,
+  new_metadata_id~ : Bytes? = None,
 ) -> Page raise @codec.CodecError {
   if columns.length() > 65535 {
     raise @codec.CodecError("too many columns")
@@ -152,7 +152,7 @@ pub struct Row {
 pub extend Row with @debug.Debug::{to_repr}
 
 ///|
-pub fn Page::row(self : Page, index : Int) -> Row raise RowError {
+pub fn Page::row(self : Page, index : Int32) -> Row raise RowError {
   guard self.rows.get(index) is Some(values) else {
     raise InvalidRow("row index out of range")
   }
@@ -196,7 +196,7 @@ fn Row::lookup(
   self : Row,
   name : String,
   expected : String,
-  allow_null? : Bool = false,
+  allow_null~ : Bool = false,
 ) -> (@types.CqlType, @types.Value) raise RowError {
   guard self.schema.index(name) is Some(index) else {
     raise MissingColumn(name, expected)
@@ -222,7 +222,7 @@ pub fn Row::value(self : Row, name : String) -> @types.Value raise RowError {
 }
 
 ///|
-pub fn Row::value_at(self : Row, index : Int) -> @types.Value raise RowError {
+pub fn Row::value_at(self : Row, index : Int32) -> @types.Value raise RowError {
   if index < 0 || index >= self.schema.columns.length() {
     raise InvalidRow("column index out of range")
   }
@@ -252,7 +252,7 @@ pub fn Row::text(self : Row, name : String) -> String raise RowError {
 }
 
 ///|
-pub fn Row::int(self : Row, name : String) -> Int raise RowError {
+pub fn Row::int(self : Row, name : String) -> Int32 raise RowError {
   let (typ, value) = self.lookup(name, "int")
   match (typ, value) {
     (Int, Integer(value))
@@ -398,7 +398,7 @@ pub fn Row::varint(
 pub fn Row::duration(
   self : Row,
   name : String,
-) -> (Int, Int, Int64) raise RowError {
+) -> (Int32, Int32, Int64) raise RowError {
   let (typ, value) = self.lookup(name, "duration")
   match (typ, value) {
     (Duration, Duration(months, days, nanos)) => (months, days, nanos)

@@ -25,7 +25,7 @@ pub extend MappingError with @debug.Debug::{to_repr}
 
 ///|
 fn field_path(parent : String, name : String) -> String {
-  "\{parent}[\{name.to_json().stringify()}]"
+  "\{parent}[\{Json(name).stringify()}]"
 }
 
 ///|
@@ -45,8 +45,8 @@ fn check_value(
   typ : @types.CqlType,
   value : @types.Value,
   path : String,
-  depth : Int,
-  budget : Array[Int],
+  depth : Int32,
+  budget : Array[Int32],
 ) -> Unit raise MappingError {
   if depth >= 32 || budget[0] <= 0 {
     raise MappingError(path, LimitExceeded)
@@ -200,7 +200,7 @@ pub fn[T] EncodeContext::field(
 /// 用 tuple 元素路径调用子编码器。
 pub fn[T] EncodeContext::item(
   self : EncodeContext,
-  index : Int,
+  index : Int32,
   codec : ValueCodec[T],
   value : T,
 ) -> @types.Value raise MappingError {
@@ -280,7 +280,7 @@ pub fn ValueReader::field(
 /// 按 tuple 的零起始下标读取，不补造缺失元素。
 pub fn ValueReader::item(
   self : ValueReader,
-  index : Int,
+  index : Int32,
 ) -> ValueReader raise MappingError {
   let path = "\{self.path}[\{index}]"
   guard self.typ is Some(Tuple(types)) && self.value is TupleValue(items) else {
@@ -316,7 +316,7 @@ pub fn[T] ValueCodec::optional(self : ValueCodec[T]) -> ValueCodec[T?] {
 
 ///|
 /// CQL int 与 MoonBit Int 的精确映射。
-pub fn int_codec() -> ValueCodec[Int] {
+pub fn int_codec() -> ValueCodec[Int32] {
   {
     typ: Int,
     accepts_null: false,

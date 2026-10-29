@@ -1,13 +1,13 @@
 ///|
 pub(all) struct RetryPolicy {
-  max_attempts : Int
-  delay_ms : Int
+  max_attempts : Int32
+  delay_ms : Int32
 }
 
 ///|
 pub fn RetryPolicy::new(
-  max_attempts? : Int = 3,
-  delay_ms? : Int = 10,
+  max_attempts~ : Int32 = 3,
+  delay_ms~ : Int32 = 10,
 ) -> RetryPolicy {
   { max_attempts, delay_ms, }
 }
@@ -20,7 +20,7 @@ fn RetryPolicy::validate(self : RetryPolicy) -> Unit raise DriverError {
 
 ///|
 pub(all) struct AttemptFailure {
-  attempt : Int
+  attempt : Int32
   endpoint : Endpoint?
   error : Error
   may_have_been_sent : Bool
@@ -50,7 +50,7 @@ fn local_admission_failure(error : Error) -> Bool {
 }
 
 ///|
-async fn Session::retry_pause(self : Session, milliseconds : Int) -> Unit {
+async fn Session::retry_pause(self : Session, milliseconds : Int32) -> Unit {
   if self.closed {
     raise Closed
   }

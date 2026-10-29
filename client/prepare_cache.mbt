@@ -1,6 +1,6 @@
 ///|
 struct PreparedCache {
-  capacity : Int
+  capacity : Int32
   entries : Map[Bytes, Prepared]
   order : Array[Bytes]
   metrics : Metrics?
@@ -69,13 +69,13 @@ fn PreparedCache::clear(self : PreparedCache) -> Unit {
 ///|
 struct PrepareFlight {
   mutex : @async.Mutex
-  mut users : Int
+  mut users : Int32
   mut result : Prepared?
   mut failure : Error?
 }
 
 ///|
-pub fn Connection::prepared_cache_size(self : Connection) -> Int {
+pub fn Connection::prepared_cache_size(self : Connection) -> Int32 {
   self.prepared_cache.entries.length()
 }
 

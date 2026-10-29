@@ -37,8 +37,8 @@ fn conditional_result(
 pub async fn Connection::query_conditional(
   self : Connection,
   cql : String,
-  values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  values~ : Array[@types.Value] = [],
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> ConditionalResult {
   // QUERY 没有 EXECUTE 的 LWT 元数据特例，首次条件查询必须请求列定义。
@@ -51,7 +51,7 @@ pub async fn Connection::query_conditional(
 pub async fn Prepared::execute_conditional(
   self : Prepared,
   values : Array[@types.Value],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> ConditionalResult {
   conditional_result(self.execute(values, options~, deadline?))

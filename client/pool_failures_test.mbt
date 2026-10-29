@@ -1,8 +1,8 @@
 ///|
 async fn with_pool_fixture(
-  size : Int,
-  config? : @client.SessionBuilder = @client.SessionBuilder::new(),
-  serve : async (Peer, Int) -> Unit,
+  size : Int32,
+  config~ : @client.SessionBuilder = @client.SessionBuilder::new(),
+  serve : async (Peer, Int32) -> Unit,
   body : async (@client.Session) -> Unit,
 ) -> Unit {
   @async.with_timeout(8000, () => {

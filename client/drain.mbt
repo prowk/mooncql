@@ -9,8 +9,8 @@ pub extend Draining with @debug.Debug::{to_repr}
 /// 排空只表示已接受操作全部结束，不表示每个业务操作均执行成功。
 pub(all) enum DrainOutcome {
   Drained
-  DeadlineReached(Int)
-  Interrupted(Int)
+  DeadlineReached(Int32)
+  Interrupted(Int32)
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -109,7 +109,7 @@ pub async fn Session::drain(
 }
 
 ///|
-fn Connection::drain_remaining(self : Connection) -> Int {
+fn Connection::drain_remaining(self : Connection) -> Int32 {
   if self.active_requests > self.pending.length() {
     self.active_requests
   } else {

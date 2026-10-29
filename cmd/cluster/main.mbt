@@ -8,7 +8,7 @@ async fn wait_marker(directory : String, marker : String) -> Unit {
 }
 
 ///|
-async fn wait_ready(session : @client.Session, expected : Int) -> Unit {
+async fn wait_ready(session : @client.Session, expected : Int32) -> Unit {
   @async.with_timeout(180000, () => {
     while session.nodes().filter(node => node.status.state == Ready).length() !=
           expected {
@@ -91,7 +91,7 @@ async fn verify_schema_ddl(session : @client.Session) -> Unit {
 ///|
 async fn verify_rows(
   statement : @client.SessionPrepared,
-  expected : Array[(Int, Int)],
+  expected : Array[(Int32, Int32)],
 ) -> Unit {
   let reads = expected.map(pair => {
     () => {

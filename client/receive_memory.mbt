@@ -2,7 +2,7 @@
 /// 按正文逻辑字节观测，不包含 Value 对象、分配器、TLS 或调用方保存的结果。
 pub(all) struct ReceiveMemorySnapshot {
   endpoint : Endpoint
-  pool_slot : Int
+  pool_slot : Int32
   scope : RpcScope
   reassembling_bytes : Int64
   queued_envelope_bytes : Int64

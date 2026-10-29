@@ -9,7 +9,7 @@ pub extend CodecError with @debug.Debug::{to_repr}
 ///|
 pub struct Reader {
   data : Bytes
-  mut offset : Int
+  mut offset : Int32
 }
 
 ///|
@@ -18,12 +18,12 @@ pub fn Reader::new(data : Bytes) -> Reader {
 }
 
 ///|
-pub fn Reader::remaining(self : Reader) -> Int {
+pub fn Reader::remaining(self : Reader) -> Int32 {
   self.data.length() - self.offset
 }
 
 ///|
-pub fn Reader::take(self : Reader, length : Int) -> Bytes raise CodecError {
+pub fn Reader::take(self : Reader, length : Int32) -> Bytes raise CodecError {
   // 先比较剩余长度，避免偏移加法溢出及越界切片。
   if length < 0 || length > self.remaining() {
     raise CodecError("truncated or invalid byte length")
@@ -34,18 +34,18 @@ pub fn Reader::take(self : Reader, length : Int) -> Bytes raise CodecError {
 }
 
 ///|
-pub fn Reader::u8(self : Reader) -> Int raise CodecError {
+pub fn Reader::u8(self : Reader) -> Int32 raise CodecError {
   self.take(1)[0].to_int()
 }
 
 ///|
-pub fn Reader::u16(self : Reader) -> Int raise CodecError {
+pub fn Reader::u16(self : Reader) -> Int32 raise CodecError {
   let b = self.take(2)
   (b[0].to_int() << 8) | b[1].to_int()
 }
 
 ///|
-pub fn Reader::i32(self : Reader) -> Int raise CodecError {
+pub fn Reader::i32(self : Reader) -> Int32 raise CodecError {
   let b = self.take(4)
   (b[0].to_int() << 24) |
   (b[1].to_int() << 16) |
@@ -120,12 +120,12 @@ pub fn Writer::raw(self : Writer, value : Bytes) -> Unit {
 }
 
 ///|
-pub fn Writer::u8(self : Writer, value : Int) -> Unit {
+pub fn Writer::u8(self : Writer, value : Int32) -> Unit {
   self.buffer.write_byte(value.to_byte())
 }
 
 ///|
-pub fn Writer::u16(self : Writer, value : Int) -> Unit raise CodecError {
+pub fn Writer::u16(self : Writer, value : Int32) -> Unit raise CodecError {
   if value < 0 || value > 65535 {
     raise CodecError("unsigned short out of range")
   }
@@ -134,7 +134,7 @@ pub fn Writer::u16(self : Writer, value : Int) -> Unit raise CodecError {
 }
 
 ///|
-pub fn Writer::i32(self : Writer, value : Int) -> Unit {
+pub fn Writer::i32(self : Writer, value : Int32) -> Unit {
   self.u8(value >> 24)
   self.u8(value >> 16)
   self.u8(value >> 8)

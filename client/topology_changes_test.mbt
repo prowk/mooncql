@@ -1,7 +1,7 @@
 ///|
 fn changing_topology_row(
-  index : Int,
-  phase : Int,
+  index : Int32,
+  phase : Int32,
   is_local : Bool,
 ) -> Bytes raise {
   if index == 0 {

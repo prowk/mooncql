@@ -1,6 +1,6 @@
 ///|
 fn catalog_rows(
-  columns : Array[(String, Int)],
+  columns : Array[(String, Int32)],
   rows : Array[Array[@types.Value]],
   state? : Bytes,
 ) -> Bytes raise {
@@ -36,9 +36,9 @@ fn catalog_rows(
 ///|
 fn schema_fixture(
   cql : String,
-  mode? : String = "normal",
-  changed? : Bool = false,
-  second_page? : Bool = false,
+  mode~ : String = "normal",
+  changed~ : Bool = false,
+  second_page~ : Bool = false,
 ) -> Bytes raise {
   if cql.contains("system_schema.keyspaces") {
     let base : Array[@types.Value] = [

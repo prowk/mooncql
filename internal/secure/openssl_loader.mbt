@@ -1,3 +1,6 @@
+// 修改声明：prowk/mooncql 基于 moonbitlang/async 0.22.3 修改。
+// 隔离 FFI 符号，补充经证书与名称验证的客户端 TLS 及凭据适配。来源及上游原始哈希见 internal/secure/NOTICE.md 和 UPSTREAM.json。
+
 // Copyright 2025 International Digital Economy Academy
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,16 +19,16 @@
 #cfg(not(platform="windows"))
 #borrow(major, minor, fix)
 extern "C" fn load_openssl_ffi(
-  major : Ref[Int],
-  minor : Ref[Int],
-  fix : Ref[Int],
-) -> Int = "prowk_mooncql_secure_load_openssl"
+  major : Ref[Int32],
+  minor : Ref[Int32],
+  fix : Ref[Int32],
+) -> Int32 = "prowk_mooncql_secure_load_openssl"
 
 ///|
 #cfg(not(platform="windows"))
 extern "C" fn init_bio_method(
-  read : FuncRef[(BIO, @c_buffer.Buffer, Int) -> Int],
-  write : FuncRef[(BIO, @c_buffer.Buffer, Int) -> Int],
+  read : FuncRef[(BIO, @c_buffer.Buffer, Int32) -> Int32],
+  write : FuncRef[(BIO, @c_buffer.Buffer, Int32) -> Int32],
 ) = "prowk_mooncql_secure_init_bio_method"
 
 ///|

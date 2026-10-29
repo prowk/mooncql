@@ -11,7 +11,7 @@ pub fn murmur3_token(Bytes) -> Int64
 
 pub fn replication(Map[String, String]) -> Replication
 
-pub fn routing_key(Array[@types.Value], Array[Int]) -> Bytes? raise @codec.CodecError
+pub fn routing_key(Array[@types.Value], Array[Int32]) -> Bytes? raise @codec.CodecError
 
 // Errors
 
@@ -26,8 +26,8 @@ pub(all) struct Node {
 }
 
 pub(all) enum Replication {
-  Simple(Int)
-  NetworkTopology(Map[String, Int])
+  Simple(Int32)
+  NetworkTopology(Map[String, Int32])
   Unsupported(String)
 }
 pub fn Replication::snapshot(Self) -> Self

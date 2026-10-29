@@ -19,63 +19,63 @@ pub extend DriverError with @debug.Debug::{to_repr}
 ///|
 pub(all) struct ConnectionBuilder {
   host : String
-  port : Int
+  port : Int32
   username : String?
   password : String?
   auth_provider : AuthProvider?
-  max_auth_rounds : Int
-  max_auth_token_bytes : Int
-  timeout_ms : Int
-  connect_timeout_ms : Int
-  queue_timeout_ms : Int
-  operation_timeout_ms : Int
-  max_frame_bytes : Int
-  max_in_flight : Int
-  max_in_flight_bytes : Int
-  max_waiting : Int
-  max_waiting_bytes : Int
+  max_auth_rounds : Int32
+  max_auth_token_bytes : Int32
+  timeout_ms : Int32
+  connect_timeout_ms : Int32
+  queue_timeout_ms : Int32
+  operation_timeout_ms : Int32
+  max_frame_bytes : Int32
+  max_in_flight : Int32
+  max_in_flight_bytes : Int32
+  max_waiting : Int32
+  max_waiting_bytes : Int32
   overload_policy : OverloadPolicy
   throw_on_overload : Bool
   compression : Bool
   tls : TlsConfig?
-  prepared_cache_capacity : Int
-  max_abandoned : Int
-  abandoned_timeout_ms : Int
-  event_capacity : Int
-  heartbeat_interval_ms : Int
-  heartbeat_timeout_ms : Int
+  prepared_cache_capacity : Int32
+  max_abandoned : Int32
+  abandoned_timeout_ms : Int32
+  event_capacity : Int32
+  heartbeat_interval_ms : Int32
+  heartbeat_timeout_ms : Int32
   metrics : Metrics?
 }
 
 ///|
 /// 构造连接配置，默认操作预算十秒、心跳三十秒；连接前统一校验参数与认证冲突。
 pub fn ConnectionBuilder::new(
-  host? : String = "127.0.0.1",
-  port? : Int = 9042,
+  host~ : String = "127.0.0.1",
+  port~ : Int32 = 9042,
   username? : String,
   password? : String,
   auth_provider? : AuthProvider,
-  max_auth_rounds? : Int = 16,
-  max_auth_token_bytes? : Int = 65536,
-  timeout_ms? : Int = 10000,
-  connect_timeout_ms? : Int,
-  queue_timeout_ms? : Int,
-  operation_timeout_ms? : Int,
-  max_frame_bytes? : Int = 16777216,
-  max_in_flight? : Int = 128,
-  max_in_flight_bytes? : Int = 67108864,
-  max_waiting? : Int = 64,
-  max_waiting_bytes? : Int = 67108864,
-  overload_policy? : OverloadPolicy = Wait,
-  throw_on_overload? : Bool = false,
-  compression? : Bool = false,
+  max_auth_rounds~ : Int32 = 16,
+  max_auth_token_bytes~ : Int32 = 65536,
+  timeout_ms~ : Int32 = 10000,
+  connect_timeout_ms? : Int32,
+  queue_timeout_ms? : Int32,
+  operation_timeout_ms? : Int32,
+  max_frame_bytes~ : Int32 = 16777216,
+  max_in_flight~ : Int32 = 128,
+  max_in_flight_bytes~ : Int32 = 67108864,
+  max_waiting~ : Int32 = 64,
+  max_waiting_bytes~ : Int32 = 67108864,
+  overload_policy~ : OverloadPolicy = Wait,
+  throw_on_overload~ : Bool = false,
+  compression~ : Bool = false,
   tls? : TlsConfig,
-  prepared_cache_capacity? : Int = 64,
-  max_abandoned? : Int = 64,
-  abandoned_timeout_ms? : Int = 30000,
-  event_capacity? : Int = 256,
-  heartbeat_interval_ms? : Int = 30000,
-  heartbeat_timeout_ms? : Int = 5000,
+  prepared_cache_capacity~ : Int32 = 64,
+  max_abandoned~ : Int32 = 64,
+  abandoned_timeout_ms~ : Int32 = 30000,
+  event_capacity~ : Int32 = 256,
+  heartbeat_interval_ms~ : Int32 = 30000,
+  heartbeat_timeout_ms~ : Int32 = 5000,
   metrics? : Metrics,
 ) -> ConnectionBuilder {
   {
@@ -125,21 +125,21 @@ pub struct Connection {
   mut closed : Bool
   mut draining : Bool
   mut drain_outcome : DrainOutcome?
-  mut active_requests : Int
+  mut active_requests : Int32
   closed_changed : @async.CondVar
   mut failure : Error?
-  mut generation : Int
-  mut pool_slot : Int
+  mut generation : Int32
+  mut pool_slot : Int32
   mut rpc_scope : RpcScope
   mut reader_active : Bool
   mut reader_task : @async.Task[Unit]?
   mut reaper_task : @async.Task[Unit]?
   mut health_task : @async.Task[Unit]?
   mut last_received : Int64
-  mut abandoned : Int
-  pending : Map[Int, Pending]
+  mut abandoned : Int32
+  pending : Map[Int32, Pending]
   admission : Admission
-  mut next_stream : Int
+  mut next_stream : Int32
   prepared_cache : PreparedCache
   preparing : Map[Bytes, PrepareFlight]
   mut preparing_bytes : Int64
@@ -167,7 +167,7 @@ pub(all) struct Reply {
   tracing_id : Bytes?
   custom_payload : Map[String, Bytes?]
   coordinator : Endpoint
-  attempt_count : Int
+  attempt_count : Int32
   previous : Array[ExecutionInfo]
 }
 
@@ -237,7 +237,7 @@ async fn Connection::handshake_request(
 pub async fn Connection::run(
   self : Connection,
   request : @protocol.Request,
-  cached? : Array[@protocol.Column] = [],
+  cached~ : Array[@protocol.Column] = [],
   deadline? : Deadline,
 ) -> @protocol.ResultSet {
   match self.request(request, cached~, deadline?).response {
@@ -257,8 +257,8 @@ pub async fn Connection::run(
 pub async fn Connection::query(
   self : Connection,
   cql : String,
-  values? : Array[@types.Value] = [],
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  values~ : Array[@types.Value] = [],
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> @protocol.ResultSet {
   let deadline = self.operation_deadline(deadline)
@@ -268,7 +268,7 @@ pub async fn Connection::query(
 ///|
 async fn[G] connect_internal(
   group : @async.TaskGroup[G],
-  config? : ConnectionBuilder = ConnectionBuilder::new(),
+  config~ : ConnectionBuilder = ConnectionBuilder::new(),
   deadline? : Deadline,
   shared? : Admission,
   response_limits? : ResponseLimits,
@@ -407,12 +407,12 @@ async fn open_connection(
 }
 
 ///|
-pub fn Connection::pending_count(self : Connection) -> Int {
+pub fn Connection::pending_count(self : Connection) -> Int32 {
   self.pending.length()
 }
 
 ///|
-pub fn Connection::abandoned_count(self : Connection) -> Int {
+pub fn Connection::abandoned_count(self : Connection) -> Int32 {
   self.abandoned
 }
 
@@ -476,9 +476,9 @@ fn ConnectionBuilder::validate(
 ///|
 fn validate_range(
   name : String,
-  value : Int,
-  minimum : Int,
-  maximum : Int,
+  value : Int32,
+  minimum : Int32,
+  maximum : Int32,
 ) -> Unit raise DriverError {
   if value < minimum || value > maximum {
     raise Configuration("\{name} must be \{minimum}..\{maximum}")

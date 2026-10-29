@@ -8,25 +8,25 @@ pub(all) suberror SchemaMetadataError {
 /// 所有过滤和上限在构造时冻结；空 keyspaces 表示读取全部可见 keyspace。
 pub struct SchemaOptions {
   names : Array[String]
-  max_keyspaces : Int
-  max_tables : Int
-  max_columns : Int
-  max_types : Int
-  max_fields : Int
-  max_bytes : Int
+  max_keyspaces : Int32
+  max_tables : Int32
+  max_columns : Int32
+  max_types : Int32
+  max_fields : Int32
+  max_bytes : Int32
   identity : Bytes
 }
 
 ///|
 /// 冻结 keyspace 过滤和数量／字节预算；默认目录文本上限十六 MiB，非法参数立即报错。
 pub fn SchemaOptions::new(
-  keyspaces? : Array[String] = [],
-  max_keyspaces? : Int = 128,
-  max_tables? : Int = 4096,
-  max_columns? : Int = 65536,
-  max_types? : Int = 4096,
-  max_fields? : Int = 65536,
-  max_bytes? : Int = 16777216,
+  keyspaces~ : Array[String] = [],
+  max_keyspaces~ : Int32 = 128,
+  max_tables~ : Int32 = 4096,
+  max_columns~ : Int32 = 65536,
+  max_types~ : Int32 = 4096,
+  max_fields~ : Int32 = 65536,
+  max_bytes~ : Int32 = 16777216,
 ) -> SchemaOptions raise DriverError {
   if max_keyspaces < 1 ||
     max_keyspaces > 65536 ||
@@ -102,12 +102,14 @@ pub extend SchemaColumnKind with @debug.Debug::{to_repr}
 
 ///|
 pub impl ToJson for SchemaColumnKind with fn to_json(self : SchemaColumnKind) -> Json {
-  (match self {
-    PartitionKey => "partition_key"
-    Clustering => "clustering"
-    Static => "static"
-    Regular => "regular"
-  }).to_json()
+  Json(
+    match self {
+      PartitionKey => "partition_key"
+      Clustering => "clustering"
+      Static => "static"
+      Regular => "regular"
+    },
+  )
 }
 
 ///|
@@ -118,7 +120,7 @@ pub(all) struct SchemaColumn {
   name : String
   cql_type : String
   kind : SchemaColumnKind
-  position : Int
+  position : Int32
   clustering_order : String
 } derive(ToJson)
 
@@ -260,8 +262,8 @@ pub fn SchemaSnapshot::user_type(
 
 ///|
 priv struct SchemaBudget {
-  limit : Int
-  mut used : Int
+  limit : Int32
+  mut used : Int32
 }
 
 ///|
@@ -279,7 +281,7 @@ fn SchemaBudget::charge(
 ///|
 fn schema_text(
   page : @protocol.Page,
-  row : Int,
+  row : Int32,
   name : String,
   budget : SchemaBudget,
 ) -> String raise {

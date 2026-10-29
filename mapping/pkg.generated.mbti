@@ -10,7 +10,7 @@ import {
 // Values
 pub fn bool_codec() -> ValueCodec[Bool]
 
-pub fn int_codec() -> ValueCodec[Int]
+pub fn int_codec() -> ValueCodec[Int32]
 
 pub fn text_codec() -> ValueCodec[String]
 
@@ -25,7 +25,7 @@ pub struct EncodeContext {
   path : String
 }
 pub fn[T] EncodeContext::field(Self, String, ValueCodec[T], T) -> @types.Value raise MappingError
-pub fn[T] EncodeContext::item(Self, Int, ValueCodec[T], T) -> @types.Value raise MappingError
+pub fn[T] EncodeContext::item(Self, Int32, ValueCodec[T], T) -> @types.Value raise MappingError
 
 pub(all) enum MappingReason {
   MissingField
@@ -80,7 +80,7 @@ pub struct ValueReader {
 }
 pub fn ValueReader::field(Self, String) -> Self raise MappingError
 pub fn ValueReader::is_null(Self) -> Bool
-pub fn ValueReader::item(Self, Int) -> Self raise MappingError
+pub fn ValueReader::item(Self, Int32) -> Self raise MappingError
 pub fn[T] ValueReader::read(Self, ValueCodec[T]) -> T raise MappingError
 pub fn ValueReader::value(Self) -> @types.Value raise MappingError
 

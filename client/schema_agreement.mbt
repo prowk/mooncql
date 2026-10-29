@@ -14,7 +14,7 @@ pub extend SchemaAgreementState with @debug.Debug::{to_repr}
 ///|
 pub(all) struct SchemaVersionObservation {
   endpoint : Endpoint
-  generation : Int
+  generation : Int32
   version : Bytes?
   error : Error?
 }
@@ -42,17 +42,17 @@ fn SchemaAgreement::snapshot(self : SchemaAgreement) -> SchemaAgreement {
 ///|
 pub(all) struct SchemaAgreementConfig {
   wait_after_ddl : Bool
-  timeout_ms : Int
-  poll_interval_ms : Int
-  max_nodes : Int
+  timeout_ms : Int32
+  poll_interval_ms : Int32
+  max_nodes : Int32
 }
 
 ///|
 pub fn SchemaAgreementConfig::new(
-  wait_after_ddl? : Bool = false,
-  timeout_ms? : Int = 10000,
-  poll_interval_ms? : Int = 100,
-  max_nodes? : Int = 1024,
+  wait_after_ddl~ : Bool = false,
+  timeout_ms~ : Int32 = 10000,
+  poll_interval_ms~ : Int32 = 100,
+  max_nodes~ : Int32 = 1024,
 ) -> SchemaAgreementConfig {
   { wait_after_ddl, timeout_ms, poll_interval_ms, max_nodes, }
 }

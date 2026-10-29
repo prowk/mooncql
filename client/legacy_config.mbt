@@ -2,56 +2,56 @@
 /// 保留 0.2.0 的完整记录构造；高级认证使用独立 ConnectionBuilder。
 pub(all) struct Config {
   host : String
-  port : Int
+  port : Int32
   username : String?
   password : String?
-  timeout_ms : Int
-  connect_timeout_ms : Int
-  queue_timeout_ms : Int
-  operation_timeout_ms : Int
-  max_frame_bytes : Int
-  max_in_flight : Int
-  max_in_flight_bytes : Int
-  max_waiting : Int
-  max_waiting_bytes : Int
+  timeout_ms : Int32
+  connect_timeout_ms : Int32
+  queue_timeout_ms : Int32
+  operation_timeout_ms : Int32
+  max_frame_bytes : Int32
+  max_in_flight : Int32
+  max_in_flight_bytes : Int32
+  max_waiting : Int32
+  max_waiting_bytes : Int32
   overload_policy : OverloadPolicy
   throw_on_overload : Bool
   compression : Bool
   tls : TlsConfig?
-  prepared_cache_capacity : Int
-  max_abandoned : Int
-  abandoned_timeout_ms : Int
-  event_capacity : Int
-  heartbeat_interval_ms : Int
-  heartbeat_timeout_ms : Int
+  prepared_cache_capacity : Int32
+  max_abandoned : Int32
+  abandoned_timeout_ms : Int32
+  event_capacity : Int32
+  heartbeat_interval_ms : Int32
+  heartbeat_timeout_ms : Int32
   metrics : Metrics?
 }
 
 ///|
 pub fn Config::new(
-  host? : String = "127.0.0.1",
-  port? : Int = 9042,
+  host~ : String = "127.0.0.1",
+  port~ : Int32 = 9042,
   username? : String,
   password? : String,
-  timeout_ms? : Int = 10000,
-  connect_timeout_ms? : Int,
-  queue_timeout_ms? : Int,
-  operation_timeout_ms? : Int,
-  max_frame_bytes? : Int = 16777216,
-  max_in_flight? : Int = 128,
-  max_in_flight_bytes? : Int = 67108864,
-  max_waiting? : Int = 64,
-  max_waiting_bytes? : Int = 67108864,
-  overload_policy? : OverloadPolicy = Wait,
-  throw_on_overload? : Bool = false,
-  compression? : Bool = false,
+  timeout_ms~ : Int32 = 10000,
+  connect_timeout_ms? : Int32,
+  queue_timeout_ms? : Int32,
+  operation_timeout_ms? : Int32,
+  max_frame_bytes~ : Int32 = 16777216,
+  max_in_flight~ : Int32 = 128,
+  max_in_flight_bytes~ : Int32 = 67108864,
+  max_waiting~ : Int32 = 64,
+  max_waiting_bytes~ : Int32 = 67108864,
+  overload_policy~ : OverloadPolicy = Wait,
+  throw_on_overload~ : Bool = false,
+  compression~ : Bool = false,
   tls? : TlsConfig,
-  prepared_cache_capacity? : Int = 64,
-  max_abandoned? : Int = 64,
-  abandoned_timeout_ms? : Int = 30000,
-  event_capacity? : Int = 256,
-  heartbeat_interval_ms? : Int = 30000,
-  heartbeat_timeout_ms? : Int = 5000,
+  prepared_cache_capacity~ : Int32 = 64,
+  max_abandoned~ : Int32 = 64,
+  abandoned_timeout_ms~ : Int32 = 30000,
+  event_capacity~ : Int32 = 256,
+  heartbeat_interval_ms~ : Int32 = 30000,
+  heartbeat_timeout_ms~ : Int32 = 5000,
   metrics? : Metrics,
 ) -> Config {
   {
@@ -86,22 +86,22 @@ pub fn Config::new(
 pub(all) struct SessionConfig {
   connection : Config
   contact_points : Array[Endpoint]
-  backoff_initial_ms : Int
-  backoff_max_ms : Int
+  backoff_initial_ms : Int32
+  backoff_max_ms : Int32
   jitter : Double
-  stable_reset_ms : Int
+  stable_reset_ms : Int32
   routing : RoutingConfig?
   discovery : DiscoveryConfig?
 }
 
 ///|
 pub fn SessionConfig::new(
-  connection? : Config = Config::new(),
-  contact_points? : Array[Endpoint] = [],
-  backoff_initial_ms? : Int = 25,
-  backoff_max_ms? : Int = 2000,
-  jitter? : Double = 0.2,
-  stable_reset_ms? : Int = 1000,
+  connection~ : Config = Config::new(),
+  contact_points~ : Array[Endpoint] = [],
+  backoff_initial_ms~ : Int32 = 25,
+  backoff_max_ms~ : Int32 = 2000,
+  jitter~ : Double = 0.2,
+  stable_reset_ms~ : Int32 = 1000,
   discovery? : DiscoveryConfig,
   routing? : RoutingConfig,
 ) -> SessionConfig {
@@ -167,7 +167,7 @@ pub fn SessionConfig::builder(self : SessionConfig) -> SessionBuilder {
 ///|
 pub async fn[G] connect(
   group : @async.TaskGroup[G],
-  config? : Config = Config::new(),
+  config~ : Config = Config::new(),
   deadline? : Deadline,
 ) -> Connection {
   connect_builder(group, config=config.builder(), deadline?)
@@ -175,7 +175,7 @@ pub async fn[G] connect(
 
 ///|
 pub async fn[T] with_connection(
-  config? : Config = Config::new(),
+  config~ : Config = Config::new(),
   body : async (Connection) -> T,
 ) -> T {
   with_connection_builder(config=config.builder(), body)
@@ -183,7 +183,7 @@ pub async fn[T] with_connection(
 
 ///|
 pub async fn[T] with_serial_connection(
-  config? : Config = Config::new(),
+  config~ : Config = Config::new(),
   body : async (Connection) -> T,
 ) -> T {
   with_serial_connection_builder(config=config.builder(), body)
@@ -191,7 +191,7 @@ pub async fn[T] with_serial_connection(
 
 ///|
 pub async fn[T] with_session(
-  config? : SessionConfig = SessionConfig::new(),
+  config~ : SessionConfig = SessionConfig::new(),
   body : async (Session) -> T,
 ) -> T {
   with_session_builder(config=config.builder(), body)

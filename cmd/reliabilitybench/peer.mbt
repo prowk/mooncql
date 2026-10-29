@@ -5,11 +5,11 @@ struct Peer {
   compressed : Bool
   decoder : @protocol.EnvelopeDecoder
   mut messages : Array[@protocol.MessageEnvelope]
-  mut position : Int
+  mut position : Int32
 }
 
 ///|
-fn Peer::new(tcp : @socket.Tcp, compressed? : Bool = false) -> Peer {
+fn Peer::new(tcp : @socket.Tcp, compressed~ : Bool = false) -> Peer {
   {
     tcp,
     framed: false,
@@ -62,8 +62,8 @@ async fn receive(socket : Peer) -> @protocol.MessageEnvelope {
 ///|
 async fn respond(
   socket : Peer,
-  stream : Int,
-  opcode : Int,
+  stream : Int32,
+  opcode : Int32,
   body : Bytes,
 ) -> Unit {
   let envelope = @protocol.encode_envelope(stream, opcode, body, response=true)

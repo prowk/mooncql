@@ -1,7 +1,7 @@
 ///|
 fn validate_duration(
-  months : Int,
-  days : Int,
+  months : Int32,
+  days : Int32,
   nanos : Int64,
 ) -> Unit raise @codec.CodecError {
   let negative = months < 0 || days < 0 || nanos < 0L

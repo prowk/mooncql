@@ -17,25 +17,25 @@ pub fn checked_columns_snapshot(Array[Column]) -> Array[Column] raise @codec.Cod
 
 pub fn columns_snapshot(Array[Column]) -> Array[Column]
 
-pub fn decode_envelope_header(Bytes, max_body? : Int) -> EnvelopeHeader raise @codec.CodecError
+pub fn decode_envelope_header(Bytes, max_body? : Int32) -> EnvelopeHeader raise @codec.CodecError
 
 pub fn decode_error(Bytes) -> ServerError raise @codec.CodecError
 
 pub fn decode_event(Bytes) -> ServerEvent raise @codec.CodecError
 
-pub fn decode_message_envelope(Bytes, max_body? : Int) -> MessageEnvelope raise @codec.CodecError
+pub fn decode_message_envelope(Bytes, max_body? : Int32) -> MessageEnvelope raise @codec.CodecError
 
 pub fn decode_payload(MessageEnvelope) -> MessagePayload raise @codec.CodecError
 
-pub fn decode_response(Int, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError
+pub fn decode_response(Int32, Bytes, cached? : Array[Column]) -> Response raise @codec.CodecError
 
-pub fn decode_response_limited(Int, Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> Response raise @codec.CodecError
+pub fn decode_response_limited(Int32, Bytes, cached? : Array[Column], max_value_nodes? : Int32, max_rows? : Int32, max_columns? : Int32, max_depth? : Int32) -> Response raise @codec.CodecError
 
-pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int) -> ResultSet raise @codec.CodecError
+pub fn decode_result(Bytes, cached? : Array[Column], max_value_nodes? : Int32) -> ResultSet raise @codec.CodecError
 
-pub fn decode_result_limited(Bytes, cached? : Array[Column], max_value_nodes? : Int, max_rows? : Int, max_columns? : Int, max_depth? : Int) -> ResultSet raise @codec.CodecError
+pub fn decode_result_limited(Bytes, cached? : Array[Column], max_value_nodes? : Int32, max_rows? : Int32, max_columns? : Int32, max_depth? : Int32) -> ResultSet raise @codec.CodecError
 
-pub fn encode_envelope(Int, Int, Bytes, response? : Bool, flags? : Int) -> Bytes raise @codec.CodecError
+pub fn encode_envelope(Int32, Int32, Bytes, response? : Bool, flags? : Int32) -> Bytes raise @codec.CodecError
 
 pub fn execute(Bytes, Bytes, Array[@types.Value], options? : QueryOptions) -> Request raise @codec.CodecError
 
@@ -49,7 +49,7 @@ pub fn query(String, values? : Array[@types.Value], options? : QueryOptions) -> 
 
 pub fn read_metadata(@codec.Reader, cached? : Array[Column]) -> Metadata raise @codec.CodecError
 
-pub fn read_metadata_limited(@codec.Reader, cached? : Array[Column], max_columns? : Int, max_depth? : Int) -> Metadata raise @codec.CodecError
+pub fn read_metadata_limited(@codec.Reader, cached? : Array[Column], max_columns? : Int32, max_depth? : Int32) -> Metadata raise @codec.CodecError
 
 pub fn register(Array[EventKind]) -> Request raise @codec.CodecError
 
@@ -99,29 +99,29 @@ pub(all) enum Consistency {
   LocalSerial
   LocalOne
 } derive(Eq, @debug.Debug)
-pub fn Consistency::code(Self) -> Int
+pub fn Consistency::code(Self) -> Int32
 pub fn Consistency::equal(Self, Self) -> Bool
 pub fn Consistency::not_equal(Self, Self) -> Bool
 pub fn Consistency::to_repr(Self) -> @debug.Repr
 
 pub struct EnvelopeDecoder {
-  max_body : Int
+  max_body : Int32
   mut prefix : Bytes
   mut header : EnvelopeHeader?
   mut body : @codec.Writer
-  mut received : Int
+  mut received : Int32
 }
 pub fn EnvelopeDecoder::buffered_bytes(Self) -> Int64
 pub fn EnvelopeDecoder::clear(Self) -> Unit
 pub fn EnvelopeDecoder::feed(Self, @framing.Frame) -> Array[MessageEnvelope] raise @codec.CodecError
-pub fn EnvelopeDecoder::new(max_body? : Int) -> Self
+pub fn EnvelopeDecoder::new(max_body? : Int32) -> Self
 
 pub(all) struct EnvelopeHeader {
   response : Bool
-  flags : Int
-  stream : Int
-  opcode : Int
-  length : Int
+  flags : Int32
+  stream : Int32
+  opcode : Int32
+  length : Int32
 } derive(Eq, @debug.Debug)
 pub fn EnvelopeHeader::equal(Self, Self) -> Bool
 pub fn EnvelopeHeader::not_equal(Self, Self) -> Bool
@@ -129,13 +129,13 @@ pub fn EnvelopeHeader::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ErrorDetail {
   Other(Bytes)
-  Unavailable(Int, Int, Int)
-  ReadTimeout(Int, Int, Int, Bool)
-  WriteTimeout(Int, Int, Int, String, Int?)
-  ReadFailure(Int, Int, Int, Array[FailureReason], Bool)
-  WriteFailure(Int, Int, Int, Array[FailureReason], String)
+  Unavailable(Int32, Int32, Int32)
+  ReadTimeout(Int32, Int32, Int32, Bool)
+  WriteTimeout(Int32, Int32, Int32, String, Int32?)
+  ReadFailure(Int32, Int32, Int32, Array[FailureReason], Bool)
+  WriteFailure(Int32, Int32, Int32, Array[FailureReason], String)
   FunctionFailure(String, String, Array[String])
-  CasWriteUnknown(Int, Int, Int)
+  CasWriteUnknown(Int32, Int32, Int32)
   AlreadyExists(String, String)
   Unprepared(Bytes)
 } derive(@debug.Debug)
@@ -152,13 +152,13 @@ pub fn EventKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct FailureReason {
   endpoint : Bytes
-  code : Int
+  code : Int32
 } derive(@debug.Debug)
 pub fn FailureReason::to_repr(Self) -> @debug.Repr
 
 pub(all) struct InetEndpoint {
   address : Bytes
-  port : Int
+  port : Int32
 } derive(Eq, @debug.Debug)
 pub fn InetEndpoint::equal(Self, Self) -> Bool
 pub fn InetEndpoint::not_equal(Self, Self) -> Bool
@@ -195,40 +195,40 @@ pub(all) struct Page {
   // private fields
 } derive(@debug.Debug)
 pub fn Page::columns_snapshot(Self) -> Array[Column]
-pub fn Page::get(Self, Int, String) -> @types.Value raise @codec.CodecError
+pub fn Page::get(Self, Int32, String) -> @types.Value raise @codec.CodecError
 pub fn Page::new(Array[Column], Array[Array[@types.Value]], paging_state? : Bytes?, new_metadata_id? : Bytes?) -> Self raise @codec.CodecError
-pub fn Page::row(Self, Int) -> Row raise RowError
+pub fn Page::row(Self, Int32) -> Row raise RowError
 pub fn Page::to_repr(Self) -> @debug.Repr
 
 pub(all) struct PreparedStatement {
   id : Bytes
   result_metadata_id : Bytes
   parameters : Array[Column]
-  partition_key_indices : Array[Int]
+  partition_key_indices : Array[Int32]
   result_columns : Array[Column]
 } derive(@debug.Debug)
 pub fn PreparedStatement::to_repr(Self) -> @debug.Repr
 
 pub(all) struct QueryOptions {
   consistency : Consistency
-  page_size : Int?
+  page_size : Int32?
   paging_state : Bytes?
   serial_consistency : Consistency?
   timestamp : Int64?
   keyspace : String?
-  now_in_seconds : Int?
+  now_in_seconds : Int32?
   value_names : Array[String]?
   skip_metadata : Bool
   request_options : RequestOptions?
 } derive(@debug.Debug)
-pub fn QueryOptions::new(consistency? : Consistency, page_size? : Int, paging_state? : Bytes, serial_consistency? : Consistency, timestamp? : Int64, keyspace? : String, now_in_seconds? : Int, value_names? : Array[String], skip_metadata? : Bool, request_options? : RequestOptions) -> Self
+pub fn QueryOptions::new(consistency? : Consistency, page_size? : Int32, paging_state? : Bytes, serial_consistency? : Consistency, timestamp? : Int64, keyspace? : String, now_in_seconds? : Int32, value_names? : Array[String], skip_metadata? : Bool, request_options? : RequestOptions) -> Self
 pub fn QueryOptions::snapshot(Self) -> Self
 pub fn QueryOptions::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Request {
-  opcode : Int
+  opcode : Int32
   body : Bytes
-  flags : Int
+  flags : Int32
 } derive(@debug.Debug)
 pub fn Request::to_repr(Self) -> @debug.Repr
 pub fn Request::with_options(Self, RequestOptions) -> Self raise @codec.CodecError
@@ -272,10 +272,10 @@ pub fn Row::columns_snapshot(Self) -> Array[Column]
 pub fn Row::date(Self, String) -> @types.CqlDate raise RowError
 pub fn Row::decimal(Self, String) -> @types.CqlDecimal raise RowError
 pub fn Row::double(Self, String) -> Double raise RowError
-pub fn Row::duration(Self, String) -> (Int, Int, Int64) raise RowError
+pub fn Row::duration(Self, String) -> (Int32, Int32, Int64) raise RowError
 pub fn Row::float(Self, String) -> Float raise RowError
 pub fn Row::inet(Self, String) -> Bytes raise RowError
-pub fn Row::int(Self, String) -> Int raise RowError
+pub fn Row::int(Self, String) -> Int32 raise RowError
 pub fn Row::int64(Self, String) -> Int64 raise RowError
 pub fn Row::is_null(Self, String) -> Bool raise RowError
 pub fn Row::list(Self, String) -> Array[@types.Value] raise RowError
@@ -289,7 +289,7 @@ pub fn Row::tuple(Self, String) -> Array[@types.Value] raise RowError
 pub fn Row::udt(Self, String) -> Array[(String, @types.Value)] raise RowError
 pub fn Row::uuid(Self, String) -> @types.CqlUuid raise RowError
 pub fn Row::value(Self, String) -> @types.Value raise RowError
-pub fn Row::value_at(Self, Int) -> @types.Value raise RowError
+pub fn Row::value_at(Self, Int32) -> @types.Value raise RowError
 pub fn Row::varint(Self, String) -> @types.CqlVarInt raise RowError
 
 pub(all) struct SchemaChange {
@@ -322,7 +322,7 @@ pub fn SchemaTarget::not_equal(Self, Self) -> Bool
 pub fn SchemaTarget::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ServerError {
-  code : Int
+  code : Int32
   message : String
   detail : ErrorDetail
 } derive(@debug.Debug)

@@ -1,14 +1,14 @@
 ///|
 pub struct EnvelopeDecoder {
-  max_body : Int
+  max_body : Int32
   mut prefix : Bytes
   mut header : EnvelopeHeader?
   mut body : @codec.Writer
-  mut received : Int
+  mut received : Int32
 }
 
 ///|
-pub fn EnvelopeDecoder::new(max_body? : Int = 16777216) -> EnvelopeDecoder {
+pub fn EnvelopeDecoder::new(max_body~ : Int32 = 16777216) -> EnvelopeDecoder {
   {
     max_body,
     prefix: b"",

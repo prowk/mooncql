@@ -13,9 +13,9 @@ pub fn encode_scalar(Value) -> Bytes raise @codec.CodecError
 
 pub fn encode_value(Value) -> Bytes raise @codec.CodecError
 
-pub fn read_type(@codec.Reader, depth? : Int) -> CqlType raise @codec.CodecError
+pub fn read_type(@codec.Reader, depth? : Int32) -> CqlType raise @codec.CodecError
 
-pub fn read_type_limited(@codec.Reader, depth? : Int, max_depth? : Int) -> CqlType raise @codec.CodecError
+pub fn read_type_limited(@codec.Reader, depth? : Int32, max_depth? : Int32) -> CqlType raise @codec.CodecError
 
 pub fn snapshot(Array[Value]) -> Array[Value] raise @codec.CodecError
 
@@ -31,11 +31,11 @@ pub fn ConversionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CqlDate {
-  days : Int
+  days : Int32
 } derive(Eq, @debug.Debug)
-pub fn CqlDate::days(Self) -> Int
+pub fn CqlDate::days(Self) -> Int32
 pub fn CqlDate::equal(Self, Self) -> Bool
-pub fn CqlDate::from_days(Int) -> Self
+pub fn CqlDate::from_days(Int32) -> Self
 pub fn CqlDate::from_string(String) -> Self raise ConversionError
 pub fn CqlDate::not_equal(Self, Self) -> Bool
 pub fn CqlDate::to_repr(Self) -> @debug.Repr
@@ -43,15 +43,15 @@ pub fn CqlDate::to_string(Self) -> String
 pub fn CqlDate::to_value(Self) -> Value
 
 pub struct CqlDecimal {
-  scale : Int
+  scale : Int32
   unscaled : CqlVarInt
 } derive(@debug.Debug)
-pub fn CqlDecimal::from_parts(Int, Bytes) -> Self raise ConversionError
-pub fn CqlDecimal::from_string(String, max_digits? : Int) -> Self raise ConversionError
-pub fn CqlDecimal::scale(Self) -> Int
-pub fn CqlDecimal::to_plain_string(Self, max_chars? : Int) -> String raise ConversionError
+pub fn CqlDecimal::from_parts(Int32, Bytes) -> Self raise ConversionError
+pub fn CqlDecimal::from_string(String, max_digits? : Int32) -> Self raise ConversionError
+pub fn CqlDecimal::scale(Self) -> Int32
+pub fn CqlDecimal::to_plain_string(Self, max_chars? : Int32) -> String raise ConversionError
 pub fn CqlDecimal::to_repr(Self) -> @debug.Repr
-pub fn CqlDecimal::to_scientific_string(Self, max_digits? : Int) -> String raise ConversionError
+pub fn CqlDecimal::to_scientific_string(Self, max_digits? : Int32) -> String raise ConversionError
 pub fn CqlDecimal::to_value(Self) -> Value
 pub fn CqlDecimal::unscaled(Self) -> CqlVarInt
 
@@ -127,25 +127,25 @@ pub struct CqlVarInt {
   bytes : Bytes
 } derive(@debug.Debug)
 pub fn CqlVarInt::from_bytes(Bytes) -> Self raise ConversionError
-pub fn CqlVarInt::from_decimal_string(String, max_digits? : Int) -> Self raise ConversionError
+pub fn CqlVarInt::from_decimal_string(String, max_digits? : Int32) -> Self raise ConversionError
 pub fn CqlVarInt::to_bytes(Self) -> Bytes
-pub fn CqlVarInt::to_decimal_string(Self, max_digits? : Int) -> String raise ConversionError
+pub fn CqlVarInt::to_decimal_string(Self, max_digits? : Int32) -> String raise ConversionError
 pub fn CqlVarInt::to_repr(Self) -> @debug.Repr
 pub fn CqlVarInt::to_value(Self) -> Value
 
 pub struct DecodeBudget {
   // private fields
 }
-pub fn DecodeBudget::new(max_nodes? : Int) -> Self raise @codec.CodecError
-pub fn DecodeBudget::new_limited(max_nodes? : Int, max_depth? : Int) -> Self raise @codec.CodecError
-pub fn DecodeBudget::remaining_nodes(Self) -> Int
+pub fn DecodeBudget::new(max_nodes? : Int32) -> Self raise @codec.CodecError
+pub fn DecodeBudget::new_limited(max_nodes? : Int32, max_depth? : Int32) -> Self raise @codec.CodecError
+pub fn DecodeBudget::remaining_nodes(Self) -> Int32
 
 pub(all) enum Value {
   Null
   Unset
   Empty
   Text(String)
-  Integer(Int)
+  Integer(Int32)
   BigInteger(Int64)
   Bytes(Bytes)
   Boolean(Bool)
@@ -153,14 +153,14 @@ pub(all) enum Value {
   Single(Float)
   Uuid(Bytes)
   Timestamp(Int64)
-  Date(Int)
+  Date(Int32)
   Time(Int64)
-  SmallInteger(Int)
-  TinyInteger(Int)
+  SmallInteger(Int32)
+  TinyInteger(Int32)
   Inet(Bytes)
-  Decimal(Int, Bytes)
+  Decimal(Int32, Bytes)
   VarInt(Bytes)
-  Duration(Int, Int, Int64)
+  Duration(Int32, Int32, Int64)
   ListValue(Array[Value])
   SetValue(Array[Value])
   MapValue(Array[(Value, Value)])

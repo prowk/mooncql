@@ -12,8 +12,8 @@ pub fn Prepared::bind_batch(
 pub async fn Connection::batch(
   self : Connection,
   statements : Array[@protocol.BatchStatement],
-  kind? : @protocol.BatchType = Logged,
-  options? : @protocol.QueryOptions = @protocol.QueryOptions::new(),
+  kind~ : @protocol.BatchType = Logged,
+  options~ : @protocol.QueryOptions = @protocol.QueryOptions::new(),
   deadline? : Deadline,
 ) -> Unit {
   let deadline = self.operation_deadline(deadline)

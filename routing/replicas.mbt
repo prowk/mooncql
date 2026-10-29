@@ -1,7 +1,7 @@
 ///|
 pub(all) enum Replication {
-  Simple(Int)
-  NetworkTopology(Map[String, Int])
+  Simple(Int32)
+  NetworkTopology(Map[String, Int32])
   Unsupported(String)
 }
 
@@ -26,7 +26,7 @@ pub fn replication(options : Map[String, String]) -> Replication {
     }
     "org.apache.cassandra.locator.NetworkTopologyStrategy"
     | "NetworkTopologyStrategy" => {
-      let factors : Map[String, Int] = Map([])
+      let factors : Map[String, Int32] = Map([])
       for dc, text in options {
         if dc == "class" {
           continue
@@ -61,7 +61,7 @@ pub(all) struct Node {
 ///|
 struct Entry {
   token : Int64
-  node : Int
+  node : Int32
 }
 
 ///|
@@ -105,8 +105,8 @@ pub fn Ring::new(nodes : Array[Node], partitioner : String) -> Ring? {
 
 ///|
 priv struct DcReplicas {
-  mut left : Int
-  mut repeats : Int
+  mut left : Int32
+  mut repeats : Int32
   racks : Map[String, Bool]
 }
 
@@ -206,7 +206,7 @@ pub fn Ring::replicas(
 pub fn Replication::snapshot(self : Replication) -> Replication {
   match self {
     NetworkTopology(factors) => {
-      let copy : Map[String, Int] = Map([])
+      let copy : Map[String, Int32] = Map([])
       for dc, factor in factors {
         copy[dc] = factor
       }

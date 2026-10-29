@@ -1,20 +1,20 @@
 ///|
 /// 不可变的接收限制，在启动作用域前构造并校验；不改变 ConnectionBuilder 的公开记录字段。
 pub struct ResponseLimits {
-  body_bytes : Int
-  rows : Int
-  columns : Int
-  value_nodes : Int
-  depth : Int
+  body_bytes : Int32
+  rows : Int32
+  columns : Int32
+  value_nodes : Int32
+  depth : Int32
 }
 
 ///|
 pub fn ResponseLimits::new(
-  max_body_bytes? : Int = 16777216,
-  max_rows? : Int = 1000000,
-  max_columns? : Int = 65535,
-  max_value_nodes? : Int = 1000000,
-  max_depth? : Int = 32,
+  max_body_bytes~ : Int32 = 16777216,
+  max_rows~ : Int32 = 1000000,
+  max_columns~ : Int32 = 65535,
+  max_value_nodes~ : Int32 = 1000000,
+  max_depth~ : Int32 = 32,
 ) -> ResponseLimits raise DriverError {
   if max_body_bytes < 1 {
     raise Configuration("max_body_bytes must be 1..2147483647")

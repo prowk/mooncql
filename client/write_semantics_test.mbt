@@ -1,7 +1,7 @@
 ///|
 fn commitment_write(
-  kind : Int,
-  large? : Bool = false,
+  kind : Int32,
+  large~ : Bool = false,
 ) -> @protocol.Request raise {
   let values : Array[@types.Value] = if large {
     [Bytes(Bytes::make(32000000, b'x'))]

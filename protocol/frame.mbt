@@ -1,10 +1,10 @@
 ///|
 pub(all) struct EnvelopeHeader {
   response : Bool
-  flags : Int
-  stream : Int
-  opcode : Int
-  length : Int
+  flags : Int32
+  stream : Int32
+  opcode : Int32
+  length : Int32
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -16,7 +16,7 @@ pub(all) struct MessageEnvelope {
 ///|
 pub fn decode_envelope_header(
   bytes : Bytes,
-  max_body? : Int = 16777216,
+  max_body~ : Int32 = 16777216,
 ) -> EnvelopeHeader raise @codec.CodecError {
   let r = @codec.Reader::new(bytes)
   let version = r.u8()
@@ -44,11 +44,11 @@ pub fn decode_envelope_header(
 
 ///|
 pub fn encode_envelope(
-  stream : Int,
-  opcode : Int,
+  stream : Int32,
+  opcode : Int32,
   body : Bytes,
-  response? : Bool = false,
-  flags? : Int = 0,
+  response~ : Bool = false,
+  flags~ : Int32 = 0,
 ) -> Bytes raise @codec.CodecError {
   if stream < -1 ||
     stream > 32767 ||
@@ -71,7 +71,7 @@ pub fn encode_envelope(
 ///|
 pub fn decode_message_envelope(
   bytes : Bytes,
-  max_body? : Int = 16777216,
+  max_body~ : Int32 = 16777216,
 ) -> MessageEnvelope raise @codec.CodecError {
   let r = @codec.Reader::new(bytes)
   let header = decode_envelope_header(r.take(9), max_body~)

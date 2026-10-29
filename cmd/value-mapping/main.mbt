@@ -1,7 +1,7 @@
 ///|
 struct Place {
   street : String
-  coordinate : (Int, String?)
+  coordinate : (Int32, String?)
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -11,7 +11,7 @@ fn place_codec() -> @mapping.ValueCodec[Place] raise {
   let optional_text = text.optional()
   let pair = @mapping.ValueCodec::new(
     Tuple([Int, Varchar]),
-    (coordinate : (Int, String?), context) => {
+    (coordinate : (Int32, String?), context) => {
       TupleValue([
         context.item(0, number, coordinate.0),
         context.item(1, optional_text, coordinate.1),

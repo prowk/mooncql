@@ -1,5 +1,5 @@
 ///|
-fn extension(w : @codec.Writer, length : Int) -> Unit {
+fn extension(w : @codec.Writer, length : Int32) -> Unit {
   let mut remaining = length
   while remaining >= 255 {
     w.u8(255)
@@ -9,7 +9,7 @@ fn extension(w : @codec.Writer, length : Int) -> Unit {
 }
 
 ///|
-fn hash4(bytes : Bytes, offset : Int) -> Int {
+fn hash4(bytes : Bytes, offset : Int32) -> Int32 {
   let value = bytes[offset].to_int() |
     (bytes[offset + 1].to_int() << 8) |
     (bytes[offset + 2].to_int() << 16) |
@@ -80,9 +80,9 @@ pub fn lz4_compress(bytes : Bytes) -> Bytes {
 ///|
 fn read_length(
   r : @codec.Reader,
-  base : Int,
-  limit : Int,
-) -> Int raise @codec.CodecError {
+  base : Int32,
+  limit : Int32,
+) -> Int32 raise @codec.CodecError {
   let mut length = base
   if base == 15 {
     let mut next = 255
@@ -103,7 +103,7 @@ fn read_length(
 ///|
 pub fn lz4_decompress(
   bytes : Bytes,
-  expected : Int,
+  expected : Int32,
 ) -> Bytes raise @codec.CodecError {
   if expected < 0 || expected > 131071 {
     raise @codec.CodecError("invalid LZ4 output length")
