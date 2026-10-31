@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [Schema agreement](schema-agreement.md) · [批处理与生命周期](development-api.md)
 
-本页适用于**0.2.1**。已发布的 0.2.0 不包含这些接口。
+本页适用于**0.2.1 和 0.2.2**。已发布的 0.2.0 不包含这些接口。
 
 ## 读取与范围
 

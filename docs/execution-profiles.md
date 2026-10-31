@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [分页](paging.md) · [重试](retries.md) · [超时与取消](timeouts.md)
 
-本页适用于**0.2.1**。已发布的 0.2.0 不包含 `ExecutionProfile`。可复用的请求配置参考 [Java Driver execution profiles](https://apache.github.io/cassandra-java-driver/4.19.0/core/configuration/)，此处直接传递不可变对象，无配置文件、名称注册或热更新。
+本页适用于**0.2.1 和 0.2.2**。已发布的 0.2.0 不包含 `ExecutionProfile`。可复用的请求配置参考 [Java Driver execution profiles](https://apache.github.io/cassandra-java-driver/4.19.0/core/configuration/)，此处直接传递不可变对象，无配置文件、名称注册或热更新。
 
 ## 创建和选择
 

@@ -2,11 +2,11 @@
 
 [文档目录](README.md) · [连接配置](configuration.md)
 
-本教程使用 0.2.1，在专用单节点 Cassandra 5.0.5 上创建表，写入三条事件并逐页读取。默认地址为 127.0.0.1:9042。
+本教程使用 0.2.2，在专用单节点 Cassandra 5.0.5 上创建表，写入三条事件并逐页读取。默认地址为 127.0.0.1:9042。
 
 ## 1. 准备数据库
 
-安装 MoonBit native 工具链及平台 C 编译器。Windows 使用 MSVC，Linux 使用 GCC 或 Clang；启用 TLS 的 Linux 环境还需要 OpenSSL。
+安装 moonc 0.10.18+6c83a7f62 及配套 core 的 MoonBit native 工具链，以及平台 C 编译器。Windows 使用 MSVC，Linux 使用 GCC 或 Clang；启用 TLS 的 Linux 环境还需要 OpenSSL。
 
 使用仓库的 Compose 启动演示数据库：
 
@@ -25,7 +25,7 @@ docker compose up -d --wait --wait-timeout 360
 ```sh
 moon new mooncql-demo
 cd mooncql-demo
-moon add prowk/mooncql@0.2.1
+moon add prowk/mooncql@0.2.2
 moon add moonbitlang/async@0.22.3
 ```
 

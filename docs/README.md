@@ -1,6 +1,6 @@
 # mooncql 文档
 
-适用于 0.2.1。[项目首页](../README.md) · [API](https://mooncakes.io/docs/prowk/mooncql)
+适用于 0.2.1 和 0.2.2。[项目首页](../README.md) · [API](https://mooncakes.io/docs/prowk/mooncql)
 
 ## 开始使用
 

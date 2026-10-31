@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.1。
+本文适用于 0.2.1 和 0.2.2。
 
 `Config::new(prepared_cache_capacity=64)` 设置每个连接的 LRU 容量，允许 0 至 65536，默认 64。0 禁用常驻缓存，但同时等待同一语句准备的调用仍合并为一个 PREPARE。缓存键包含完整 CQL 与准备时的 keyspace。命中会刷新最近使用顺序；超过容量淘汰最久未使用的条目。
 

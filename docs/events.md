@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.1。`connection.register([TopologyChange, StatusChange, SchemaChange])` 等待 REGISTER 对应的 READY，随后用 `connection.next_event()` 异步读取 ServerEvent。事件也可能在 READY 之前到达，接收器会保存到同一有界队列中。
+本文适用于 0.2.1 和 0.2.2。`connection.register([TopologyChange, StatusChange, SchemaChange])` 等待 REGISTER 对应的 READY，随后用 `connection.next_event()` 异步读取 ServerEvent。事件也可能在 READY 之前到达，接收器会保存到同一有界队列中。
 
 ```moonbit
 connection.register([SchemaChange])

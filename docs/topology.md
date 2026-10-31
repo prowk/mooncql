@@ -4,7 +4,7 @@
 
 0.2.1 新增的成员身份替换保护、DC／rack 变化回归和双 DC 实库入口见[多数据中心与拓扑变化](multidc.md)。
 
-本文适用于 0.2.1。给 SessionConfig 传入 `discovery=DiscoveryConfig::new()` 即可从 contact_points 的种子节点读取并发现其他节点；省略 discovery 时继续使用显式节点配置。驱动单独维护一条控制连接，业务请求仍使用每个节点自己的连接。
+本文适用于 0.2.1 和 0.2.2。给 SessionConfig 传入 `discovery=DiscoveryConfig::new()` 即可从 contact_points 的种子节点读取并发现其他节点；省略 discovery 时继续使用显式节点配置。驱动单独维护一条控制连接，业务请求仍使用每个节点自己的连接。
 
 ```moonbit
 @client.with_session(

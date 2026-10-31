@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md) · [验收清单](acceptance.md)
 
-三个目录各有自己的 `main.mbt` 和 `moon.pkg`，仅调用公开库接口，可从仓库根目录分别运行，也可由[消费验收脚本](../scripts/package_acceptance.py)复制到独立项目，通过 Mooncakes 安装的 0.1.0 和 0.2.0 分别构建运行。
+三个目录各有自己的 `main.mbt` 和 `moon.pkg`，仅调用公开库接口，可从仓库根目录分别运行，也可由[消费验收脚本](../scripts/package_acceptance.py)复制到独立项目，通过 Mooncakes 安装的 0.1.0、0.2.0、0.2.1 和 0.2.2 分别构建运行。
 
 ## 环境和输入
 

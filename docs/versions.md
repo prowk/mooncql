@@ -8,7 +8,10 @@
 | --- | --- | --- |
 | 申报版 0.1.0 | `moon add prowk/mooncql@0.1.0` | [固定标签中的 README](https://github.com/prowk/mooncql/blob/v0.1.0/README.md)、[历史 Release](https://github.com/prowk/mooncql/releases/tag/v0.1.0) |
 | 历史版 0.2.0 | `moon add prowk/mooncql@0.2.0` | [稳定版入门](https://github.com/prowk/mooncql/blob/v0.2.0/docs/getting-started.md)、[稳定 Release](https://github.com/prowk/mooncql/releases/tag/v0.2.0) |
-| 当前稳定版 0.2.1 | `moon add prowk/mooncql@0.2.1` | [入门教程](getting-started.md)、[Release](https://github.com/prowk/mooncql/releases/tag/v0.2.1) |
+| 历史版 0.2.1 | `moon add prowk/mooncql@0.2.1` | [固定入门](https://github.com/prowk/mooncql/blob/v0.2.1/docs/getting-started.md)、[Release](https://github.com/prowk/mooncql/releases/tag/v0.2.1) |
+| 当前稳定版 0.2.2 | `moon add prowk/mooncql@0.2.2` | [入门教程](getting-started.md)、[Release](https://github.com/prowk/mooncql/releases/tag/v0.2.2) |
+
+0.2.2 的编译器与 core 固定为 moonc 0.10.18+6c83a7f62，moon 为 0.1.20261028；0.2.1 发布时使用 moonc 0.10.14+7d59c7ec9。升级应用前先更新配套工具链。Int／UInt 在新生成接口中显示为等价的 Int32／UInt32，公开调用与数据语义保持兼容。
 
 直接使用异步应用入口的独立项目还须执行 `moon add moonbitlang/async@0.22.3`，在 `moon.pkg` 导入自身直接使用的包。历史 README 未单独列出直接依赖的安装命令；不能依靠驱动的传递依赖代替声明应用依赖。
 

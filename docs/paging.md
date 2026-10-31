@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.1。Connection、Prepared、Session 和 SessionPrepared 都提供 pages；next 返回一页，next_with_info 另外保留本页执行信息。Session 的 Pager 可以继续使用自动恢复后的连接。
+本文适用于 0.2.1 和 0.2.2。Connection、Prepared、Session 和 SessionPrepared 都提供 pages；next 返回一页，next_with_info 另外保留本页执行信息。Session 的 Pager 可以继续使用自动恢复后的连接。
 
 ```moonbit
 let options = @protocol.QueryOptions::new(page_size=100)

@@ -78,7 +78,24 @@ async test "local control queue timeout or rejection retains healthy subscribed 
             }
             let before = session.control_status().unwrap()
             @async.with_task_group(requests => {
-              let business = requests.spawn(() => session.query("held"))
+              let business = requests.spawn(() => {
+                // 空闲快照与发送之间仍可能有控制刷新；只重试尚未发送的本地额度失败。
+                let mut result : @protocol.ResultSet? = None
+                while result is None {
+                  result = Some(session.query("held")) catch {
+                    @client.SessionOverloaded(_) => None
+                    @client.TimedOut(info) => {
+                      assert_true(!info.may_have_been_sent)
+                      None
+                    }
+                    error => raise error
+                  }
+                  if result is None {
+                    @async.pause()
+                  }
+                }
+                result.unwrap()
+              })
               held.get()
               while session.control_status().unwrap().last_error is None {
                 @async.pause()

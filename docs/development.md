@@ -48,7 +48,7 @@ unit 包含 native、Python、API、文档和固定种子模拟；reference 包�
 
 `check_api.py` 将七个公开包与固定 v0.2.0 标签对照，并核对 [api-compatibility.json](../fixtures/api-compatibility.json)。检查包括调用签名、公开记录字段、枚举／错误分支与导出实现，不把不透明类型私有字段的变化当作构造接口变化。补丁版本禁止修改或删除稳定声明；扩展选项必须使用独立新增接口。审阅 `moon info` 和[迁移说明](migration.md)后才用 `--update` 更新新增声明合同，该参数不能绕过稳定声明保护。
 
-完整发布包验收还运行 `moon package --frozen` 和 `python scripts/patch_compatibility.py`。后者在独立模块先安装实际 0.2.0，逐文件核对标签和运行时源码，再实编译五种旧完整记录和五类穷尽匹配；随后在隔离 workspace 中将该应用的依赖指向未经修改的候选归档，复编旧接口、README、三个场景和新 Builder 示例。该 workspace 仅用于候选验证，不冒充注册表已发布包。发布后仍须真实安装 0.2.1。原生回归另断言旧入口能同时持有 130 个 RPC，避免不经意引入新的全局 128 个默认上限。接口检查不能替代默认值、取消、重试或协议行为的回归。
+完整发布包验收还运行 `moon package --frozen` 和 `python scripts/patch_compatibility.py`。后者在独立模块先安装实际 0.2.0，逐文件核对标签和运行时源码，再实编译五种旧完整记录和五类穷尽匹配；随后在隔离 workspace 中将该应用的依赖指向未经修改的候选归档，复编旧接口、README、三个场景和新 Builder 示例。该 workspace 仅用于候选验证，不冒充注册表已发布包。发布后仍须真实安装 0.2.2。原生回归另断言旧入口能同时持有 130 个 RPC，避免不经意引入新的全局 128 个默认上限。接口检查不能替代默认值、取消、重试或协议行为的回归。
 
 本地 TCP 模拟组件集中在 `client/test_node_test.mbt`：所有模拟用例复用 Peer、握手及编解帧，FaultBarrier 对 OPTIONS、STARTUP、AUTH_RESPONSE、业务写入、首段响应和关闭提供带阶段名称的有界同步；write_chunks 可逐字节拆分。损坏 CRC、合帧、迟到响应和半帧 EOF 可组合，不以固定 sleep 作为竞争发生的唯一依据。每个用例仍须用外层总超时与任务组收尾本次服务器。
 

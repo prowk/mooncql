@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.1。给 QueryOptions 传入 RequestOptions，可为 QUERY / EXECUTE / BATCH 发送 tracing 标志和 custom payload；PREPARE 通过 prepare 的 request_options 参数传入。
+本文适用于 0.2.1 和 0.2.2。给 QueryOptions 传入 RequestOptions，可为 QUERY / EXECUTE / BATCH 发送 tracing 标志和 custom payload；PREPARE 通过 prepare 的 request_options 参数传入。
 
 ```moonbit
 let options = @protocol.QueryOptions::new(

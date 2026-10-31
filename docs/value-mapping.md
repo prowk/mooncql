@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [Row 与值](rows.md) · [批处理与生命周期](development-api.md)
 
-本页仅适用于**0.2.1**，新接口位于 `prowk/mooncql/mapping`。映射器由应用显式声明 CQL 类型和转换函数；不推断表结构、不生成查询，也不自动保存应用对象。
+本页适用于**0.2.1 和 0.2.2**，新接口位于 `prowk/mooncql/mapping`。映射器由应用显式声明 CQL 类型和转换函数；不推断表结构、不生成查询，也不自动保存应用对象。
 
 ## Value 与 Row
 

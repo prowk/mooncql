@@ -2,7 +2,7 @@
 
 [文档目录](README.md) · [入门教程](getting-started.md)
 
-本文适用于 0.2.1。默认每个业务请求只尝试一次；连接自动恢复不会重放失败的请求。只有调用方明确声明 `idempotent=true` 后，Session.query、Session.request 的 QUERY / EXECUTE 和 SessionPrepared.execute 才启用 RetryPolicy。驱动不分析 CQL，也不根据 SELECT 等前缀推断幂等性。
+本文适用于 0.2.1 和 0.2.2。默认每个业务请求只尝试一次；连接自动恢复不会重放失败的请求。只有调用方明确声明 `idempotent=true` 后，Session.query、Session.request 的 QUERY / EXECUTE 和 SessionPrepared.execute 才启用 RetryPolicy。驱动不分析 CQL，也不根据 SELECT 等前缀推断幂等性。
 
 ```moonbit
 let result = session.query(
